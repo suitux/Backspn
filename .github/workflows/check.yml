@@ -3,12 +3,19 @@ name: check
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "site/**"
+      - "docs/**"
+      - "**/*.md"
+      - "LICENSE"
+      - ".github/workflows/pages.yml"
+      - ".github/workflows/release.yml"
   pull_request:
   workflow_dispatch:
 
 concurrency:
   group: check-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: true
 
 jobs:
   check:
