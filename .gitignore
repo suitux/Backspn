@@ -6,3 +6,8 @@ __pycache__/
 *.nml
 !tests/fixtures/**/*.nml
 *.tsi
+
+/.claude/settings.local.json
+/.claude/worktrees/
+/.claude/skills/
+/.agents/skills/
