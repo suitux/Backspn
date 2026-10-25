@@ -10,6 +10,6 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-backspn-decode = { version = "0.1.0", path = "../decode" }
-backspn-formats = { version = "0.1.0", path = "../formats" }
-backspn-stretch = { version = "0.1.0", path = "../stretch" }
+backspn-decode = { path = "../decode" }
+backspn-formats = { path = "../formats" }
+backspn-stretch = { path = "../stretch" }

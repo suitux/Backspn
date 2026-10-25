@@ -7,7 +7,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-backspn-deck = { version = "0.1.0", path = "../deck" }
+backspn-deck = { path = "../deck" }
 
 [lints]
 workspace = true

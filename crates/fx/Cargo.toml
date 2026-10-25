@@ -7,7 +7,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-backspn-dsp = { version = "0.1.0", path = "../dsp" }
+backspn-dsp = { path = "../dsp" }
 serde = { version = "1.0.229", features = ["derive"] }
 
 [dev-dependencies]

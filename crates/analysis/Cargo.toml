@@ -9,7 +9,7 @@ publish.workspace = true
 [dependencies]
 ebur128 = "0.1.10"
 realfft = "3.5.0"
-backspn-decode = { version = "0.1.0", path = "../decode" }
+backspn-decode = { path = "../decode" }
 
 [lints]
 workspace = true

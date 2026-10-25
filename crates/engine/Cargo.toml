@@ -11,12 +11,12 @@ cpal = "0.18.2"
 log = "0.4.34"
 rtrb = "0.4.0"
 thiserror.workspace = true
-backspn-deck = { version = "0.1.0", path = "../deck" }
-backspn-fx = { version = "0.1.0", path = "../fx" }
-backspn-link = { version = "0.1.0", path = "../link" }
-backspn-mixer = { version = "0.1.0", path = "../mixer" }
-backspn-sampler = { version = "0.1.0", path = "../sampler" }
-backspn-sync = { version = "0.1.0", path = "../sync" }
+backspn-deck = { path = "../deck" }
+backspn-fx = { path = "../fx" }
+backspn-link = { path = "../link" }
+backspn-mixer = { path = "../mixer" }
+backspn-sampler = { path = "../sampler" }
+backspn-sync = { path = "../sync" }
 triple_buffer = "9.0.0"
 
 [lints]

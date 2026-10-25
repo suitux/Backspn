@@ -77,6 +77,9 @@ Only a release tag publishes installers (`.github/workflows/release.yml`):
 published. The release goes out once the packages for all three systems are
 ready.
 
+`scripts/release.sh` sets the workspace version, commits it, tags and, after
+asking, pushes `main` and the tag:
+
 ```sh
-git tag v0.1.0-beta1 && git push origin v0.1.0-beta1
+scripts/release.sh 0.1.0-beta1
 ```

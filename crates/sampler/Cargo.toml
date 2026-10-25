@@ -10,7 +10,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-backspn-deck = { version = "0.1.0", path = "../deck" }
-backspn-decode = { version = "0.1.0", path = "../decode" }
-backspn-dsp = { version = "0.1.0", path = "../dsp" }
-backspn-sync = { version = "0.1.0", path = "../sync" }
+backspn-deck = { path = "../deck" }
+backspn-decode = { path = "../decode" }
+backspn-dsp = { path = "../dsp" }
+backspn-sync = { path = "../sync" }
