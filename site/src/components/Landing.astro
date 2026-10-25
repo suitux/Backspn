@@ -40,7 +40,7 @@ const button = 'inline-flex min-h-12 items-center gap-2.5 rounded-full px-[22px]
 const primary = `${button} bg-accent text-ink-dark hover:bg-accent-hover`;
 const ghost = `${button} bg-tile text-paper hover:bg-tile-2`;
 const h2 = 'text-[clamp(2rem,1.4rem+2.2vw,3.25rem)] font-[650] leading-[1.05] tracking-[-0.03em] text-balance';
-const abs = (path: string) => new URL(path, Astro.site).href;
+const abs = (path: string) => new URL(path, Astro.site).href.replace(/\/$/, '');
 const canonical = abs(home(lang));
 const ogImage = abs(asset('og.jpg'));
 // Structured data for search engines: the app itself, free, on three systems.

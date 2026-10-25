@@ -1,6 +1,6 @@
 # Backspn website
 
-Astro landing page, in English (`/`) and Spanish (`/es/`).
+Astro landing page, in English (`/`) and Spanish (`/es`).
 
 Published at <https://backspn.com> on GitHub Pages: every push to `main`
 that touches `site/` deploys it (`.github/workflows/pages.yml`).
