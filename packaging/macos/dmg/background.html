@@ -1,0 +1,129 @@
+<!doctype html>
+<!--
+  Source of the disk image window background (660x440 points).
+  Re-render background.png / background@2x.png after editing:
+    packaging/macos/dmg/render.sh
+  Keep everything within the top 400 points: since macOS 26 Finder shows a tab
+  bar in the window, which hides the bottom 40. Icon centres are set in
+  make-dmg.sh: Backspn at (170, 196), Applications at (490, 196).
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face {
+    font-family: 'Inter';
+    src: url('../../../site/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2');
+    font-weight: 100 900;
+  }
+  @font-face {
+    font-family: 'Geist Mono';
+    src: url('../../../site/node_modules/@fontsource/geist-mono/files/geist-mono-latin-500-normal.woff2') format('woff2');
+    font-weight: 500;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 660px; height: 440px; overflow: hidden; background: #0e0f11; }
+  body {
+    position: relative;
+    font-family: 'Inter', sans-serif;
+    color: #f2f1ee;
+    -webkit-font-smoothing: antialiased;
+  }
+  .glow {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(420px 220px at 50% 432px, rgb(45 129 255 / 0.22), transparent 70%),
+      radial-gradient(260px 160px at 86% 0%, rgb(143 85 252 / 0.10), transparent 70%);
+  }
+  .grain {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgb(242 241 238 / 0.035) 1px, transparent 1px);
+    background-size: 14px 14px;
+    mask-image: linear-gradient(to bottom, transparent, #000 40%, #000 70%, transparent);
+  }
+  .bars { position: absolute; left: 32px; top: 30px; display: flex; gap: 8px; }
+  .bars i { display: block; width: 30px; height: 5px; border-radius: 1px; }
+  .title {
+    position: absolute; left: 32px; top: 48px;
+    font-size: 21px; font-weight: 700; letter-spacing: -0.02em;
+  }
+  .hint {
+    position: absolute; right: 32px; top: 30px;
+    font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.08em;
+    color: #8d8c8a; text-transform: uppercase; text-align: right; line-height: 1.6;
+  }
+  .slot {
+    position: absolute; width: 176px; height: 196px; top: 104px;
+    border-radius: 18px;
+    background: linear-gradient(to bottom, rgb(28 29 33 / 0.9), rgb(24 25 29 / 0.6));
+    box-shadow: inset 0 0 0 1px rgb(242 241 238 / 0.08), 0 20px 40px -20px rgb(0 0 0 / 0.6);
+  }
+  .slot.a { left: 82px; }
+  .slot.b { left: 402px; }
+  .slot .tag {
+    position: absolute; left: 14px; top: 12px;
+    font-family: 'Geist Mono', monospace; font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+  }
+  /* Finder draws the item names black in light mode and white in dark mode,
+     so they sit on a mid grey plate that keeps both readable. */
+  .plate {
+    position: absolute; left: 50%; bottom: 17px; transform: translateX(-50%);
+    width: 128px; height: 24px; border-radius: 6px;
+    background: #7b7b82;
+  }
+  .wave {
+    position: absolute; left: 270px; top: 196px; transform: translateY(-50%);
+    display: flex; align-items: center; gap: 3px;
+  }
+  .wave i {
+    display: block; width: 3px; border-radius: 2px;
+  }
+  .head { position: absolute; left: 372px; top: 184px; }
+  .foot {
+    position: absolute; left: 0; right: 0; top: 360px; text-align: center;
+    font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.08em;
+    color: #8d8c8a; text-transform: uppercase;
+  }
+  .foot b { color: #f2f1ee; font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="grain"></div>
+
+  <div class="bars">
+    <i style="background:#3568c9"></i><i style="background:#d97700"></i><i style="background:#a55cff"></i><i style="background:#00a873"></i>
+  </div>
+  <div class="title">Install Backspn</div>
+  <div class="hint">Free &amp; open source<br>DJ software</div>
+
+  <div class="slot a"><span class="tag" style="color:#7ea3ee">DECK A</span><div class="plate"></div></div>
+  <div class="slot b"><span class="tag" style="color:#e0a050">DECK B</span><div class="plate"></div></div>
+
+  <div class="wave" id="wave"></div>
+  <svg class="head" width="24" height="24" viewBox="0 0 24 24">
+    <path d="M7 4 L17 12 L7 20" fill="none" stroke="#FE63B7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+
+  <div class="foot">Drag <b>Backspn</b> onto <b>Applications</b></div>
+
+  <script>
+    // Waveform from the logo gradient: blue on the app side, pink at the arrow.
+    const stops = ['#44BEFD', '#478BFD', '#7362FC', '#B24CFC', '#E648EB', '#FE63B7'];
+    const heights = [6, 10, 16, 12, 22, 30, 18, 26, 34, 20, 14, 24, 16, 10, 8, 5];
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+    const wave = document.getElementById('wave');
+    heights.forEach((h, i) => {
+      const t = i / (heights.length - 1) * (stops.length - 1);
+      const k = Math.min(Math.floor(t), stops.length - 2);
+      const [a, b] = [hex(stops[k]), hex(stops[k + 1])];
+      const c = a.map((v, j) => Math.round(lerp(v, b[j], t - k)));
+      const bar = document.createElement('i');
+      bar.style.height = h + 'px';
+      bar.style.background = `rgb(${c.join(' ')})`;
+      wave.appendChild(bar);
+    });
+  </script>
+</body>
+</html>

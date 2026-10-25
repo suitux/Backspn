@@ -104,20 +104,18 @@ impl Browser {
                 .size(10.5)
                 .strong()
                 .color(color);
-            let label = egui::Label::new(text).sense(egui::Sense::click_and_drag());
-            let response = if column.sortable() {
-                ui.add(label)
-                    .on_hover_cursor(egui::CursorIcon::PointingHand)
-            } else {
-                ui.add(label)
-            };
-            response.dnd_set_drag_payload(ColumnDrag(column));
+            ui.add(egui::Label::new(text).selectable(false));
+            // The whole cell reacts, not only the text.
             let cell = ui.max_rect();
-            let zone = ui.interact(
+            let mut zone = ui.interact(
                 cell,
-                egui::Id::unique(("column-drop", column)),
-                egui::Sense::hover(),
+                egui::Id::unique(("column-header", column)),
+                egui::Sense::click_and_drag(),
             );
+            if column.sortable() {
+                zone = zone.on_hover_cursor(egui::CursorIcon::PointingHand);
+            }
+            zone.dnd_set_drag_payload(ColumnDrag(column));
             let after = |pos: egui::Pos2| pos.x > cell.center().x;
             if let (Some(_), Some(pos)) = (
                 zone.dnd_hover_payload::<ColumnDrag>(),
@@ -137,13 +135,16 @@ impl Browser {
             ) {
                 this.columns.move_column(drag.0, column, after(pos));
             }
-            if column.sortable() && response.clicked() {
+            if column.sortable() && zone.clicked() {
                 this.sort = sort_clicked(&this.sort, column);
                 this.remember_sorting();
                 this.recompute();
             }
-            if response.secondary_clicked() {
-                this.columns_menu_at = response.interact_pointer_pos();
+            if zone.secondary_clicked()
+                && let Some(pos) = zone.interact_pointer_pos()
+            {
+                this.columns_menu_at = Some((pos, ui.ctx().cumulative_frame_nr()));
+                this.columns_query.clear();
             }
         };
         let in_playlist = match self.source {
@@ -521,7 +522,7 @@ impl Browser {
     }
 
     pub(super) fn columns_popup(&mut self, ctx: &egui::Context) {
-        let Some(at) = self.columns_menu_at else {
+        let Some((at, opened)) = self.columns_menu_at else {
             return;
         };
         let area = egui::Area::new(egui::Id::unique("browser-columns-menu"))
@@ -531,32 +532,77 @@ impl Browser {
             .show(ctx, |ui| {
                 egui::Frame::menu(ui.style()).show(ui, |ui| self.columns_menu(ui));
             });
-        let clicked_outside = ctx.input(|i| {
-            i.pointer.any_pressed()
-                && i.pointer
-                    .interact_pos()
-                    .is_some_and(|p| !area.response.rect.contains(p))
-        });
+        // A two finger tap presses and releases in the frame that opens the
+        // menu, and that press must not count as a click outside it.
+        let clicked_outside = ctx.cumulative_frame_nr() != opened
+            && ctx.input(|i| {
+                i.pointer.any_pressed()
+                    && i.pointer
+                        .interact_pos()
+                        .is_some_and(|p| !area.response.rect.contains(p))
+            });
         if clicked_outside || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
             self.columns_menu_at = None;
         }
     }
 
     pub(super) fn columns_menu(&mut self, ui: &mut Ui) {
+        // Size of the unfiltered list, kept while searching so the menu does
+        // not jump around.
+        let size_id = egui::Id::unique("browser-columns-menu-size");
+        let full: Option<egui::Vec2> = ui.data(|d| d.get_temp(size_id));
         ui.label(RichText::new(tr("Columns")).weak());
-        let half = BrowserColumn::ALL.len().div_ceil(2);
-        ui.horizontal_top(|ui| {
-            for part in BrowserColumn::ALL.chunks(half) {
-                ui.vertical(|ui| {
-                    for &column in part {
-                        let mut shown = self.columns.is_shown(column);
-                        if crate::widgets::check(ui, &mut shown, column.name()).changed() {
-                            self.columns.set_shown(column, shown);
-                        }
-                    }
-                });
+        let field = ui.add(
+            egui::TextEdit::singleline(&mut self.columns_query)
+                .hint_text(tr("Search"))
+                .desired_width(full.map_or(160.0, |s| s.x)),
+        );
+        if !field.has_focus() && !field.lost_focus() {
+            field.request_focus();
+        }
+        let query = self.columns_query.trim().to_lowercase();
+        let shown: Vec<BrowserColumn> = BrowserColumn::ALL
+            .iter()
+            .copied()
+            .filter(|c| c.name().to_lowercase().contains(&query))
+            .collect();
+        if field.lost_focus()
+            && ui.input(|i| i.key_pressed(egui::Key::Enter))
+            && let Some(&first) = shown.first()
+        {
+            self.columns.set_shown(first, !self.columns.is_shown(first));
+            field.request_focus();
+        }
+        let grid = ui.scope(|ui| {
+            if let Some(size) = full.filter(|_| !query.is_empty()) {
+                ui.set_min_size(size);
+                ui.set_max_width(size.x);
             }
+            if shown.is_empty() {
+                ui.label(RichText::new(tr("No matches")).weak());
+                return;
+            }
+            let half = BrowserColumn::ALL.len().div_ceil(2);
+            ui.horizontal_top(|ui| {
+                for part in shown.chunks(half) {
+                    ui.vertical(|ui| {
+                        for &column in part {
+                            let mut shown = self.columns.is_shown(column);
+                            if crate::widgets::check(ui, &mut shown, column.name()).changed() {
+                                self.columns.set_shown(column, shown);
+                            }
+                        }
+                    });
+                }
+            });
         });
+        if query.is_empty() {
+            let size = grid.response.rect.size();
+            if full != Some(size) {
+                ui.data_mut(|d| d.insert_temp(size_id, size));
+                ui.ctx().request_repaint();
+            }
+        }
         ui.separator();
         if ui.button(tr("Reset columns")).clicked() {
             self.columns = ColumnLayout::default();

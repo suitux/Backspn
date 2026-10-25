@@ -62,11 +62,11 @@ jobs:
           cargo packager --release --formats ${{ matrix.formats }}
       - name: Sign and make the disk image
         if: runner.os == 'macOS'
-        working-directory: target/packages
         run: |
-          codesign --force --deep --sign - Backspn.app
-          codesign --verify --deep --strict Backspn.app
-          hdiutil create -volname Backspn -srcfolder Backspn.app -ov -format UDZO Backspn.dmg
+          brew install create-dmg
+          codesign --force --deep --sign - target/packages/Backspn.app
+          codesign --verify --deep --strict target/packages/Backspn.app
+          packaging/macos/dmg/make-dmg.sh target/packages/Backspn.app target/packages/Backspn.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: backspn-${{ runner.os }}
