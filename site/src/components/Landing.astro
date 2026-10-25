@@ -6,8 +6,8 @@ import { getRelativeLocaleUrl } from 'astro:i18n';
 import AppWindow from './AppWindow.astro';
 import Media from './Media.astro';
 import Ui from './Ui.astro';
-import { dictionaries, github, type Lang } from '../i18n';
-import { features, videos, hero } from '../media';
+import { dictionaries, github, releases, type Lang } from '../i18n';
+import { features, gallery, videos, hero, ready, anyReady, asset } from '../media';
 
 interface Props {
   lang: Lang;
@@ -18,6 +18,11 @@ const other: Lang = lang === 'en' ? 'es' : 'en';
 const home = (l: Lang) => getRelativeLocaleUrl(l, '');
 const featureIds = ['mixing', 'stems', 'effects', 'samples', 'library', 'controllers'] as const;
 const videoIds = ['overview', 'set', 'setup'] as const;
+const galleryIds = ['kits', 'loopRecorder', 'drumMachine', 'saveAsLoop', 'patterns', 'themes'] as const;
+const galleryWide = new Set<string>(['patterns', 'themes']);
+// The videos section stays hidden until at least one recording is in public/media/.
+const hasVideos = anyReady(videos);
+const sections = [['#features', t.nav.features], ['#gallery', t.nav.gallery], ...(hasVideos ? [['#videos', t.nav.videos]] : []), ['#faq', t.nav.faq]];
 
 const deck = ['border-deck-a', 'border-deck-b', 'border-deck-c', 'border-deck-d', 'border-deck-a', 'border-deck-b'];
 const bullet = ['before:bg-deck-a', 'before:bg-deck-b', 'before:bg-deck-c', 'before:bg-deck-d', 'before:bg-deck-a', 'before:bg-deck-b'];
@@ -45,7 +50,7 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{t.meta.title}</title>
     <meta name="description" content={t.meta.description} />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href={asset('favicon.svg')} type="image/svg+xml" />
     <link rel="alternate" hreflang="en" href={home('en')} />
     <link rel="alternate" hreflang="es" href={home('es')} />
     <meta property="og:title" content={t.meta.title} />
@@ -54,10 +59,10 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
   <body>
     <header class={`${page} sticky top-0 z-10 grid grid-cols-[1fr_auto] items-center gap-6 bg-ground py-3.5 md:grid-cols-[1fr_auto_1fr]`}>
       <a class="inline-flex items-center gap-2.5 text-lg font-[650] tracking-[-0.02em] no-underline" href={home(lang)}>
-        <img src="/favicon.svg" alt="" width="28" height="28" />Backspn
+        <img src={asset('favicon.svg')} alt="" width="28" height="28" />Backspn
       </a>
       <nav class="hidden gap-7 md:flex" aria-label={t.nav.features}>
-        {[['#features', t.nav.features], ['#videos', t.nav.videos], ['#faq', t.nav.faq]].map(([href, label]) => (
+        {sections.map(([href, label]) => (
           <a class="text-soft no-underline transition-colors hover:text-paper" href={href}>{label}</a>
         ))}
       </nav>
@@ -70,12 +75,16 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
     <main>
       <section class={`${page} pt-10 sm:pt-[72px]`} aria-labelledby="title">
         <div class="grid justify-items-start gap-[22px] sm:justify-items-center sm:text-center">
-          <h1 id="title" class="max-w-[13ch] text-[clamp(2.75rem,1.2rem+6vw,5.5rem)] leading-[0.98] font-bold tracking-[-0.045em] text-balance">{t.hero.title}</h1>
+          <span class="inline-flex items-center gap-2 rounded-full bg-tile px-3.5 py-1.5 text-sm font-semibold"><i class="size-2 rounded-full bg-deck-c" aria-hidden="true"></i>{t.hero.badge}</span>
+          <h1 id="title" class="max-w-[18ch] text-[clamp(2.5rem,1.2rem+5vw,4.75rem)] leading-[0.98] font-bold tracking-[-0.045em] text-balance">{t.hero.title}</h1>
           <p class="max-w-[54ch] text-xl text-pretty text-soft">{t.hero.lead}</p>
           <div class="mt-1.5 flex flex-wrap gap-3 sm:justify-center">
-            <a class={primary} href={github}>{t.hero.primary}</a>
-            <a class={ghost} href="#videos"><Fragment set:html={playIcon} />{t.hero.secondary}</a>
+            <a class={primary} href={releases}>{t.hero.primary}</a>
+            {hasVideos
+              ? <a class={ghost} href="#videos"><Fragment set:html={playIcon} />{t.hero.secondary}</a>
+              : <a class={ghost} href="#gallery">{t.hero.screens}</a>}
           </div>
+          <p class="text-sm text-soft">{t.hero.platforms}</p>
         </div>
         <div class="mt-10 overflow-hidden rounded-[10px] shadow-[0_0_0_1px_var(--color-line),0_40px_120px_-40px_rgb(45_129_255/0.35)] sm:mt-16 sm:rounded-[14px]">
           <Media clip={hero} as="loop" alt={t.hero.windowLabel} eager><AppWindow /></Media>
@@ -99,7 +108,7 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
           const f = t.features.items[id];
           return (
             <article class="grid items-center gap-7 md:grid-cols-[7fr_5fr] md:gap-16">
-              <div class={`overflow-hidden rounded-xl border-t-[3px] bg-app shadow-[0_0_0_1px_var(--color-line)] max-sm:has-[[role=img]]:aspect-auto aspect-[16/10] ${deck[i]} ${i % 2 ? 'md:order-2' : ''}`}>
+              <div class={`overflow-hidden rounded-xl border-t-[3px] bg-app shadow-[0_0_0_1px_var(--color-line)] ${ready(features[id].file) ? '' : 'max-sm:has-[[role=img]]:aspect-auto aspect-[16/10]'} ${deck[i]} ${i % 2 ? 'md:order-2' : ''}`}>
                 <Media clip={features[id]} as="loop" alt={f.title}>
                   <div class={`grid h-full content-center gap-2 bg-app p-3.5 sm:gap-3.5 sm:p-7 ${mock[id]}`}>
                     {id === 'mixing' && (<><Ui kind="deck" deck="A" seed={7} /><Ui kind="deck" deck="B" seed={13} /><Ui kind="clock" /></>)}
@@ -125,6 +134,27 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
         })}
       </section>
 
+      <section class={`${page} grid gap-10 pt-[100px] md:pt-40`} id="gallery" aria-labelledby="gallery-title">
+        <div class="grid max-w-[640px] gap-4">
+          <h2 id="gallery-title" class={h2}>{t.gallery.title}</h2>
+          <p class="text-[19px] text-soft">{t.gallery.lead}</p>
+        </div>
+        <div class="grid items-start gap-x-6 gap-y-10 md:grid-cols-2">
+          {galleryIds.map((id) => {
+            const g = t.gallery.items[id];
+            return (
+              <figure class={`grid content-start gap-3 ${galleryWide.has(id) ? 'md:col-span-2' : ''}`}>
+                <div class="overflow-hidden rounded-xl bg-app shadow-[0_0_0_1px_var(--color-line)]">
+                  <Media clip={gallery[id]} as="loop" alt={g.title}><div class="aspect-[16/10]"></div></Media>
+                </div>
+                <figcaption class="grid gap-0.5"><b class="font-semibold">{g.title}</b><span class="text-soft">{g.text}</span></figcaption>
+              </figure>
+            );
+          })}
+        </div>
+      </section>
+
+      {hasVideos && (
       <section class={`${page} grid gap-10 pt-[100px] md:pt-40`} id="videos" aria-labelledby="videos-title">
         <div class="grid max-w-[640px] gap-4">
           <h2 id="videos-title" class={h2}>{t.videos.title}</h2>
@@ -149,6 +179,7 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
           })}
         </div>
       </section>
+      )}
 
       <section class={`${page} grid gap-12 pt-[100px] md:grid-cols-[4fr_8fr] md:pt-40`} aria-labelledby="specs-title">
         <h2 id="specs-title" class={h2}>{t.specs.title}</h2>
@@ -191,16 +222,19 @@ cargo run --release -p backspn-app</code></pre>
         </div>
         <h2 id="cta-title" class={h2}>{t.cta.title}</h2>
         <p class="max-w-[48ch] text-soft">{t.cta.text}</p>
-        <a class={primary} href={github}>{t.cta.action}</a>
+        <div class="flex flex-wrap justify-center gap-3">
+          <a class={primary} href={releases}>{t.cta.action}</a>
+          <a class={ghost} href={`${github}/issues`}>{t.cta.report}</a>
+        </div>
       </section>
     </main>
 
     <footer class={`${page} mt-20 grid grid-cols-2 gap-8 border-t border-line pt-10 pb-12 md:grid-cols-[2fr_1fr_1fr_1fr]`}>
       <a class="col-span-2 inline-flex items-center gap-2.5 self-start text-lg font-[650] tracking-[-0.02em] no-underline md:col-span-1" href={home(lang)}>
-        <img src="/favicon.svg" alt="" width="28" height="28" />Backspn
+        <img src={asset('favicon.svg')} alt="" width="28" height="28" />Backspn
       </a>
       {[
-        [t.footer.product, [['#features', t.nav.features], ['#videos', t.nav.videos], ['#faq', t.nav.faq]]],
+        [t.footer.product, [[releases, t.footer.download], ...sections]],
         [t.footer.source, [[github, 'GitHub'], [`${github}/issues`, t.footer.issues], ['https://www.gnu.org/licenses/gpl-3.0.html', t.footer.licence]]],
       ].map(([title, links]) => (
         <div>

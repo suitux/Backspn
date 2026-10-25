@@ -20,7 +20,7 @@ const poster = 'poster' in clip && ready(clip.poster) ? url(clip.poster) : undef
   <video class="size-full object-cover" src={url(clip.file)} poster={poster} autoplay muted loop playsinline preload={eager ? 'auto' : 'metadata'} aria-label={alt}></video>
 )}
 {has && as === 'loop' && !isVideo && (
-  <img class="size-full object-cover" src={url(clip.file)} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" />
+  <img class="block h-auto w-full" src={url(clip.file)} alt={alt} width={clip.size?.[0]} height={clip.size?.[1]} loading={eager ? 'eager' : 'lazy'} decoding="async" />
 )}
 {!has && (
   <div class="relative size-full" role="img" aria-label={alt}>

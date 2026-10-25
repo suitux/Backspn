@@ -22,8 +22,17 @@ Mix with sync and keylock, split any track into stems on your own machine and
 play 74 effects on the beat. Backspn is written in Rust, runs on macOS,
 Windows and Linux, and is released under the GPL.
 
-> **Status: early.** There is no release yet; build it from source (see
-> [Building](#building)). Testers with a controller are especially welcome.
+> **Status: public beta.** Every feature below is finished. Download a build
+> for macOS (`.dmg`), Windows (`.exe`) or Linux (`.deb`, AppImage) from
+> [Releases](https://github.com/suitux/Backspn/releases), or build it from
+> source (see [Building](#building)). Please report what breaks in
+> [Issues](https://github.com/suitux/Backspn/issues); testers with a
+> controller are especially welcome.
+>
+> The beta builds are not notarised by Apple or signed for Windows yet. On
+> macOS, open the app once, then choose **Open Anyway** in System Settings ▸
+> Privacy & Security; on Windows, choose **More info ▸ Run anyway** in
+> SmartScreen.
 
 ## Features
 
