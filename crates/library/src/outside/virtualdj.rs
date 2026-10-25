@@ -386,10 +386,10 @@ fn resolve(path: &str, base: &Path) -> String {
     let bytes = path.as_bytes();
     let drive_letter = bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':';
     let unc = path.starts_with("\\\\");
-    if Path::new(path).is_absolute() || drive_letter || unc {
+    if Path::new(path).is_absolute() || path.starts_with('/') || drive_letter || unc {
         return path.to_owned();
     }
-    base.join(path.trim_start_matches(['/', '\\']))
+    base.join(path.trim_start_matches('\\'))
         .to_string_lossy()
         .into_owned()
 }

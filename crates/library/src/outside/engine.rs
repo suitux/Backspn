@@ -716,7 +716,10 @@ mod tests {
         assert_eq!(rating(100), 255);
         assert_eq!(rating(150), 255);
         let root = Path::new("/Users/me/Music/Engine Library");
-        assert_eq!(absolute(root, "../Pop/a.mp3"), "/Users/me/Music/Pop/a.mp3");
+        assert_eq!(
+            Path::new(&absolute(root, "../Pop/a.mp3")),
+            Path::new("/Users/me/Music/Pop/a.mp3")
+        );
         assert_eq!(absolute(root, "/abs/b.mp3"), "/abs/b.mp3");
         assert_eq!(absolute(root, "C:/x/c.mp3"), "C:/x/c.mp3");
     }
