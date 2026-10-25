@@ -261,6 +261,35 @@ Settings live in `settings.json` in your system's data folder (override with
 `BACKSPN_SETTINGS`): `~/Library/Application Support/Backspn` on macOS,
 `%APPDATA%\Backspn` on Windows and `~/.local/share/Backspn` on Linux.
 
+## Anonymous usage statistics
+
+Backspn can send an anonymous summary once a day so its developer knows how it
+is used. The aggregated results are public at
+[backspn.com/insights](https://backspn.com/insights). Nothing is sent until
+you answer the notice shown on first launch.
+
+**What is sent**: a random install ID (a new one after *Reset All Settings*),
+the version, the system and processor, the interface language, the sample rate,
+buffer size and channel count, whether headphones cue is set up, the models of
+the supported controllers you connect, the number of tracks, analysed tracks
+and playlists with a count per file format, a few settings (number of decks
+and FX units, quantize, snap, auto gain, external mixer, Link, MIDI clock) and
+counts of what happened since the last report: sessions, time open, playing
+and recording, tracks loaded and played, mixes, recordings, stems separated,
+sync, hotcues, loops, beat jumps, samples, auto fades, Link sessions, effects
+switched on (per effect), imports (per kind), presses from a controller or the
+keyboard, crashes and unexpected closes.
+
+**What is never sent**: track, artist or playlist names, file paths, tags,
+names of audio or MIDI devices, the content of logs or crash reports, and your
+IP address (the server does not store it).
+
+**See it and switch it off**: Preferences ▸ Global Settings ▸ Anonymous Usage
+Statistics shows the exact report, when the last one was sent, and a switch.
+`BACKSPN_INSIGHTS=0` turns it off for good. Development builds never send.
+
+The collector is a Cloudflare Worker in [`insights/`](insights/).
+
 ## Contributing
 
 Bug reports, controller profiles and pull requests are welcome. The workspace
@@ -311,6 +340,7 @@ it) and `BACKSPN_MAPPINGS` to another `mappings.json`.
 | `Backup/` | Library backups and `.bak` copies made before settings are rewritten |
 | `Logs/Backspn.log` | The session log |
 | `Crashlogs/last-crash.txt` | The report of the last unclean exit |
+| `insights.json` | The random install ID and the usage counts not yet sent |
 
 **Music folder**: `~/Music/Backspn/` (each folder can be changed in
 Preferences).

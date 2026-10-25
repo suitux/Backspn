@@ -1195,6 +1195,41 @@ impl Library {
         let nml = backspn_formats::nml::Nml::from_path(path)?;
         nml_io::import(&mut self.conn, &nml)
     }
+
+    pub fn stats(&self) -> Result<Stats> {
+        let mut stats = Stats {
+            playlists: self
+                .conn
+                .query_row(
+                    "SELECT COUNT(*) FROM nodes WHERE kind = 'playlist'",
+                    [],
+                    |r| r.get::<_, i64>(0),
+                )?
+                .unsigned_abs(),
+            ..Stats::default()
+        };
+        let mut stmt = self.conn.prepare("SELECT path, analyzed FROM tracks")?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            let path: String = row.get(0)?;
+            stats.tracks += 1;
+            stats.analyzed += u64::from(row.get::<_, bool>(1)?);
+            let extension = Path::new(&path)
+                .extension()
+                .and_then(|e| e.to_str())
+                .map_or_else(String::new, str::to_ascii_lowercase);
+            *stats.extensions.entry(extension).or_default() += 1;
+        }
+        Ok(stats)
+    }
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Stats {
+    pub tracks: u64,
+    pub analyzed: u64,
+    pub playlists: u64,
+    pub extensions: std::collections::BTreeMap<String, u64>,
 }
 
 #[cfg(test)]

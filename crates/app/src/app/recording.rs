@@ -24,7 +24,10 @@ impl App {
         };
         let rate = engine.info().sample_rate;
         match self.recorder.start(rate, &self.recorder_options()) {
-            Ok(tap) => self.outbox.push(tap),
+            Ok(tap) => {
+                self.outbox.push(tap);
+                self.count(|u| u.recordings += 1);
+            }
             Err(e) => {
                 crate::toast::error(format!("Cannot record: {e}"));
                 self.recorder.set_error(format!("Cannot record: {e}"));

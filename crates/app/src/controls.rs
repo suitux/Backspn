@@ -447,6 +447,23 @@ impl Controls {
         out
     }
 
+    pub fn models(&self) -> Vec<String> {
+        let shipped = backspn_control::profile::all();
+        let mut models: Vec<String> = self
+            .devices
+            .iter()
+            .filter(|d| d.connected())
+            .map(|d| d.name().to_owned())
+            .collect();
+        for port in &self.ports {
+            models.push(shipped.iter().find(|p| p.owns(&port.name)).map_or_else(
+                || "other-midi".to_owned(),
+                backspn_control::profile::Profile::name,
+            ));
+        }
+        models
+    }
+
     pub fn native_connected(&self, name: &str) -> bool {
         self.devices
             .iter()

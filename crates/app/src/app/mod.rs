@@ -2,6 +2,7 @@ mod audio_offer;
 mod cues;
 mod history;
 mod input;
+mod insights;
 mod layout;
 mod layouts;
 mod link;

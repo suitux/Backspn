@@ -282,7 +282,7 @@ cargo run --release -p backspn-app</code></pre>
         <img src={asset('favicon.svg')} alt="" width="28" height="28" />Backspn
       </a>
       {[
-        [t.footer.product, [[releases, t.footer.download], ...sections]],
+        [t.footer.product, [[releases, t.footer.download], ...sections, [getRelativeLocaleUrl(lang, 'insights'), t.footer.stats]]],
         [t.footer.source, [[github, 'GitHub'], [`${github}/issues`, t.footer.issues], ['https://www.gnu.org/licenses/gpl-3.0.html', t.footer.licence]]],
       ].map(([title, links]) => (
         <div>

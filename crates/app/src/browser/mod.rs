@@ -177,6 +177,7 @@ pub struct Browser {
     selection: Selection,
     scroll_to_selected: bool,
     message: Option<String>,
+    pub(crate) usage: crate::insights::Usage,
 }
 
 const PREPARATION: &str = "Preparation";
@@ -280,6 +281,7 @@ impl Browser {
             selection: Selection::default(),
             scroll_to_selected: false,
             message: None,
+            usage: crate::insights::Usage::default(),
         };
         browser.refresh();
         browser.show(Source::Collection);

@@ -36,6 +36,7 @@ impl App {
             let mut request = LoadRequest::file(path);
             request.analysis = self.settings.load_analysis();
             self.decks[deck].load(request);
+            self.count(|u| u.tracks_loaded += 1);
         }
     }
 
@@ -101,6 +102,7 @@ impl App {
         let generation = self.engine_state().decks[deck].generation;
         self.watch[deck] = Some(track_store::Watch::new(id, generation));
         self.decks[deck].load(request);
+        self.count(|u| u.tracks_loaded += 1);
     }
 
     pub(crate) fn handle_browser_actions(&mut self, actions: Vec<BrowserAction>) {

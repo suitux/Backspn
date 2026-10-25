@@ -28,6 +28,14 @@ pub enum Program {
     EngineDj,
 }
 
+fn outside_key(kind: Outside) -> &'static str {
+    match kind {
+        Outside::Xml => "library-xml",
+        Outside::Music => "apple-music",
+        Outside::Program(_) => "dj-program",
+    }
+}
+
 impl Program {
     const ALL: [Self; 3] = [Self::Serato, Self::VirtualDj, Self::EngineDj];
 
@@ -422,7 +430,10 @@ impl Browser {
         let tracks: Vec<&ExternalTrack> = owned.iter().collect();
         let Ok(db) = &mut self.lib else { return };
         match db.import_external_tracks(&tracks) {
-            Ok(ids) => self.message = Some(format!("Imported {} tracks", ids.len())),
+            Ok(ids) => {
+                self.usage.imports.add(outside_key(kind));
+                self.message = Some(format!("Imported {} tracks", ids.len()));
+            }
             Err(e) => crate::toast::error(format!("Import failed: {e}")),
         }
         self.refresh();
@@ -464,6 +475,7 @@ impl Browser {
         for node in &nodes {
             match db.import_external_node(lib, node, None) {
                 Ok(r) => {
+                    self.usage.imports.add(outside_key(kind));
                     tracks += r.tracks;
                     lists += r.playlists;
                 }

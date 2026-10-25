@@ -1,0 +1,30 @@
+name = "backspn-insights"
+main = "src/index.ts"
+compatibility_date = "2026-10-25"
+
+# Installs report to a domain we own, so the backend can move without breaking old releases.
+routes = [{ pattern = "insights.backspn.com", custom_domain = true }]
+
+# 00:05 UTC: summarize the days that just closed.
+[triggers]
+crons = ["5 0 * * *"]
+
+[vars]
+# Origins allowed to read /summary.json from a browser (the dashboard lives on backspn.com).
+ALLOWED_ORIGINS = "https://backspn.com,http://localhost:4321,http://localhost:4322"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "backspn-insights"
+database_id = "8380e73d-6b4b-443c-824f-c77c024c2639"
+migrations_dir = "migrations"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.1

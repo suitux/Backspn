@@ -837,3 +837,24 @@ Loop on / off. Drag the loop onto a sample deck cell or onto Loops; right-click 
 Drag onto a sample deck cell to copy the loop there, or onto Loops to save it	Arrastra a una celda de un sample deck para copiar ahí el bucle, o a Loops para guardarlo
 Drag the loop onto a sample deck cell or onto Loops; right-click to save it	Arrastra el bucle a una celda de un sample deck o a Loops; clic derecho para guardarlo
 No matches	Sin coincidencias
+Anonymous usage counts and the install's random ID	Recuentos de uso anónimos y el ID aleatorio de la instalación
+Anonymous Usage Statistics	Estadísticas de uso anónimas
+Send anonymous usage statistics	Enviar estadísticas de uso anónimas
+Once a day: version, system, audio settings, controller models, library size and counts such as mixes made. Never track names, file paths or device names.	Una vez al día: versión, sistema, ajustes de audio, modelos de controladora, tamaño de la librería y recuentos como mezclas hechas. Nunca nombres de pistas, rutas ni nombres de dispositivos.
+Backspn can send an anonymous summary once a day so its developer knows how it is used: version, system, audio settings, controller models, library size and counts such as mixes made or effects used. It never sends track names, file paths, device names or your IP address. You can see exactly what is sent, and switch it off, in Preferences ▸ Global Settings.	Backspn puede enviar un resumen anónimo una vez al día para que su desarrollador sepa cómo se usa: versión, sistema, ajustes de audio, modelos de controladora, tamaño de la librería y recuentos como mezclas hechas o efectos usados. Nunca envía nombres de pistas, rutas de archivos, nombres de dispositivos ni tu dirección IP. Puedes ver exactamente qué se envía, y desactivarlo, en Preferencias ▸ Ajustes generales.
+Show What Is Sent…	Ver qué se envía…
+Shows the exact report Backspn would send now	Muestra el informe exacto que Backspn enviaría ahora
+Send Now	Enviar ahora
+Public statistics	Estadísticas públicas
+Send	Enviar
+Don't Send	No enviar
+Last sent less than an hour ago	Último envío hace menos de una hora
+Last sent {n} hours ago	Último envío hace {n} horas
+Last sent {n} days ago	Último envío hace {n} días
+Switched off by BACKSPN_INSIGHTS.	Desactivado con BACKSPN_INSIGHTS.
+Development builds never send statistics.	Las compilaciones de desarrollo nunca envían estadísticas.
+Sending…	Enviando…
+Not sent yet	Aún no enviado
+Last try failed	El último intento falló
+What Is Sent	Qué se envía
+Usage counts are what happened since the last report.	Los recuentos de uso son lo ocurrido desde el último informe.

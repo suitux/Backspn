@@ -25,6 +25,14 @@ fn crash_ask() -> Ask<CrashAnswer> {
 
 impl App {
     pub(crate) fn offer_crash_report(&mut self, pending: Pending) {
+        let crashed = pending.panic.is_some();
+        self.count(|u| {
+            if crashed {
+                u.crashes += 1;
+            } else {
+                u.unclean_exits += 1;
+            }
+        });
         self.crash = Some(pending);
         self.crash_ask = Some(crash_ask());
     }

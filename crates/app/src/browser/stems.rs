@@ -149,10 +149,13 @@ impl Browser {
                     self.generated.borrow_mut().remove(&track);
                     let name = self.track_label(track);
                     match &result {
-                        Ok(_) => self.activity.push(
-                            crate::activity::Level::Done,
-                            format!("{} {name}", tr("Stems ready:")),
-                        ),
+                        Ok(_) => {
+                            self.usage.stems_separated += 1;
+                            self.activity.push(
+                                crate::activity::Level::Done,
+                                format!("{} {name}", tr("Stems ready:")),
+                            );
+                        }
                         Err(e) if e == "cancelled" => self.activity.push(
                             crate::activity::Level::Info,
                             format!("{} {name}", tr("Stems cancelled:")),

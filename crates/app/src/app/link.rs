@@ -46,6 +46,9 @@ pub(crate) fn tempo_move(
 
 impl App {
     pub(crate) fn set_link(&mut self, on: bool) {
+        if on && !self.link.enabled() {
+            self.count(|u| u.link_sessions += 1);
+        }
         self.link.enable(on);
         self.link_tempo = 0.0;
         self.outbox.push(Command::Sync(SyncCommand::SetLink(on)));

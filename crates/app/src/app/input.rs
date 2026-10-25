@@ -88,6 +88,9 @@ impl App {
         let Some((action, trigger)) = self.pad_layer_action(action, trigger, state) else {
             return;
         };
+        if trigger == Trigger::Press {
+            self.count(|u| count_action(u, action));
+        }
         if self.mixer.apply(action, trigger, &mut self.outbox)
             || self.fx.apply(action, trigger, &mut self.outbox)
             || self.cue_action(action, trigger, state)
@@ -700,6 +703,7 @@ impl App {
             .get_or_insert_with(|| Controls::open(ctx, clock));
         let events = controls.events(ctx);
         let mut triggers = Vec::new();
+        let mut inputs = crate::insights::Tally::default();
         if let Some(wizard) = self.wizard.as_mut().filter(|w| w.testing()) {
             for (source, event) in &events {
                 wizard.record(source, event);
@@ -707,12 +711,15 @@ impl App {
         } else {
             for (source, event) in &events {
                 if !controls.learn_from(source, event) {
-                    triggers.extend(controls.map(source, event));
+                    let mapped = controls.map(source, event);
+                    count_presses(&mut inputs, source, &mapped);
+                    triggers.extend(mapped);
                 }
             }
         }
         triggers.extend(controls.repeats(ctx));
         self.motor_decks = controls.motor_decks();
+        self.count(|u| u.inputs.merge(&inputs));
         for (action, trigger) in triggers {
             self.execute(action, trigger, state);
         }
@@ -897,6 +904,26 @@ impl App {
             }
         }
         controls.send_screens(frames);
+    }
+}
+
+fn count_presses(inputs: &mut crate::insights::Tally, source: &str, mapped: &[(Action, Trigger)]) {
+    let presses = mapped.iter().filter(|(_, t)| *t == Trigger::Press).count();
+    let kind = if source == crate::controls::KEYBOARD {
+        "keyboard"
+    } else {
+        "controller"
+    };
+    inputs.add_n(kind, presses as u64);
+}
+
+fn count_action(u: &mut crate::insights::Usage, action: Action) {
+    match action {
+        Action::Hotcue { .. } => u.hotcues += 1,
+        Action::BeatJump { .. } => u.beat_jumps += 1,
+        Action::SampleSlot { .. } | Action::SampleCell { .. } => u.samples += 1,
+        Action::AutoFade { .. } => u.auto_fades += 1,
+        _ => {}
     }
 }
 

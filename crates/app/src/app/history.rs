@@ -16,6 +16,7 @@ impl App {
         let now = Instant::now();
         let dt = now.duration_since(self.last_frame).as_secs_f64();
         self.last_frame = now;
+        self.tick_insights(state, dt);
         let samples: [played::DeckSample; DECKS] = std::array::from_fn(|d| played::DeckSample {
             track: self.decks[d].track_id(),
             playing: state.decks[d].playing,
@@ -25,6 +26,11 @@ impl App {
             .play_clock
             .tick(dt, &samples, self.settings.played_state_delay);
         for event in events {
+            if let played::PlayEvent::Played { deck, .. } = event
+                && self.insights_on()
+            {
+                self.insights.played(deck);
+            }
             if let Err(e) = self.apply_play_event(event) {
                 log::warn!("cannot store the played state: {e}");
             }

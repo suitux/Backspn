@@ -87,6 +87,9 @@ impl App {
         if self.prefs.open {
             self.prefs.deck_setup = self.deck_setup();
         }
+        if self.prefs.open {
+            self.prefs.insights_status = Some(self.insights_status());
+        }
         if self.prefs.open
             && let Some(controls) = &mut self.controls
         {
@@ -111,6 +114,8 @@ impl App {
                 Some(crate::prefs::Global::ReportProblem) => Self::report_problem(),
                 Some(crate::prefs::Global::ShowLogFile) => Self::show_log_file(),
                 Some(crate::prefs::Global::ResetSettings) => self.ask_reset(),
+                Some(crate::prefs::Global::InsightsPreview) => self.preview_insights(),
+                Some(crate::prefs::Global::InsightsSend) => self.send_insights(),
                 None => {}
             }
             self.apply_kit_edits();

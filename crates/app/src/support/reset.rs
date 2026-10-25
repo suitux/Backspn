@@ -11,6 +11,7 @@ pub const DELETED: &[&str] = &[
     "Controller and MIDI mappings",
     "Downloaded stem separation model",
     "Logs and crash reports",
+    "Anonymous usage counts and the install's random ID",
 ];
 
 pub const KEPT: &[&str] = &[
@@ -36,7 +37,7 @@ fn with_backup(path: PathBuf) -> [PathBuf; 2] {
 }
 
 fn targets(settings: &Path, ui_state: &Path, mappings: &Path, model: &Path) -> Targets {
-    let mut files = Vec::new();
+    let mut files = vec![settings.with_file_name("insights.json")];
     for path in [settings, ui_state, mappings] {
         files.extend(with_backup(path.to_owned()));
     }
@@ -106,6 +107,7 @@ mod tests {
         assert!(t.files.contains(&data.join("settings.json.bak")));
         assert!(t.files.contains(&data.join("ui-state.ron")));
         assert!(t.files.contains(&data.join("mappings.json.bak")));
+        assert!(t.files.contains(&data.join("insights.json")));
         assert!(t.dirs.contains(&data.join("models")));
         assert!(t.dirs.contains(&data.join("Crashlogs")));
         for kept in ["library.sqlite", "Backup", "Covers", "Kits"] {

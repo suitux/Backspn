@@ -300,6 +300,7 @@ impl App {
                 backspn_formats::nml::KeyNotation::from_value(self.settings.key_notation_exported),
             );
             self.browser.import_music_folders();
+            self.count(|u| u.imports.add("folders"));
         }
     }
 

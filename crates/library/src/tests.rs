@@ -721,3 +721,18 @@ fn adding_the_scan_column_keeps_edits() {
     drop(lib);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn stats_count_without_names() {
+    let mut lib = Library::open_in_memory().unwrap();
+    lib.add_read_files(vec![
+        (PathBuf::from("/music/A.FLAC"), FileFacts::default()),
+        (PathBuf::from("/music/B.mp3"), FileFacts::default()),
+        (PathBuf::from("/music/C.mp3"), FileFacts::default()),
+    ])
+    .unwrap();
+    let stats = lib.stats().unwrap();
+    assert_eq!((stats.tracks, stats.analyzed), (3, 0));
+    assert_eq!(stats.extensions.get("flac"), Some(&1));
+    assert_eq!(stats.extensions.get("mp3"), Some(&2));
+}

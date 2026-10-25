@@ -72,6 +72,7 @@ impl App {
                 return;
             }
         };
+        self.count(|u| u.imports.add("set"));
         let present: Vec<PathBuf> = files.iter().flatten().cloned().collect();
         let mut ids = self.browser.add_files_keyed(&present).into_iter();
         let tracks: Vec<Option<i64>> = files

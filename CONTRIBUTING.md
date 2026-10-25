@@ -14,6 +14,7 @@
 | `crates/library` | SQLite library: import, own export format (`.backspn`), search, playlists, smartlists |
 | `crates/control` | MIDI and keyboard mappings, MIDI learn, native HID drivers behind a trait (`control::controller`) |
 | `crates/app` | The egui application |
+| `insights/` | Cloudflare Worker that collects the anonymous usage reports and serves the public statistics (TypeScript, own workflow `.github/workflows/insights.yml`) |
 
 ## Checks
 
@@ -65,6 +66,11 @@ files.
 - **Lints**: clippy `pedantic` with `-D warnings`; every `#[allow]` states its
   reason and is removed once it is no longer needed.
 - **Interface**: follow the visual rules in [docs/design.md](docs/design.md).
+- **Usage statistics**: only counts and flags go into `insights::Report`
+  (`crates/app/src/insights/`), never names, paths or free text. Changing the
+  report means changing `insights/src/schema.ts` too, then refreshing the shared
+  fixture with `BACKSPN_BLESS=1 cargo test -p backspn-app server_fixture`; both
+  the Rust and the Worker tests read it, so they fail while the two disagree.
 
 ## Releases
 

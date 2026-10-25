@@ -20,6 +20,7 @@ mod fx_view;
 mod grid_edit;
 mod i18n;
 mod icon;
+mod insights;
 mod jog;
 mod key_shift;
 mod key_view;
@@ -192,6 +193,9 @@ struct App {
     crash: Option<support::crash::Pending>,
     crash_ask: Option<modal::Ask<app::CrashAnswer>>,
     update: support::update::Check,
+    insights: insights::Insights,
+    insights_ask: Option<modal::Ask<bool>>,
+    insights_preview: Option<String>,
 }
 
 impl App {
@@ -208,6 +212,8 @@ impl App {
         let mut app = Self::build(settings, engine, kits, browser, true);
         app.audio_missing = audio_missing;
         app.update = support::update::Check::start();
+        app.insights = insights::Insights::open();
+        app.count(|u| u.sessions += 1);
         if first_run {
             if let Err(e) = app.settings.save() {
                 toast::error(format!("Cannot save the settings: {e}"));
@@ -334,6 +340,9 @@ impl App {
             crash: None,
             crash_ask: None,
             update: support::update::Check::none(),
+            insights: insights::Insights::none(),
+            insights_ask: None,
+            insights_preview: None,
         };
         for (deck, &range) in app.decks.iter_mut().zip(&app.settings.deck_tempo_ranges) {
             deck.set_tempo_range(range);
@@ -377,6 +386,7 @@ impl Drop for App {
     fn drop(&mut self) {
         self.finish_recording();
         self.close_history();
+        self.save_insights();
         if self.persist {
             self.save_status();
             self.browser.backup();
@@ -520,6 +530,7 @@ impl App {
         self.setup_wizard(&ctx);
         self.crash_prompt(&ctx);
         self.reset_prompt(&ctx);
+        self.insights_windows(&ctx);
         if let Some(message) = self.browser.take_message() {
             toast::info(message);
         }

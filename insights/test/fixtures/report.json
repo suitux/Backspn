@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "id": "6f1c2b9e-3d4a-4c8e-9b7a-2e5f1d0c3a4b",
+  "version": "0.0.4",
+  "os": {
+    "platform": "macos",
+    "arch": "aarch64"
+  },
+  "locale": "es",
+  "audio": {
+    "sampleRate": 48000,
+    "bufferFrames": 256,
+    "channels": 4,
+    "headphones": true
+  },
+  "controllers": [
+    "kontrol-s4-mk3"
+  ],
+  "library": {
+    "tracks": 3200,
+    "analyzed": 3100,
+    "playlists": 14,
+    "fileExtensions": {
+      "flac": 900,
+      "mp3": 2300
+    }
+  },
+  "config": {
+    "decks": 4,
+    "fxUnits": 2,
+    "quantize": true,
+    "snap": true,
+    "autoGain": true,
+    "externalMixer": false,
+    "link": false,
+    "midiClock": false
+  },
+  "usage": {
+    "sessions": 2,
+    "secondsOpen": 5400,
+    "secondsPlaying": 4200,
+    "tracksLoaded": 31,
+    "tracksPlayed": 24,
+    "mixes": 22,
+    "recordings": 1,
+    "secondsRecording": 3600,
+    "stemsSeparated": 0,
+    "syncs": 18,
+    "hotcues": 40,
+    "loops": 6,
+    "beatJumps": 0,
+    "samples": 0,
+    "autoFades": 0,
+    "linkSessions": 0,
+    "crashes": 0,
+    "uncleanExits": 0,
+    "inputs": {
+      "controller": 900
+    },
+    "fx": {
+      "Filter": 12
+    },
+    "imports": {
+      "nml": 1
+    }
+  }
+}

@@ -925,7 +925,11 @@ pub fn theme_combo(ui: &mut Ui, s: &mut Settings) -> bool {
     changed
 }
 
-pub(super) fn global_settings(ui: &mut Ui, s: &mut Settings) -> Option<super::Global> {
+pub(super) fn global_settings(
+    ui: &mut Ui,
+    s: &mut Settings,
+    insights: Option<&(String, bool)>,
+) -> Option<super::Global> {
     let mut action = None;
     ui.horizontal(|ui| {
         if ui
@@ -995,6 +999,58 @@ pub(super) fn global_settings(ui: &mut Ui, s: &mut Settings) -> Option<super::Gl
         .response
         .on_hover_text(tr("How long these notices stay at the bottom right"));
     }
+    if let Some((status, editable)) = insights {
+        action = insights_settings(ui, s, status, *editable).or(action);
+    }
+    action
+}
+
+fn insights_settings(
+    ui: &mut Ui,
+    s: &mut Settings,
+    status: &str,
+    editable: bool,
+) -> Option<super::Global> {
+    let mut action = None;
+    search::heading(ui, "Anonymous Usage Statistics");
+    if ui
+        .add_enabled_ui(editable, |ui| {
+            search::check(
+                ui,
+                &mut s.insights_enabled,
+                "Send anonymous usage statistics",
+            )
+        })
+        .inner
+        .on_hover_text(tr(
+            "Once a day: version, system, audio settings, controller models, library size and \
+             counts such as mixes made. Never track names, file paths or device names.",
+        ))
+        .changed()
+    {
+        s.insights_notice_seen = true;
+    }
+    ui.label(RichText::new(status).weak());
+    ui.horizontal(|ui| {
+        if ui
+            .button(tr("Show What Is Sent…"))
+            .on_hover_text(tr("Shows the exact report Backspn would send now"))
+            .clicked()
+        {
+            action = Some(super::Global::InsightsPreview);
+        }
+        if ui
+            .add_enabled(
+                editable && s.insights_enabled,
+                egui::Button::new(tr("Send Now")),
+            )
+            .clicked()
+        {
+            s.insights_notice_seen = true;
+            action = Some(super::Global::InsightsSend);
+        }
+        ui.hyperlink_to(tr("Public statistics"), crate::insights::PAGE);
+    });
     action
 }
 

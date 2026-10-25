@@ -1,0 +1,27 @@
+{
+  "name": "backspn-insights",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Collects anonymous usage reports from Backspn installs and serves the aggregated history",
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply backspn-insights --local",
+    "db:migrate:remote": "wrangler d1 migrations apply backspn-insights --remote",
+    "seed:local": "node scripts/seed-history.mjs > .wrangler/seed.sql && wrangler d1 execute backspn-insights --local --file .wrangler/seed.sql",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "hono": "^4.13.13",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261007.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3",
+    "wrangler": "^4.148.0"
+  }
+}

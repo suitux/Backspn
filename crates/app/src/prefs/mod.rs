@@ -143,6 +143,8 @@ pub enum Global {
     ReportProblem,
     ShowLogFile,
     ResetSettings,
+    InsightsPreview,
+    InsightsSend,
 }
 
 pub struct Prefs {
@@ -159,6 +161,7 @@ pub struct Prefs {
     pub deck_setup: crate::layouts::DeckSetup,
     pub preview: Option<backspn_engine::Track>,
     pub output_latency: Duration,
+    pub insights_status: Option<(String, bool)>,
     buffer_drag: Option<u32>,
 }
 
@@ -178,6 +181,7 @@ impl Prefs {
             deck_setup: crate::layouts::DeckSetup::default(),
             preview: None,
             output_latency: Duration::ZERO,
+            insights_status: None,
             buffer_drag: None,
         }
     }
@@ -414,7 +418,9 @@ impl Prefs {
             Page::LoopRecorder => loop_recorder(ui, s),
             Page::ExternalSync => external_sync(ui, s),
             Page::DrumMachine => self.drum_machine(ui, kits),
-            Page::GlobalSettings => global = global_settings(ui, s),
+            Page::GlobalSettings => {
+                global = global_settings(ui, s, self.insights_status.as_ref());
+            }
             Page::BrowserDetails => Self::browser_details(ui, s),
             Page::FileManagement => file_management_page(ui, s),
             Page::AnalyzeOptions => analyze_options(ui, s),

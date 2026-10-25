@@ -7,3 +7,4 @@ export type Dict = typeof en;
 
 export const github = 'https://github.com/suitux/Backspn';
 export const releases = `${github}/releases`;
+export const insightsApi = 'https://insights.backspn.com';

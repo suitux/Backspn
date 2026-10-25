@@ -212,6 +212,7 @@ impl Browser {
         };
         match result {
             Ok(r) => {
+                self.usage.imports.add("nml");
                 self.message = Some(format!(
                     "Imported {} tracks, {} playlists, {} smartlists",
                     r.tracks, r.playlists, r.smartlists
@@ -256,6 +257,7 @@ impl Browser {
     fn import_library_file(&mut self, path: &Path, parent: Option<i64>) {
         match self.with_lib_value(|lib| lib.import_file(path, parent)) {
             Ok(r) => {
+                self.usage.imports.add("collection");
                 self.message = Some(format!(
                     "Imported {} new tracks, {} playlists, {} smartlists",
                     r.tracks, r.playlists, r.smartlists
@@ -367,7 +369,10 @@ impl Browser {
             }
         });
         match result {
-            Ok(text) => self.message = Some(text),
+            Ok(text) => {
+                self.usage.imports.add(if nml { "nml" } else { "m3u" });
+                self.message = Some(text);
+            }
             Err(e) => crate::toast::error(format!("Import failed: {e}")),
         }
         self.refresh();
@@ -400,6 +405,7 @@ impl Browser {
             };
             match imported {
                 Ok(n) => {
+                    self.usage.imports.add("history");
                     sessions += 1;
                     entries += n;
                 }

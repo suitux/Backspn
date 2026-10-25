@@ -1,0 +1,127 @@
+---
+import '@fontsource-variable/inter';
+import '../styles/site.css';
+import { getRelativeLocaleUrl } from 'astro:i18n';
+import { dictionaries, github, insightsApi, type Lang } from '../i18n';
+import { asset } from '../media';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = dictionaries[lang];
+const a = t.insights;
+const other: Lang = lang === 'en' ? 'es' : 'en';
+const page = (l: Lang) => getRelativeLocaleUrl(l, 'insights');
+
+// Overridable for local work against `wrangler dev` (PUBLIC_INSIGHTS_API=http://localhost:8787).
+const api = import.meta.env.PUBLIC_INSIGHTS_API ?? insightsApi;
+
+const ranges = ['30d', '90d', '1y', 'all'] as const;
+const tiles = ['mixes', 'hours', 'tracks', 'active'] as const;
+const charts = Object.keys(a.charts) as (keyof typeof a.charts)[];
+const wide = new Set<string>(['mixes', 'stability']);
+const canonical = new URL(page(lang), Astro.site).href;
+const width = 'mx-auto w-[min(1200px,100%-32px)] sm:w-[min(1200px,100%-48px)]';
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{a.title}</title>
+    <meta name="description" content={a.description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang={other} href={new URL(page(other), Astro.site).href} />
+    <link rel="icon" href={asset('favicon.svg')} type="image/svg+xml" />
+  </head>
+  <body>
+    <header class={`${width} flex items-center justify-between py-5`}>
+      <a class="inline-flex items-center gap-2.5 text-lg font-[650] tracking-[-0.02em] no-underline" href={getRelativeLocaleUrl(lang, '')}>
+        <img src={asset('favicon.svg')} alt="" width="28" height="28" />Backspn
+      </a>
+      <a class="text-soft no-underline transition-colors hover:text-paper" href={page(other)} hreflang={other} lang={other}>{t.nav.otherLang}</a>
+    </header>
+
+    <main id="insights" class={`${width} pt-8 pb-20`} data-api={api} data-locale={lang} data-labels={JSON.stringify(a)}>
+      <div class="max-w-3xl">
+        <h1 class="text-[clamp(2.25rem,1.6rem+2.4vw,3.5rem)] leading-[1.05] font-[650] tracking-[-0.03em]">{a.h1}</h1>
+        <p class="mt-5 text-soft">{a.intro}</p>
+        <p class="mt-3 text-[15px] text-dim">
+          {a.optOut}{' '}
+          <a class="text-a-ink underline-offset-4 hover:underline" href={`${github}#anonymous-usage-statistics`}>{a.whatIsSent}</a>
+        </p>
+      </div>
+
+      <div class="mt-10 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div role="group" aria-label={a.rangeLabel} class="inline-flex rounded-full bg-raised p-1">
+          {
+            ranges.map((range) => (
+              <button
+                type="button"
+                data-range={range}
+                aria-pressed={range === '90d' ? 'true' : 'false'}
+                class="js-range min-h-9 rounded-full px-4 text-[15px] text-soft transition-colors hover:text-paper aria-pressed:bg-tile-2 aria-pressed:font-medium aria-pressed:text-paper"
+              >
+                {a.ranges[range]}
+              </button>
+            ))
+          }
+        </div>
+        <p class="js-status text-[15px] text-dim" aria-live="polite">{a.loading}</p>
+      </div>
+
+      <div class="js-content mt-8 transition-opacity duration-200">
+        <dl class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {
+            tiles.map((tile) => (
+              <div class="rounded-2xl bg-raised p-5">
+                <dt class="text-[15px] text-soft">{a.tiles[tile]}</dt>
+                <dd class="mt-2 text-[clamp(1.75rem,1.3rem+1.6vw,2.5rem)] font-[650] tracking-[-0.02em] tabular-nums" data-tile={tile}>
+                  –
+                </dd>
+                <dd class="mt-1 text-[13px] text-dim tabular-nums" data-tile-note={tile} />
+              </div>
+            ))
+          }
+        </dl>
+
+        <div class="mt-4 grid gap-4 lg:grid-cols-2">
+          {
+            charts.map((chart) => (
+              <section class:list={['rounded-2xl bg-raised p-5', wide.has(chart) && 'lg:col-span-2']} aria-labelledby={`chart-${chart}-title`}>
+                <h2 id={`chart-${chart}-title`} class="text-[17px] font-semibold">
+                  {a.charts[chart].title}
+                </h2>
+                <p class="mt-1 text-[15px] text-soft">{a.charts[chart].caption}</p>
+                <div class="relative mt-4 h-72">
+                  <canvas data-chart={chart} role="img" aria-label={a.charts[chart].title} />
+                  <p data-empty={chart} hidden class="absolute inset-0 grid place-items-center text-[15px] text-dim">
+                    {a.empty}
+                  </p>
+                </div>
+                <details class="js-table mt-3" data-table={chart}>
+                  <summary class="cursor-pointer text-[13px] text-soft hover:text-paper">{a.showTable}</summary>
+                  <div class="mt-3 max-h-72 overflow-auto" />
+                </details>
+              </section>
+            ))
+          }
+        </div>
+      </div>
+    </main>
+
+    <footer class={`${width} border-t border-line pt-8 pb-12 text-sm text-soft`}>
+      <a class="no-underline hover:underline hover:underline-offset-4" href={getRelativeLocaleUrl(lang, '')}>{a.back}</a>
+      <p class="mt-3">{t.footer.copyright}</p>
+    </footer>
+
+    <script>
+      import { initInsightsDashboard } from '../lib/insights-dashboard';
+
+      const root = document.getElementById('insights');
+      if (root) initInsightsDashboard(root);
+    </script>
+  </body>
+</html>
