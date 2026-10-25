@@ -20,6 +20,9 @@ git fetch --quiet --tags origin main
 [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || die "main is not in sync with origin/main"
 git rev-parse -q --verify "refs/tags/$tag" >/dev/null && die "tag $tag already exists"
 
+read -r -p "Tag message [$tag]: " message
+message="${message:-$tag}"
+
 workspace_version() {
     sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml
 }
@@ -37,7 +40,7 @@ if [[ "$current" != "$version" ]]; then
     echo "Workspace version: $current -> $version"
 fi
 
-git tag -a "$tag" -m "$tag"
+git tag -a "$tag" -m "$message"
 echo "Created tag $tag on $(git rev-parse --short HEAD)"
 
 read -r -p "Push main and $tag to origin? [y/N] " answer
