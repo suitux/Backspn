@@ -4,7 +4,7 @@ const es: typeof en = {
   lang: 'es',
   meta: {
     locale: 'es_ES',
-    imageAlt: 'La ventana de Backspn con dos decks, las unidades de FX, el mixer y la biblioteca',
+    imageAlt: 'Backspn: gratis, de código abierto y para cualquier controladora. Beta pública, con la ventana de la app mostrando dos decks, el mixer y la biblioteca',
     notFound: { title: 'Página no encontrada · Backspn', heading: 'Esta página no existe', text: 'Puede que el enlace sea antiguo o tenga una errata.', action: 'Ir a la portada' },
     title: 'Backspn: software de DJ gratis y de código abierto',
     description:

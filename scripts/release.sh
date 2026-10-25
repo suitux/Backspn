@@ -3,6 +3,8 @@
 #
 # Sets the workspace version, commits, tags and (after confirmation) pushes
 # main and the tag, which triggers .github/workflows/release.yml.
+# If the tag already exists it offers to redo the release: the GitHub release
+# and the tag are deleted right before pushing the new tag.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -18,7 +20,16 @@ version="${version%%-*}"
 [[ -z "$(git status --porcelain)" ]] || die "working tree is not clean"
 git fetch --quiet --tags origin main
 [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || die "main is not in sync with origin/main"
-git rev-parse -q --verify "refs/tags/$tag" >/dev/null && die "tag $tag already exists"
+
+redo=false
+if git rev-parse -q --verify "refs/tags/$tag" >/dev/null \
+    || git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+    command -v gh >/dev/null || die "tag $tag already exists (install gh to redo the release)"
+    read -r -p "Tag $tag already exists. Delete its release and tag and release again? [y/N] " answer
+    [[ "$answer" =~ ^[Yy]$ ]] || die "tag $tag already exists"
+    redo=true
+    git tag -d "$tag" >/dev/null 2>&1 || true
+fi
 
 read -r -p "Tag message [$tag]: " message
 message="${message:-$tag}"
@@ -45,10 +56,21 @@ echo "Created tag $tag on $(git rev-parse --short HEAD)"
 
 read -r -p "Push main and $tag to origin? [y/N] " answer
 if [[ "$answer" =~ ^[Yy]$ ]]; then
+    if $redo; then
+        if gh release view "$tag" >/dev/null 2>&1; then
+            gh release delete "$tag" --yes
+            echo "Deleted release $tag"
+        fi
+        if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            git push --quiet origin ":refs/tags/$tag"
+            echo "Deleted remote tag $tag"
+        fi
+    fi
     git push --atomic origin main "$tag"
 else
     echo "Not pushed. To push: git push --atomic origin main $tag"
     undo="git tag -d $tag"
+    $redo && undo+=" && git fetch origin tag $tag"
     $committed && undo+=" && git reset --hard HEAD~1"
     echo "To undo: $undo"
 fi

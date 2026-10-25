@@ -2,7 +2,7 @@ export default {
   lang: 'en',
   meta: {
     locale: 'en_US',
-    imageAlt: 'The Backspn window with two decks, the FX units, the mixer and the library',
+    imageAlt: 'Backspn: free, open source and made for any controller. Public beta, with the app window showing two decks, the mixer and the library',
     notFound: { title: 'Page not found · Backspn', heading: 'This page is not here', text: 'The link may be old or mistyped.', action: 'Go to the home page' },
     title: 'Backspn: free, open-source DJ software for any controller',
     description:

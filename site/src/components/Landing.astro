@@ -42,7 +42,8 @@ const ghost = `${button} bg-tile text-paper hover:bg-tile-2`;
 const h2 = 'text-[clamp(2rem,1.4rem+2.2vw,3.25rem)] font-[650] leading-[1.05] tracking-[-0.03em] text-balance';
 const abs = (path: string) => new URL(path, Astro.site).href.replace(/\/$/, '');
 const canonical = abs(home(lang));
-const ogImage = abs(asset('og.jpg'));
+// Link preview image (WhatsApp, Telegram, social networks), one per language: public/og-<lang>.jpg.
+const ogImage = abs(asset(`og-${lang}.jpg`));
 // Structured data for search engines: the app itself, free, on three systems.
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -91,6 +92,8 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
     <meta property="og:title" content={t.meta.title} />
     <meta property="og:description" content={t.meta.description} />
     <meta property="og:image" content={ogImage} />
+    <meta property="og:image:secure_url" content={ogImage} />
+    <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content={t.meta.imageAlt} />
