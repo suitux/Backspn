@@ -1,0 +1,8 @@
+/target
+**/*.rs.bk
+.DS_Store
+__pycache__/
+
+*.nml
+!tests/fixtures/**/*.nml
+*.tsi

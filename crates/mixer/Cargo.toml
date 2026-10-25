@@ -1,0 +1,14 @@
+[package]
+name = "backspn-mixer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+backspn-dsp = { version = "0.1.0", path = "../dsp" }
+serde = { version = "1.0.229", features = ["derive"] }
+
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+[package]
+name = "backspn-deck"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+backspn-decode = { version = "0.1.0", path = "../decode" }
+backspn-formats = { version = "0.1.0", path = "../formats" }
+backspn-stretch = { version = "0.1.0", path = "../stretch" }

@@ -1,0 +1,822 @@
+# Spanish texts: English<TAB>Spanish. Texts missing here stay in English.
+2 FX units	2 unidades de FX
+4 FX units	4 unidades de FX
+Absolute	Absoluto
+Allow editing in the list	Permitir editar en la lista
+Also read stems from	Leer stems también de
+Analyze Options	Opciones de análisis
+Analyze new imported tracks	Analizar las pistas importadas
+Analyze new tracks when loading into deck	Analizar las pistas nuevas al cargarlas en un deck
+Audio Device	Dispositivo de audio
+Audio Setup	Configuración de audio
+Author	Autor
+Auto Enable Deck Play on Sample Trigger	Activar la reproducción del deck al disparar un sample
+Auto Master Mode	Modo master automático
+Auto crossfade	Crossfade automático
+Auto-Save Edited Sample Sets	Guardar solo los sample sets editados
+Auto-gain	Ganancia automática
+BPM range	Rango de BPM
+Behaviors	Comportamiento
+Browser Details	Detalles del browser
+Buffer Size	Tamaño del búfer
+Channel filter	Filtro de canal
+Colours	Colores
+Columns	Columnas
+Controller Manager	Gestor de controladores
+Crossfader curve	Curva del crossfader
+Cue to load marker	Ir al marcador de carga
+Decay when picked	Decay al elegirlo
+Deck Focus	Deck con foco
+Deck size:	Tamaño del deck:
+Decks Layout	Disposición de los decks
+Decks:	Decks:
+Default tempo range	Rango de tempo por defecto
+Default zoom	Zoom por defecto
+Directory	Carpeta
+Duplicate deck when loading same track	Duplicar el deck al cargar la misma pista
+Effects	Efectos
+Enable MIDI Clock	Activar el MIDI clock
+External (MIDI clock)	Externo (MIDI clock)
+External Clock Source	Fuente de reloj externa
+External Sync	Sincronización externa
+FX panel mode	Modo del panel de FX
+FX pre-selection	Preselección de FX
+FX unit routing	Ruteo de las unidades de FX
+FX units:	Unidades de FX:
+File	Fichero
+File Management	Gestión de ficheros
+Slip on pause	Slip en pausa
+Format	Formato
+Global Settings	Ajustes generales
+Global section left:	Izquierda de la sección global:
+Headroom	Margen (headroom)
+Import music folders at startup	Importar las carpetas de música al iniciar
+Input Routing	Ruteo de entradas
+Jog mode at start-up:	Modo del jog al iniciar:
+Jog nudge sensitivity	Sensibilidad del nudge del jog
+Jog spin sensitivity	Sensibilidad del giro del jog
+Jogwheel tension (S4 MK3)	Tensión del jog (S4 MK3)
+Key displayed in the app	Tonalidad mostrada en la app
+Key highlighting	Resaltado de tonalidades
+Key reference	Referencia de tonalidad
+Key written to file tags	Tonalidad escrita en los tags
+Keylock range	Rango del keylock
+Layout Manager	Gestor de layouts
+Library	Biblioteca
+Limiter	Limitador
+Limiter: in the block between the FX units.	Limitador: en el bloque entre las unidades de FX.
+List row height	Alto de las filas
+Loading	Carga
+Loading only into stopped deck	Cargar solo en decks parados
+Loop Decay	Decay del bucle
+Low / mid / high	Graves / medios / agudos
+MIDI Clock Output	Salida del MIDI clock
+MIDI Clock Settings	Ajustes del MIDI clock
+Master Deck	Deck master
+Microphone gain	Ganancia del micrófono
+Mix Recorder	Grabador del mix
+Mix Recorder Source:	Fuente del grabador:
+Mixer	Mezclador
+Music folders	Carpetas de música
+NML import/export: in the browser. Exports are refused inside the other DJ application's data folder.	Importar/exportar NML: en el browser. No se exporta dentro de la carpeta de datos de la otra aplicación de DJ.
+Name	Nombre
+One-Shot Samples Ignore Punch Mode	Los samples one-shot ignoran el modo punch
+One-Shot Samples Ignore Quantize Mode	Los samples one-shot ignoran la cuantización
+Output Routing	Ruteo de salidas
+Output master: channels 1/2.	Salida master: canales 1/2.
+Output monitor (headphones):	Salida de monitor (auriculares):
+Outputs	Salidas
+Palette	Paleta
+Pattern when picked	Patrón al elegirlo
+Patterns	Patrones
+Pitch when picked	Tono al elegirlo
+Played-state delay	Tiempo para marcar como tocada
+Prefix	Prefijo
+Progressive tempo bend	Tempo bend progresivo
+Quantize: jumps keep the beat phase	Quantize: los saltos mantienen la fase del beat
+Relative	Relativo
+Restore parameters when switching FX	Restaurar los parámetros al cambiar de FX
+Sample Rate	Frecuencia de muestreo
+Samples Folder	Carpeta de samples
+Samples folder:	Carpeta de samples:
+Saving	Guardado
+Scratch: audio per jog turn	Scratch: audio por vuelta del jog
+Screens:	Pantallas:
+Set Auto-Gain When Loading Samples	Ajustar la ganancia automática al cargar samples
+Settings	Ajustes
+Show Crossfader	Mostrar el crossfader
+Show FX units	Mostrar las unidades de FX
+Show Preview Player	Mostrar el reproductor de preescucha
+Show Tooltips	Mostrar las ayudas
+Show browser	Mostrar el browser
+Show playlist favorites	Mostrar las playlists favoritas
+Snap: cue, hotcue and loop points snap to beats	Snap: cues, hotcues y loops se ajustan a los beats
+Sounds	Sonidos
+Source	Fuente
+Split File at Size	Partir el fichero al llegar a
+Stem Files Location	Ubicación de los stems
+Stem Loading	Carga de stems
+Tags	Tags
+Tempo bend sensitivity	Sensibilidad del tempo bend
+Tempo fader:	Fader de tempo:
+Tempo master	Tempo master
+Theme	Tema
+Timecode Setup	Configuración del timecode
+Track Decks	Decks de pista
+Track end warning	Aviso de final de pista
+Transport	Transporte
+Turntable base speed:	Velocidad base del plato:
+Volume when picked	Volumen al elegirlo
+Waveform	Forma de onda
+Language	Idioma
+Preferences	Preferencias
+Search	Buscar
+About Backspn	Acerca de Backspn
+Preferences…	Preferencias…
+Services	Servicios
+Hide Backspn	Ocultar Backspn
+Hide Others	Ocultar otros
+Show All	Mostrar todo
+Quit Backspn	Salir de Backspn
+FX Units	Unidades de FX
+2 Decks	2 decks
+4 Decks	4 decks
+Themes	Temas
+View	Visualización
+Toggle Full Screen	Pantalla completa
+Window	Ventana
+Minimize	Minimizar
+Bring All to Front	Traer todo al frente
+The language of the app	El idioma de la app
+Connected.	Conectado.
+Restore default mapping	Restaurar el mapeo por defecto
+MIDI inputs	Entradas MIDI
+Remove device	Quitar el dispositivo
+Delete the mappings tied to this port	Borrar los mapeos de este puerto
+Learn	Aprender
+The control learned shows the action's state (out mapping)	El control aprendido muestra el estado de la acción (mapeo de salida)
+Import .tsi…	Importar .tsi…
+Default keyboard	Teclado por defecto
+Delete	Borrar
+Set to value; off: the mode's own value	Fijar a un valor; apagado: el valor propio del modo
+Remove the condition	Quitar la condición
+Only when a modifier has a value	Solo cuando un modificador tiene un valor
+Only when a control of the app has a value	Solo cuando un control de la app tiene un valor
+On the focused deck instead (Device Target Focus)	En el deck con foco (Device Target Focus)
+Held, it repeats every 100 ms after 300–400 ms	Mantenido, se repite cada 100 ms tras 300–400 ms
+The fader acts once it reaches the current value	El fader actúa cuando alcanza el valor actual
+How the control sends its turns: encoder mode, a fader or knob, or a button	Cómo manda el control sus giros: modo encoder, fader o knob, o botón
+Sensitivity	Sensibilidad
+Acceleration: faster turns move more	Aceleración: los giros rápidos mueven más
+Not available on this system.	No disponible en este sistema.
+Not found (plug it in any time).	No encontrado (se puede enchufar en cualquier momento).
+No MIDI inputs found.	No se han encontrado entradas MIDI.
+Crossfader side	Lado del crossfader
+Color FX parameter	Parámetro del Color FX
+Filter or mixer FX 1–4 (click to change)	Filtro o mixer FX 1–4 (clic para cambiar)
+Play/pause the preview (headphones)	Tocar/pausar la preescucha (auriculares)
+Drag onto a deck to load it there	Arrástralo a un deck para cargarlo ahí
+Close the preview	Cerrar la preescucha
+Query	Consulta
+Cancel	Cancelar
+Remove condition	Quitar la condición
+Add condition	Añadir condición
+Close	Cerrar
+Key	Tonalidad
+No track on a master deck. Play a track or make a deck master.	No hay pista en un deck master. Toca una pista o haz master un deck.
+Nothing matches; widen the criteria.	Nada coincide; amplía los criterios.
+Change the checked attributes of every selected track	Cambia los atributos marcados de todas las pistas elegidas
+◀ Previous	◀ Anterior
+Next ▶	Siguiente ▶
+Import Tags	Importar tags
+Read the attributes from the music files into the collection	Lee los atributos de los ficheros de música a la colección
+Export Tags	Exportar tags
+Write the attributes stored in the collection into the music files' tags	Escribe en los tags de los ficheros los atributos guardados en la colección
+Restore	Restaurar
+Drop the changes and show the collection's values	Descarta los cambios y muestra los valores de la colección
+Apply	Aplicar
+Tick to change this field in every track	Márcalo para cambiar este campo en todas las pistas
+Rating	Valoración
+Track	Pista
+Color	Color
+Reset	Reset
+Any	Cualquiera
+short	bajo
+tall	alto
+Add	Añadir
+Selecting an effect again brings back the settings it last had	Elegir otra vez un efecto recupera los ajustes que tenía
+Remove	Quitar
+Move Up	Subir
+Move Down	Bajar
+The effect selectors offer the effects you have, in this order.	Los selectores de efecto ofrecen tus efectos, en este orden.
+Choose…	Elegir…
+New	Nuevo
+Duplicate	Duplicar
+Export…	Exportar…
+Import…	Importar…
+Level	Nivel
+Preview in the headphones	Preescucha en los auriculares
+Remove the sound	Quitar el sonido
+Add sounds…	Añadir sonidos…
+Clear	Vaciar
+Steps of a beat: the grid and what ROLL repeats at	Pasos de un beat: la rejilla y lo que repite ROLL
+No kits yet: make one with New.	Aún no hay kits: crea uno con Nuevo.
+Add sounds to write their patterns.	Añade sonidos para escribir sus patrones.
+Headphone volume and cue mix: mappable to keyboard, MIDI or controllers.	Volumen de auriculares y mezcla de cue: se pueden mapear al teclado, MIDI o controladoras.
+How fast the platter turns in TT mode while the deck plays	Velocidad del plato en modo TT mientras el deck toca
+No setting found.	No se ha encontrado ningún ajuste.
+Also in the block between the FX units (SNAP, QUANT).	También en el bloque entre las unidades de FX (SNAP, QUANT).
+Jog sensitivity: Transport page.	Sensibilidad del jog: página Transport.
+System default	Por defecto del sistema
+Tracks added to the collection are analysed in the background	Las pistas añadidas a la colección se analizan en segundo plano
+A track loaded without tempo, key or gain gets them	Una pista cargada sin tempo, tonalidad o ganancia los obtiene
+When the time left starts flashing red	Cuando el tiempo restante empieza a parpadear en rojo
+Play then resumes where the track would be (slip pause)	Al seguir, la reproducción continúa donde iría la pista (slip pause)
+The deck closest in tempo to the master clock, then in phase (the AUTO button)	El deck más cercano en tempo al reloj master, y luego en fase (el botón AUTO)
+Decks whose channel fader or the crossfader shuts them cannot lead	Los decks cerrados por su fader de canal o por el crossfader no pueden mandar
+How long a track must be heard (playing, channel fader up) to count as played	Cuánto tiene que oírse una pista (tocando, fader de canal arriba) para contar como tocada
+Time the crossfader takes from one side to the other	Tiempo que tarda el crossfader de un lado al otro
+Master level before the limiter	Nivel del master antes del limitador
+Look-ahead limiter (about 3 ms) with a smooth gain curve, 35 ms release	Limitador con anticipación (unos 3 ms) y curva de ganancia suave, 35 ms de release
+Short look-ahead (0.7 ms), 200 ms release	Anticipación corta (0,7 ms), 200 ms de release
+The app's earlier limiter: 1.5 ms look-ahead, 100 ms release	El limitador anterior de la app: 1,5 ms de anticipación, 100 ms de release
+Loud tracks are turned down, quiet ones up (±12 dB), on top of GAIN	Las pistas fuertes se bajan y las flojas se suben (±12 dB), además de GAIN
+Smooth sweep, no resonance peak	Barrido suave, sin pico de resonancia
+Four-pole ladder: low-pass 98 Hz–15 kHz, high-pass 46 Hz–5.3 kHz	Ladder de cuatro polos: paso bajo 98 Hz–15 kHz, paso alto 46 Hz–5,3 kHz
+Left: no peak · centre: default · right: strong peak	Izquierda: sin pico · centro: por defecto · derecha: pico fuerte
+Hidden, it still works from controllers and mappings.	Oculto, sigue funcionando desde controladoras y mapeos.
+Customise this palette	Personalizar esta paleta
+Copies its colours to Custom, to edit them	Copia sus colores a Custom, para editarlos
+Enables or disables the tooltips	Activa o desactiva las ayudas
+The music files are never changed	Los ficheros de música no se cambian nunca
+Edits, ratings and analysis results are written into the files' tags	Las ediciones, valoraciones y resultados del análisis se escriben en los tags de los ficheros
+Reset columns	Restablecer las columnas
+The notation written into the files, for other applications	La notación que se escribe en los ficheros, para otras aplicaciones
+That deck must have key lock on	Ese deck debe tener el keylock encendido
+New tracks in the music folders join the collection when the app starts	Las pistas nuevas de las carpetas de música entran en la colección al abrir la app
+Remove from the list	Quitar de la lista
+How much of the loop fades out on each overdub pass	Cuánto del bucle se desvanece en cada pasada de sobregrabación
+Extends the master clock panel with START, SYNC and the clock offset.	Amplía el panel del reloj master con START, SYNC y el desfase del reloj.
+The audio device has no inputs.	El dispositivo de audio no tiene entradas.
+1.8 s per turn is a 33⅓ rpm record.	1,8 s por vuelta es un disco a 33⅓ rpm.
+Zoom each deck with the mouse wheel or the − / + buttons on its waveform.	Haz zoom en cada deck con la rueda del ratón o los botones − / + de su forma de onda.
+Starts at the stored cue point instead of the track start.	Empieza en el cue guardado en lugar de al principio de la pista.
+The sample deck starts when a sample is triggered, even if it was stopped.	El sample deck arranca al disparar un sample, aunque estuviera parado.
+A one-shot plays at once instead of on the next quantize point.	Un one-shot suena al momento en lugar de en el siguiente punto de cuantización.
+The sample's stored auto-gain becomes the cell's gain.	La ganancia automática guardada del sample pasa a ser la ganancia de la celda.
+Where captured samples are written.	Dónde se escriben los samples capturados.
+None yet: use + next to FOLDERS in the browser.	Aún ninguna: usa el + junto a FOLDERS en el browser.
+Normal (up to 2×)	Normal (hasta 2×)
+Scratch (0.7–1.5×)	Scratch (0,7–1,5×)
+Do not write any tags to files	No escribir tags en los ficheros
+Write all tags to files	Escribir todos los tags en los ficheros
+None	Ninguno
+Slip mode	Modo slip
+Reverse while held	Reverse mientras se mantiene
+Loop of this size (also the beat-jump size)	Loop de este tamaño (también el tamaño del salto)
+Loop on / off	Loop activado / desactivado
+Hotcue pads	Pads de hotcue
+Freeze: the pads play slices of the region from here	Freeze: los pads tocan trozos de la región desde aquí
+Click: set / jump · Right-click: delete	Clic: poner / saltar · Clic derecho: borrar
+Slice size in beats (an active loop is cut into eight)	Tamaño del trozo en beats (un loop activo se corta en ocho)
+Plays this slice while held	Toca este trozo mientras se mantiene
+Previous cue	Cue anterior
+Next cue	Cue siguiente
+Store the cue point or loop on the next free hotcue	Guarda el cue o el loop en el siguiente hotcue libre
+Then click a hotcue to store the cue point or loop on it	Luego haz clic en un hotcue para guardar en él el cue o el loop
+Lock the track's beatgrid and tempo	Bloquear la rejilla y el tempo de la pista
+Tap the beats: every fourth tap sets the tempo and grid	Marca los beats: cada cuarto toque fija el tempo y la rejilla
+Reset the beatgrid of this track?	¿Restablecer la rejilla de esta pista?
+Detect the tempo again; the grid marker stays	Detectar otra vez el tempo; el marcador de rejilla se queda
+Detect the tempo and beatgrid again	Detectar otra vez el tempo y la rejilla
+A click on each beat of the grid, in the headphones	Un clic en cada beat de la rejilla, en los auriculares
+Add a grid marker here: the tempo may change from marker to marker	Añadir aquí un marcador de rejilla: el tempo puede cambiar de marcador a marcador
+Load a file…	Cargar un fichero…
+Show in browser	Mostrar en el browser
+Deck size: click for the next one	Tamaño del deck: clic para el siguiente
+Deck focus: click to focus this deck	Foco del deck: clic para dar el foco a este deck
+Synchronise the tempo and phase to the tempo master	Sincronizar tempo y fase con el tempo master
+Make this deck the tempo master	Hacer este deck tempo master
+Phase offset to the tempo master; drag to adjust	Desfase de fase con el tempo master; arrastra para ajustar
+Tempo (double-click resets)	Tempo (doble clic lo restablece)
+Tempo range (click to change)	Rango de tempo (clic para cambiar)
+What ◀ / ▶ move: the playhead, the loop or one of its ends	Qué mueven ◀ / ▶: el cabezal, el loop o uno de sus extremos
+Steps of 1/32 beat	Pasos de 1/32 de beat
+Step size in beats	Tamaño del paso en beats
+Steps of the loop size	Pasos del tamaño del loop
+Back to the start	Volver al principio
+Activate Device	Activar el dispositivo
+Preferences (Ctrl+,)	Preferencias (Ctrl+,)
+Maximize browser: the browser takes the whole window	Maximizar el browser: ocupa toda la ventana
+Show tooltips	Mostrar las ayudas
+Sync the master clock to an external MIDI clock	Sincronizar el reloj master con un MIDI clock externo
+Cue, hotcue and loop points snap to beats	Cues, hotcues y loops se ajustan a los beats
+Jumps keep the beat phase	Los saltos mantienen la fase del beat
+Auto Master Mode: when the tempo master stops, a playing deck takes over	Auto Master Mode: cuando el tempo master para, un deck que toca toma el relevo
+Make the internal clock the tempo master	Hacer tempo master el reloj interno
+A click on each clock beat, in the headphones	Un clic en cada beat del reloj, en los auriculares
+Tap the clock tempo	Marcar el tempo del reloj
+Stop the MIDI clock devices and start them again on the next beat	Parar los aparatos de MIDI clock y volver a arrancarlos en el siguiente beat
+MIDI clock offset: positive sends earlier	Desfase del MIDI clock: positivo manda antes
+Loop length in beats (only while empty)	Largo del bucle en beats (solo vacío)
+What it records: master, cue, external input or microphone	Qué graba: master, cue, entrada externa o micrófono
+Record a loop, then overdub on it	Grabar un bucle y sobregrabar encima
+Play the loop, in time with the master clock	Tocar el bucle, a tiempo con el reloj master
+Undo the last overdub, or restore it	Deshacer la última sobregrabación, o recuperarla
+Delete the loop	Borrar el bucle
+No	No
+Yes	Sí
+Close this file and go on in a new one	Cerrar este fichero y seguir en uno nuevo
+Recording peak (red: clipping)	Pico de la grabación (rojo: saturación)
+Right-click: save or load the snapshot	Clic derecho: guardar o cargar el snapshot
+Save Snapshot	Guardar snapshot
+Load Snapshot	Cargar snapshot
+Route this deck through the unit	Pasar este deck por la unidad
+Duck: each hit dips the deck	Duck: cada golpe baja el deck
+Overwrite the kit with these steps	Sobrescribir el kit con estos pasos
+Back to the kit's steps	Volver a los pasos del kit
+No kits: make one in Preferences.	No hay kits: crea uno en Preferencias.
+MIDI outputs (LEDs)	Salidas MIDI (LEDs)
+Controller Range: the control's own	Controller Range: el del propio control
+The level follows the value within the range	El nivel sigue al valor dentro del rango
+No MIDI outputs found.	No se han encontrado salidas MIDI.
+Add…	Añadir…
+A controller's ready-made mappings	Los mapeos ya hechos de una controladora
+This uses a lot of CPU: avoid it while playing live.	Usa mucha CPU: evítalo mientras pinchas en directo.
+Delete the selected tracks from the collection?	¿Borrar de la colección las pistas elegidas?
+The files are deleted for good, not moved to the Trash	Los ficheros se borran para siempre, no van a la Papelera
+Look for the missing files in a folder	Buscar los ficheros que faltan en una carpeta
+The track is in no playlist.	La pista no está en ninguna playlist.
+Missing Tracks	Pistas perdidas
+Relocate…	Reubicar…
+Remove Missing	Quitar las perdidas
+Download	Descargar
+Preview (headphones)	Preescucha (auriculares)
+Generate Stems	Generar stems
+Delete Associated Stems	Borrar los stems asociados
+Add to playlist	Añadir a la playlist
+Consolidate	Consolidar
+Make the order shown the playlist's order	Hacer del orden mostrado el orden de la playlist
+Reset Played-State	Restablecer el estado de tocada
+All	Todo
+Special…	Especial…
+Lock analysis	Bloquear el análisis
+Unlock analysis	Desbloquear el análisis
+Import Cover…	Importar portada…
+Delete Cover	Borrar la portada
+Assign the file of this track	Asignar el fichero de esta pista
+Show in Finder	Mostrar en el Finder
+Search in playlists…	Buscar en las playlists…
+Search history	Historial de búsqueda
+Tracks, total playing time and total size of the list shown	Pistas, tiempo total y tamaño total de la lista mostrada
+Export Collection…	Exportar colección…
+Import Collection…	Importar colección…
+Import NML…	Importar NML…
+Add files…	Añadir ficheros…
+Narrow the list by BPM, key, rating and colour	Filtrar la lista por BPM, tonalidad, valoración y color
+Tracks that mix well after the one on the master deck	Pistas que mezclan bien tras la del deck master
+Drop a playlist here, or tracks to add them	Suelta aquí una playlist, o pistas para añadirlas
+Use the list shown	Usar la lista mostrada
+Add a folder of your computer	Añadir una carpeta del ordenador
+Remove from list	Quitar de la lista
+Export history…	Exportar el historial…
+Import history files…	Importar ficheros de historial…
+Backspn history files, or NML ones of another DJ application (only read)	Ficheros de historial de Backspn, o NML de otra aplicación de DJ (solo se leen)
+Delete archive	Borrar el archivo
+Import Folder as Playlist	Importar carpeta como playlist
+Import playlist…	Importar playlist…
+Backspn, NML or M3U	Backspn, NML o M3U
+Backspn or M3U	Backspn o M3U
+Export playlist…	Exportar playlist…
+Print list…	Imprimir la lista…
+The list shown, as a web page	La lista mostrada, como página web
+Clear collection…	Vaciar la colección…
+Check consistency…	Comprobar la coherencia…
+New smartlist	Nueva smartlist
+Rename…	Renombrar…
+Duplicate playlist	Duplicar la playlist
+Remove Duplicates from Playlist	Quitar duplicados de la playlist
+Edit smartlist…	Editar la smartlist…
+Duplicate smartlist	Duplicar la smartlist
+Save as playlist	Guardar como playlist
+◉  Collection	◉  Colección
+Add a folder to browse its files.	Añade una carpeta para ver sus ficheros.
+Archive	Archivo
+⏺ Audio Recordings	⏺ Grabaciones de audio
+LED output	Salida de LED
+Value	Valor
+Focus	Foco
+Auto repeat	Repetición automática
+Soft takeover	Recogida suave
+Match all conditions	Cumplir todas las condiciones
+Edit All	Editar todas
+Same genre	Mismo género
+Hide played	Ocultar las tocadas
+Master in mono	Master en mono
+Monitor (headphones) in mono	Monitor (auriculares) en mono
+With SLIP, the track runs on while paused	Con SLIP, la pista sigue corriendo en pausa
+When the tempo master stops, a playing deck takes over	Cuando el tempo master para, un deck que toca toma el relevo
+Only on air decks can be tempo master	Solo los decks al aire pueden ser tempo master
+Bend grows while held	El bend crece mientras se mantiene
+Set each track's gain from its loudness	Ajustar la ganancia de cada pista según su sonoridad
+Do not ask again.	No volver a preguntar.
+Own range	Rango propio
+Blend	Mezcla
+Invert	Invertir
+Set Beatgrid	Fijar la rejilla
+Gain	Ganancia
+Replace Locked Values	Reemplazar los valores bloqueados
+Parallel Processing	Proceso en paralelo
+Also delete their files from the disk	Borrar también los ficheros del disco
+Relative: moving the fader changes the tempo by that much, wherever it is. Absolute: the fader position is the tempo. SHIFT + SYNC locks the tempo at 0 %.	Relativo: mover el fader cambia el tempo en esa cantidad, esté donde esté. Absoluto: la posición del fader es el tempo. SHIFT + SYNC bloquea el tempo al 0 %.
+A new device, buffer or outputs keep the decks playing; a new sample rate unloads them.	Un dispositivo, buffer o salidas nuevos mantienen los decks sonando; una frecuencia de muestreo nueva los descarga.
+In TT mode the motor turns the platter and the track follows it: touch to scratch, SHIFT + PLAY lets it run down. The tempo fader moves platter and track ±8 %; SYNC does not apply.	En modo TT el motor gira el plato y la pista lo sigue: toca para hacer scratch, SHIFT + PLAY la deja frenar. El fader de tempo mueve plato y pista ±8 %; SYNC no se aplica.
+How far the track moves for each turn when nudging a playing deck (turning the ring, or the platter in jog mode)	Cuánto se mueve la pista por cada vuelta al empujar un deck que toca (girando el aro, o el plato en modo jog)
+How far the track moves for each turn of a jog wheel let go while turning (×1.00 follows the wheel)	Cuánto se mueve la pista por cada vuelta de un jog que se suelta girando (×1,00 sigue al jog)
+Turning resistance the jog wheel motors give in jog mode; low values let a spun wheel run on longer	Resistencia al giro que dan los motores del jog en modo jog; los valores bajos dejan que un jog lanzado siga girando más
+Resonant sweep modelled on club mixers: cubic cut-off law, low-pass 100 Hz–25 kHz, high-pass 20 Hz–8.2 kHz	Barrido resonante al estilo de las mesas de club: corte cúbico, paso bajo 100 Hz–25 kHz, paso alto 20 Hz–8,2 kHz
+Link: the master clock panel shows LINK, to share tempo and phase with other apps on the network. External: it shows EXT, to follow a MIDI clock.	Link: el panel del reloj master muestra LINK, para compartir tempo y fase con otras apps de la red. Externo: muestra EXT, para seguir un MIDI clock.
+LIVE in a deck's header plays its input through the channel (gain, EQ, FX, fader). The microphone goes straight into the master.	LIVE en la cabecera de un deck toca su entrada por el canal (ganancia, EQ, FX, fader). El micrófono va directo al master.
+The channel knob drives the filter or the chosen mixer FX; the channel's FX button switches it.	El knob del canal mueve el filtro o el mixer FX elegido; el botón FX del canal lo activa.
+Smooth: long blends without a dip. Sharp cut: both sides full until the very end, for scratching.	Suave: mezclas largas sin bajón. Corte seco: los dos lados al máximo hasta el final, para scratch.
+Prevents loading a track into a playing deck (browser, drag and drop, controllers and files).	Impide cargar una pista en un deck que toca (browser, arrastrar y soltar, controladoras y ficheros).
+Loading the track another deck has continues from its position, tempo and play state.	Cargar la pista que tiene otro deck sigue desde su posición, tempo y estado de reproducción.
+What loading a stem file does. The other way is the loading alternative (a mapping or the browser's Load menu).	Qué hace cargar un fichero de stems. La otra forma es la carga alternativa (un mapeo o el menú Load del browser).
+A one-shot always starts from its beginning; without it, it goes on from where the previous sample was.	Un one-shot siempre empieza desde el principio; sin esto, sigue desde donde iba el sample anterior.
+An edited set is saved when the deck leaves it; otherwise its changes are lost.	Un set editado se guarda cuando el deck lo deja; si no, sus cambios se pierden.
+A deck becomes a sample deck with the SAMPLE button in its header; the slot volume, filter and FX controls are the stems' (Slot Volume, Slot Filter…).	Un deck se convierte en sample deck con el botón SAMPLE de su cabecera; los controles de volumen, filtro y FX de slot son los de los stems (Slot Volume, Slot Filter…).
+Shown left to right in this order; drag a header to move a column. Also: right-click a column header.	Se muestran de izquierda a derecha en este orden; arrastra una cabecera para mover una columna. También: clic derecho en la cabecera de una columna.
+Generate Stems writes each track's stems in the first folder. The second holds stems made by another DJ application: they load like yours, but are never changed or deleted.	Generate Stems escribe los stems de cada pista en la primera carpeta. La segunda guarda stems hechos por otra aplicación de DJ: se cargan como los tuyos, pero nunca se cambian ni se borran.
+The recorder's panel shows in the global section's left side (Decks Layout ▸ Global section left).	El panel del grabador aparece a la izquierda de la sección global (Decks Layout ▸ Global section left).
+WAV at the audio device's rate, named <prefix>_<date>_<time>.wav. 24-bit keeps the full quality; 16-bit (dithered) is the smallest; 32-bit float never clips. Recordings join the collection.	WAV a la frecuencia del dispositivo de audio, con nombre <prefijo>_<fecha>_<hora>.wav. 24 bits conserva toda la calidad; 16 bits (con dither) es el más pequeño; 32 bits float nunca satura. Las grabaciones entran en la colección.
+24 ticks a beat at the master clock's tempo. START sends Start on the next beat; SYNC stops and starts the devices again.	24 ticks por beat al tempo del reloj master. START manda Start en el siguiente beat; SYNC para y vuelve a arrancar los aparatos.
+Receiving MIDI clock: EXT in the master clock panel follows the clock from any Controller Manager In-Port.	Recibir MIDI clock: EXT en el panel del reloj master sigue el reloj de cualquier In-Port del Controller Manager.
+Sync the master clock with Link: shares tempo and beat phase with other apps on the network. Shows the phase and the connected peers.	Sincronizar el reloj master con Link: comparte tempo y fase del beat con otras apps de la red. Muestra la fase y los pares conectados.
+Input FX Send (Ext)	Envío de FX de entrada (Ext)
+Rec Latency	Latencia de grabación
+With the EXT source: how late its input arrives, so it is recorded on the beat	Con la fuente EXT: con cuánto retraso llega su entrada, para grabarla a tiempo
+Apply Headroom to Channel Meters	Aplicar el headroom a los vúmetros de canal
+When selected the current headroom setting is reflected by the channel meters in the mixer channels.	Marcado, los vúmetros de los canales del mezclador reflejan el headroom actual.
+Clear collection	Vaciar la colección
+Do you really want to clear your entire collection? The files stay on disk.	¿Seguro que quieres vaciar toda la colección? Los ficheros se quedan en el disco.
+Save pattern	Guardar pattern
+Delete kit	Borrar kit
+Import NML	Importar NML
+The files' tags may not match the collection. Which ones should the import keep?	Los tags del fichero pueden no coincidir con los de la colección. ¿Cuáles se usan al importar?
+Collection	Colección
+Delete from hard drive	Borrar del disco duro
+Really remove missing track(s) from collection?	¿Quitar de la colección las pistas perdidas?
+Attention: The selected file will be PURGED! Do you really want to delete the selected tracks?	Atención: ¡el fichero seleccionado se BORRARÁ! ¿Seguro que quieres borrar las pistas seleccionadas?
+Error	Error
+Warning	Aviso
+Notifications	Notificaciones
+Info	Info
+How long these notices stay at the bottom right	Cuánto tiempo se quedan estos avisos abajo a la derecha
+Deck is playing	El deck está sonando
+Stop the deck before loading another track	Para el deck para cargar otra pista
+Stop the deck before making it a live input	Para el deck para pasar a Live Input
+A live input deck cannot load tracks	Un deck de entrada en directo no carga pistas
+Change its deck type first	Cambia el tipo de deck
+This file cannot be played	No se puede reproducir el fichero
+It may be missing, damaged or in a format the app cannot read.	Puede que falte, esté dañado o no esté soportado.
+Could not copy	No se pudo copiar
+Could not load	No se pudo cargar
+The track could not be loaded	No se pudo cargar la pista
+All Sample Sets	Todos los sample sets
+No Sample Sets in the collection	No hay sample sets en la colección
+Load into Deck	Cargar en el deck
+Import Sample Set…	Importar sample set…
+Export Sample Set…	Exportar sample set…
+Sample Sets Folder	Carpeta de sample sets
+Where imported sample sets are kept.	Donde se guardan los sample sets importados.
+The folder you are trying to import contains a Sample Set that already exists in your Collection.	La carpeta que intentas importar contiene un sample set que ya existe en tu colección.
+Please provide a new name for the imported Sample Set to continue importing or click Cancel to abort the import.	Escribe un nombre nuevo para el sample set importado para seguir, o pulsa Cancel para cancelar la importación.
+Sample Set Name	Nombre del sample set
+Sample deck starting…	Arrancando el sample deck…
+Double-click to rename	Doble clic para renombrar
+Load…	Cargar…
+Save	Guardar
+Save Sample Set to the collection	Guardar el sample set en la colección
+New empty Sample Set	Sample set nuevo vacío
+Deck Play: the sample deck's transport	Deck Play: el transporte del sample deck
+Beat position	Posición en beats
+Quantize On: triggers wait for the next quantize point	Quantize On: los disparos esperan al siguiente punto de quantize
+Capture Source: where an empty cell captures from (click: next)	Capture Source: de dónde captura una celda vacía (clic: siguiente)
+Sample page	Página de samples
+Active cell: click to trigger (Slot Capture/Trigger/Mute)	Celda activa: clic para disparar (Slot Capture/Trigger/Mute)
+Slot Play Mode: loop or one-shot	Slot Play Mode: loop o one-shot
+Slot Trigger Type: gate stops on release	Slot Trigger Type: gate para al soltar
+Slot Keylock On	Slot Keylock On
+Slot Punch On: a new cell goes on from where the last one was	Slot Punch On: una celda nueva sigue desde donde iba la anterior
+Slot Size /2	Slot Size /2
+Slot Size x2	Slot Size x2
+Slot Size Reset: the whole sample	Slot Size Reset: el sample entero
+Click: trigger (empty: select) · Right-click: options · Drop a track to load	Clic: disparar (vacía: seleccionar) · Clic derecho: opciones · Suelta una pista para cargarla
+Load selected track	Cargar la pista seleccionada
+Make active	Hacerla activa
+Loop	Loop
+One-shot	One-shot
+Latch	Latch
+Gate	Gate
+Sync	Sync
+Reverse	Al revés
+Speed	Velocidad
+Colour	Color
+Slot Volume	Slot Volume
+Slot Filter	Slot Filter
+Slot FX Amount	Slot FX Amount
+Slot Mute On	Slot Mute On
+OK	OK
+Sample decks can be tempo master	Los sample decks pueden ser tempo master
+A playing sample deck with samples loaded can lead the clock	Un sample deck sonando y con samples cargados puede llevar el reloj
+Deck type:	Tipo de deck:
+Device Setup	Configuración del aparato
+Device	Aparato
+Add: loads the model's mappings	Añadir: carga los mapeos del modelo
+The controller or mixer in use; a model not listed yet is added with its mappings	La controladora o mesa que usas; un modelo que aún no esté se añade con sus mapeos
+Edit…	Editar…
+Edit Comment	Editar comentario
+Comment	Comentario
+In-Port	Puerto de entrada
+Out-Port	Puerto de salida
+None: its LEDs go to every LED output	None: sus LEDs van a todas las salidas de LED
+Device Target	Device Target
+The deck of the mappings assigned to Device Target: the one with the focus, or a fixed deck	El deck de los mapeos asignados a Device Target: el que tiene el foco, o uno fijo
+Device Target: each side's deck.	Device Target: el deck de cada lado.
+Modifier State	Estado de los modificadores
+Assignment Table	Tabla de asignaciones
+Control	Control
+I/O	E/S
+Assignment	Asignación
+Mode	Modo
+Mapped to	Asignado a
+Cond1	Cond1
+Cond2	Cond2
+Add In…	Añadir entrada…
+Add Out…	Añadir salida…
+Device Mapping	Mapeo del aparato
+Select a row, or add a command.	Elige una fila, o añade un comando.
+Forgets the control; the command waits for another	Olvida el control; el comando espera otro
+Mapping Details	Detalles del mapeo
+Modifier Conditions	Condiciones de modificador
+Type of Controller	Tipo de control
+Interaction Mode	Modo de interacción
+Button Options	Opciones de botón
+Press and release swap; steps go the other way	Pulsar y soltar se intercambian; los pasos van al revés
+Steps when released instead of pressed	Da el paso al soltar en vez de al pulsar
+Rotary Encoder	Encoder rotatorio
+Enc.-Mode	Modo del encoder
+How the encoder sends its turns	Cómo manda el encoder sus giros
+Rotary Sensitivity	Sensibilidad
+Rotary Acceleration	Aceleración
+Faster turns move more	Los giros rápidos mueven más
+Fader / Knob	Fader / knob
+LED Options	Opciones de LED
+Controller Range	Rango del control
+The control's own range	El rango propio del control
+Midi Range	Rango MIDI
+Off: the mode's own value	Apagado: el valor propio del modo
+Deck Common	Deck
+Cue/Loops	Cue / loops
+Track Deck	Deck de pista
+Stem Deck	Deck de stems
+Sample Deck	Sample deck
+FX Unit	Unidad de FX
+Master Clock	Reloj master
+Loop Recorder	Loop Recorder
+Audio Recorder	Grabador
+Browser	Browser
+Modifier	Modificador
+Global	Global
+Override factory map	Sobrescribir el mapa de fábrica
+Only the table maps this control: its built-in function (SHIFT, deck layers, pad modes…) is skipped	Solo la tabla mapea este control: su función de fábrica (SHIFT, capas de deck, modos de pads…) se salta
+Edit	Edición
+not connected	no conectado
+Preset:	Preset:
+A copy with the same mappings and ports; move one to another In-Port to tell them apart	Una copia con los mismos mapeos y puertos; mueve una a otro In-Port para distinguirlas
+Your own copy of the profile; Restore default mapping loads the profile again	Tu copia propia del perfil; Restore default mapping vuelve a cargar el perfil
+Load	Cargar
+Update	Actualizar
+Rename	Renombrar
+Move up	Subir
+Move down	Bajar
+Layout name	Nombre del layout
+Save the screen as:	Guardar la pantalla como:
+No layout saved yet.	Aún no hay layouts guardados.
+Show this layout on the screen	Mostrar este layout en la pantalla
+Save the screen as it is now into this layout	Guardar en este layout la pantalla tal como está ahora
+Delete layout	Borrar layout
+Delete the layout	¿Borrar el layout
+Type a name.	Escribe un nombre.
+A layout with this name already exists.	Ya hay un layout con este nombre.
+Unsaved layout	Layout sin guardar
+Manage layouts…	Gestionar layouts…
+Decks	Decks
+Actions	Acciones
+On screen now	En pantalla ahora
+Type the new name and press Enter	Escribe el nombre nuevo y pulsa Enter
+Delete this layout	Borrar este layout
+A layout keeps the whole set-up but the tracks and the mixer: the decks with their type, size and sample set, the FX units with their mode and effects, the crossfader, the browser's parts and the waveform's look. Save it as it is now, then switch layouts from the selector in the top bar.	Un layout guarda toda la configuración salvo las pistas y el mixer: los decks con su tipo, tamaño y sample set, las unidades de FX con su modo y efectos, el crossfader, las partes del browser y el aspecto de la onda. Guárdalo tal como está y cambia de layout con el selector de la barra superior.
+Layout: decks, FX units and what the screen shows	Layout: decks, unidades de FX y lo que muestra la pantalla
+Layouts	Layouts
+Key a semitone down (heard with keylock)	Bajar la tonalidad un semitono (se oye con keylock)
+Key a semitone up (heard with keylock)	Subir la tonalidad un semitono (se oye con keylock)
+Keylock on: the key stays as the tempo changes. Click to turn it off	Keylock activado: la tonalidad no cambia con el tempo. Clic para desactivarlo
+Keylock off: the key follows the tempo. Click to turn it on	Keylock desactivado: la tonalidad sigue al tempo. Clic para activarlo
+Auto Cue:	Auto Cue:
+Auto Cue level:	Nivel del Auto Cue:
+A loaded track is cued where its sound starts, skipping the silence before it. A stored load marker comes first. Lower levels count quieter sound as the start.	La pista cargada se coloca donde empieza su sonido, saltando el silencio inicial. Un marcador de carga guardado tiene prioridad. Con niveles más bajos, un sonido más débil ya cuenta como inicio.
+Activity	Actividad
+Analysis and stems, newest at the bottom.	Análisis y stems; lo más reciente abajo.
+Nothing yet.	Nada todavía.
+Analysis queued:	Análisis en cola:
+1 track	1 pista
+tracks	pistas
+Analysed:	Analizada:
+Analysis failed:	Falló el análisis:
+Analysis cancelled	Análisis cancelado
+Click: what the background jobs are doing	Clic: qué están haciendo los trabajos en segundo plano
+Stems queued:	Stems en cola:
+Stems ready:	Stems listos:
+Stems cancelled:	Stems cancelados:
+Stems failed:	Fallaron los stems:
+Stem model download failed:	Falló la descarga del modelo de stems:
+Stem model downloaded	Modelo de stems descargado
+Time	Hora
+Status	Estado
+Job	Trabajo
+Done	Hecho
+Full Rescan	Reescaneo completo
+Quick Scan	Escaneo rápido
+Read every selected file's tags again	Volver a leer los tags de todos los ficheros seleccionados
+Read again only the files modified since	Volver a leer solo los ficheros modificados desde la última lectura
+Quick Scan queued:	Escaneo rápido en cola:
+Full Rescan queued:	Reescaneo completo en cola:
+Cannot read the tags of	No se pueden leer los tags de
+Rescan cancelled	Reescaneo cancelado
+Scanning	Escaneando
+Rescan done:	Reescaneo terminado:
+read	leídas
+unchanged	sin cambios
+failed	fallidas
+Analyze	Analizar
+Scan	Escanear
+Analyze {n}? Tempo, beatgrid, key and gain are calculated again.	¿Analizar {n}? Se vuelven a calcular tempo, beatgrid, tonalidad y ganancia.
+Read again the tags of the files modified among {n}? The collection takes what the files say.	¿Volver a leer los tags de los ficheros modificados entre {n}? La colección toma lo que digan los ficheros.
+Read again the tags of {n}? The collection takes what the files say.	¿Volver a leer los tags de {n}? La colección toma lo que digan los ficheros.
+New playlist	Nueva playlist
+New folder	Nueva carpeta
+New playlist or smartlist	Nueva playlist o smartlist
+Setup Assistant	Asistente de configuración
+Setup Assistant…	Asistente de configuración…
+Welcome to Backspn	Bienvenido a Backspn
+Controller or mixer	Controladora o mesa
+Back	Atrás
+Next	Siguiente
+Finish	Terminar
+Skip setup	Omitir configuración
+Closes the assistant; it is in the Backspn menu	Cierra el asistente; está en el menú Backspn
+This assistant sets up your controller or mixer. Every step can be skipped and changed later in Preferences.	Este asistente configura tu controladora o mesa. Cada paso se puede omitir y cambiar después en Preferencias.
+Run it again any time from the Backspn menu or Preferences ▸ Global Settings.	Vuelve a lanzarlo cuando quieras desde el menú Backspn o Preferencias ▸ Ajustes generales.
+Sets up the controller or mixer again, step by step	Vuelve a configurar la controladora o la mesa, paso a paso
+Model	Modelo
+(plugged in)	(enchufada)
+No controller (mouse and keyboard)	Sin controladora (ratón y teclado)
+Kontrol (USB)	Kontrol (USB)
+What will you play with?	¿Con qué vas a pinchar?
+Backspn works with the mouse and keyboard. A controller can be added later in Preferences ▸ Controller Manager.	Backspn funciona con ratón y teclado. Una controladora se puede añadir después en Preferencias ▸ Gestor de controladores.
+Plugged in and set up with its mappings.	Enchufada y configurada con sus mapeos.
+Plug it in by USB: it sets itself up with its mappings.	Enchúfala por USB: se configura sola con sus mapeos.
+Set up with its mappings; it works once plugged in.	Configurada con sus mapeos; funciona en cuanto la enchufes.
+Its mappings are loaded when you click Next; it works once plugged in.	Sus mapeos se cargan al pulsar Siguiente; funciona en cuanto la enchufes.
+Audio outputs	Salidas de audio
+Your controller has its own sound card:	Tu controladora tiene su propia tarjeta de sonido:
+Use it	Usarla
+Sound card	Tarjeta de sonido
+Master	Master
+Outputs 1/2	Salidas 1/2
+Headphones	Auriculares
+No sound card is open.	No hay ninguna tarjeta de sonido abierta.
+Now: headphones on outputs	Ahora: auriculares en las salidas
+Now: no headphone output; the cue goes nowhere.	Ahora: sin salida de auriculares; la pre-escucha no suena.
+More in Preferences ▸ Audio Setup and Output Routing (buffer, sample rate, mono).	Más en Preferencias ▸ Audio Setup y Output Routing (buffer, frecuencia, mono).
+Look	Apariencia
+Choose the colours of the app.	Elige los colores de la app.
+Also in the View menu and Preferences ▸ Global Settings.	También en el menú Visualización y en Preferencias ▸ Ajustes generales.
+Try the controls	Prueba los controles
+Move faders and knobs and press buttons: each control shows here. Nothing happens in the app meanwhile.	Mueve faders y knobs y pulsa botones: cada control sale aquí. Mientras, la app no hace nada.
+Waiting for a control…	Esperando un control…
+pressed	pulsado
+released	soltado
+controls tried. One that never shows needs mapping in Preferences ▸ Controller Manager.	controles probados. Uno que no sale nunca hay que mapearlo en Preferencias ▸ Gestor de controladores.
+Calibrate the knobs	Calibrar los knobs
+Its firmware calibrates the knobs, a group at a time.	Su firmware calibra los knobs, un grupo cada vez.
+Plug in the controller to calibrate its knobs.	Enchufa la controladora para calibrar sus knobs.
+If a knob does not reach its ends or its centre, calibrate its group.	Si un knob no llega a sus extremos o a su centro, calibra su grupo.
+Calibrate	Calibrar
+FX knobs	knobs de FX
+EQ and Mixer FX knobs	knobs de EQ y Mixer FX
+to the full left	del todo a la izquierda
+to the full right	del todo a la derecha
+to the exact centre	justo al centro
+Turn every one of the	Gira todos los
+on the	de la
+then press OK.	y pulsa OK.
+Calibrated. If a knob still reads wrong, calibrate it again.	Calibrado. Si un knob sigue leyendo mal, vuelve a calibrarlo.
+Cancelled: the knobs keep their values before.	Cancelado: los knobs vuelven a los valores de antes.
+The controller is not connected: nothing was sent.	La controladora no está conectada: no se ha enviado nada.
+Calibration	Calibración
+Your music	Tu música
+No folder yet.	Aún no hay ninguna carpeta.
+More folders, or none, in Preferences ▸ File Management. Skipping this step imports nothing.	Más carpetas, o ninguna, en Preferencias ▸ Gestión de ficheros. Si te saltas este paso no se importa nada.
+Choose the folders with your music: they show under FOLDERS and their tracks are imported into the collection when you click Next.	Elige las carpetas con tu música: salen en FOLDERS y sus pistas se importan a la colección al pulsar Siguiente.
+Add folders…	Añadir carpetas…
+Writing tags puts edits, ratings and the analysis (BPM, key) into the music files themselves.	Escribir los tags guarda las ediciones, las valoraciones y el análisis (BPM, tonalidad) dentro de los propios ficheros de música.
+Caution! Decks are playing.	¡Atención! Hay decks sonando.
+These tasks are still running:	Estas tareas siguen en marcha:
+Quitting stops them.	Al salir se detienen.
+Quit?	¿Salir?
+Importing music folders	Importando carpetas de música
+Analyzing tracks	Analizando pistas
+Rescanning tracks	Reescaneando pistas
+Generating stems	Generando stems
+Writing tags to files	Escribiendo tags en los archivos
+Recording the mix	Grabando la mezcla
+Quit	Salir
+Help	Ayuda
+Not Now	Ahora no
+Crash Report	Informe de cuelgue
+Report a Problem…	Informar de un problema…
+Show Log File	Mostrar el fichero de log
+Report on GitHub…	Informar en GitHub…
+Opens a new GitHub issue in your browser with the version, the system and the log	Abre en el navegador un issue nuevo de GitHub con la versión, el sistema y el log
+Shows the log file in the file manager	Muestra el fichero de log en el gestor de archivos
+Backspn did not close properly last time. Report it on GitHub? The issue opens in your browser with the error and the log; nothing is sent until you send it.	Backspn no se cerró bien la última vez. ¿Informar en GitHub? El issue se abre en el navegador con el error y el log; no se envía nada hasta que lo envíes tú.
+Hide until the next version	Ocultar hasta la siguiente versión
+Backspn {v} is available	Backspn {v} ya está disponible
+Opens the release's page in your browser	Abre la página de la versión en el navegador
+Timecode control (DVS) is not available yet.	El control por timecode (DVS) todavía no está disponible.
+Streaming services are not available yet.	Los servicios de streaming todavía no están disponibles.
+Broadcasting is not available yet.	La emisión todavía no está disponible.
+(untested)	(sin probar)
+Not tried with the real device yet: tell us how it goes with Report a Problem…	Aún sin probar con el aparato real: cuéntanos cómo va con Informar de un problema…
+Import Library XML…	Importar XML de biblioteca…
+LIBRARY XML	XML DE BIBLIOTECA
+(loading)	(cargando)
+Refresh	Actualizar
+Import to Collection	Importar a la colección
+Import to Playlists	Importar a Playlists
+Adds its tracks to the collection with their cues and grid	Añade sus pistas a la colección con sus cues y su grid
+Copies its playlists and folders into Playlists, with their tracks	Copia sus playlists y carpetas a Playlists, con sus pistas
+Shows the library XML another DJ program exports (DJ_PLAYLISTS) in the tree, to load and import from	Muestra en el árbol el XML de biblioteca que exporta otro programa de DJ (DJ_PLAYLISTS), para cargar e importar desde él
+Music	Música
+Refresh Playlists	Actualizar listas
+Sync Song Info	Sincronizar datos de canciones
+Copies the artist, title, album and rating of the library's tracks into the collection	Copia a la colección el artista, título, álbum y rating de las pistas de la biblioteca
+Syncing song info from the music library will overwrite the artist, title, album and rating in your collection. Do you want to continue?	Sincronizar los datos desde la biblioteca de música sobrescribirá el artista, título, álbum y rating de tu colección. ¿Continuar?
+Music library	Biblioteca de música
+Use legacy XML music library	Usar el XML de la biblioteca de música
+Reads the XML file the music player exports instead of its library	Lee el fichero XML que exporta el reproductor en vez de su biblioteca
+Library XML	XML de biblioteca
+The music player's exported library file	El fichero de biblioteca que exporta el reproductor
+The music library is empty!	¡La biblioteca de música está vacía!
+DJ SOFTWARE	SOFTWARE DE DJ
+Look for Libraries Again	Buscar bibliotecas otra vez
+No Serato, VirtualDJ or Engine DJ library found.	No se ha encontrado ninguna biblioteca de Serato, VirtualDJ o Engine DJ.
+Mixing Mode	Modo de mezcla
+Internal	Interno
+External	Externo
+When internal is selected the audio signals are mixed with the internal mixer. When external is selected the audio signals are sent to the audio interface connected to the external mixer.	Con Interno, el audio se mezcla en el mezclador de la app. Con Externo, se envía a la tarjeta de sonido conectada a la mesa externa.
+Output Deck A	Salida deck A
+Output Deck B	Salida deck B
+Output Deck C	Salida deck C
+Output Deck D	Salida deck D
+Output Preview	Salida de preescucha
+Output FX Return	Salida retorno de FX
+Each deck leaves on its own outputs to a channel of the external mixer. Decks on the same pair are summed. Send effects take Input FX Send (Ext) and come back on Output FX Return.	Cada deck sale por sus propias salidas hacia un canal de la mesa externa. Los decks en el mismo par se suman. Los efectos en Send toman la entrada de envío de FX (Ext) y vuelven por la salida retorno de FX.
+External Mixing Mode	Modo de mezcla externo
+Enable Autogain	Activar autoganancia
+Enable Master Volume Control	Activar el control de volumen master
+MAIN sets the level of every deck output	MAIN ajusta el nivel de todas las salidas de deck
+Enable EQ + GAIN	Activar EQ + GAIN
+Enable Filter / Mixer FX	Activar filtro / Mixer FX
+Used when Output Routing's Mixing Mode is External. Channel faders, balance and the crossfader are left to the external mixer.	Se usa cuando el modo de mezcla de Output Routing es Externo. Los faders de canal, el balance y el crossfader quedan para la mesa externa.
+Input Deck A	Entrada deck A
+Input Deck B	Entrada deck B
+Input Deck C	Entrada deck C
+Input Deck D	Entrada deck D
+With an external mixer the master is not mixed here: choose the input the mixer's record output comes in on.	Con mesa externa el master no se mezcla aquí: elige la entrada por la que llega la salida de grabación de la mesa.
+Choose the decks on screen.	Elige los decks en pantalla.
+Also in Preferences ▸ Decks Layout.	También en Preferencias ▸ Disposición de los decks.
+🔁 Loops	🔁 Loops
+Save the loop to the Loops list of the browser	Guardar el bucle en la lista Loops del browser
+Audio Recordings	Grabaciones de audio
+Loops	Loops
+History	Historial
+DJ Software	Software de DJ
+Library nodes	Nodos de LIBRARY
+Untick a node to hide it from LIBRARY; nothing is deleted. Collection always shows.	Desmarca un nodo para ocultarlo de LIBRARY; no se borra nada. Collection siempre se ve.
+Save as Loop	Guardar como loop
+Loop on / off. Drag the loop onto a sample deck cell or onto Loops; right-click to save it	Loop sí / no. Arrastra el bucle a una celda de un sample deck o a Loops; clic derecho para guardarlo
+Drag onto a sample deck cell to copy the loop there, or onto Loops to save it	Arrastra a una celda de un sample deck para copiar ahí el bucle, o a Loops para guardarlo
+Drag the loop onto a sample deck cell or onto Loops; right-click to save it	Arrastra el bucle a una celda de un sample deck o a Loops; clic derecho para guardarlo

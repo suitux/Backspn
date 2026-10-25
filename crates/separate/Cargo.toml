@@ -1,0 +1,19 @@
+[package]
+name = "backspn-separate"
+description = "Splits a track into drums, bass, other and vocals with an open separation model"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+ort = "=2.0.0-rc.15"
+sha2 = "0.10"
+thiserror.workspace = true
+backspn-analysis = { path = "../analysis" }
+backspn-decode = { path = "../decode" }
+ureq = "3"
+
+[lints]
+workspace = true

@@ -1,0 +1,30 @@
+---
+import { ready, url, type Clip, type Video } from '../media';
+
+interface Props {
+  clip: Clip | Video;
+  as: 'loop' | 'player';
+  alt: string;
+  eager?: boolean;
+}
+const { clip, as, alt, eager = false } = Astro.props;
+const has = ready(clip.file);
+const isVideo = clip.file.endsWith('.mp4') || clip.file.endsWith('.webm');
+const poster = 'poster' in clip && ready(clip.poster) ? url(clip.poster) : undefined;
+---
+
+{has && as === 'player' && (
+  <video class="size-full object-cover" src={url(clip.file)} poster={poster} controls preload="none" playsinline aria-label={alt}></video>
+)}
+{has && as === 'loop' && isVideo && (
+  <video class="size-full object-cover" src={url(clip.file)} poster={poster} autoplay muted loop playsinline preload={eager ? 'auto' : 'metadata'} aria-label={alt}></video>
+)}
+{has && as === 'loop' && !isVideo && (
+  <img class="size-full object-cover" src={url(clip.file)} alt={alt} loading={eager ? 'eager' : 'lazy'} decoding="async" />
+)}
+{!has && (
+  <div class="relative size-full" role="img" aria-label={alt}>
+    <slot />
+    {import.meta.env.DEV && <span class="absolute right-2 bottom-2 bg-[#ffd84a] px-2 py-1 text-xs font-semibold text-black">public/media/{clip.file}</span>}
+  </div>
+)}

@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  --color-ground: #0e0f11;
+  --color-app: #121316;
+  --color-raised: #18191d;
+  --color-tile: #1c1d21;
+  --color-tile-2: #26272c;
+  --color-well: #060607;
+  --color-paper: #f2f1ee;
+  --color-ink-dark: #101014;
+  --color-soft: #a3a2a0;
+  --color-dim: #8d8c8a;
+  --color-line: rgb(242 241 238 / 0.1);
+  --color-accent: #2d81ff;
+  --color-accent-hover: #5a9bff;
+  --color-a-ink: #7ea3ee;
+  --color-master: #e0b020;
+  --color-deck-a: #3568c9;
+  --color-deck-b: #d97700;
+  --color-deck-c: #a55cff;
+  --color-deck-d: #00a873;
+
+  --animate-wave: wave 24s linear infinite;
+  @keyframes wave {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-ground font-sans text-[17px] leading-[1.55] text-paper antialiased;
+    overflow-x: clip;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-3 outline-accent;
+  }
+  ::selection {
+    @apply bg-accent text-ink-dark;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+}

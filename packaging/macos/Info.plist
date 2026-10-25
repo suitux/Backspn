@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Backspn shows your music library in its browser so you can load and import its tracks and playlists.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Backspn plays and records the audio inputs you route to a Live Input deck, the microphone or the recorders.</string>
+</dict>
+</plist>

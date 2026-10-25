@@ -1,0 +1,17 @@
+[package]
+name = "backspn-formats"
+description = "Readers for DJ library interchange formats (NML collections, transient caches, stem files)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+quick-xml.workspace = true
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+thiserror.workspace = true
+
+[lints]
+workspace = true

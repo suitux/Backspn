@@ -1,0 +1,95 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.tag.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="${tag%%-*}"
+          workspace=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml)
+          if [ "$version" != "$workspace" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the workspace version $workspace"
+            exit 1
+          fi
+          if [ "$tag" != "$version" ]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  package:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            formats: app
+          - os: windows-latest
+            formats: nsis
+          - os: ubuntu-24.04
+            formats: deb,appimage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Linux packages
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config cmake libclang-dev libasound2-dev libudev-dev \
+            libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev \
+            libfuse2t64
+      - uses: Swatinem/rust-cache@v2
+      - name: Packager
+        run: cargo install cargo-packager --locked --version 0.11.8
+      - name: Package
+        working-directory: crates/app
+        shell: bash
+        run: |
+          export BACKSPN_VERSION="${GITHUB_REF_NAME#v}"
+          cargo packager --release --formats ${{ matrix.formats }}
+      - name: Sign and make the disk image
+        if: runner.os == 'macOS'
+        working-directory: target/packages
+        run: |
+          codesign --force --deep --sign - Backspn.app
+          codesign --verify --deep --strict Backspn.app
+          hdiutil create -volname Backspn -srcfolder Backspn.app -ov -format UDZO Backspn.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backspn-${{ runner.os }}
+          path: |
+            target/packages/*.dmg
+            target/packages/*.exe
+            target/packages/*.deb
+            target/packages/*.AppImage
+          if-no-files-found: error
+
+  release:
+    needs: [version, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: packages
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
+          make_latest: ${{ needs.version.outputs.prerelease == 'true' && 'false' || 'true' }}
+          generate_release_notes: true
+          files: packages/*

@@ -1,0 +1,1114 @@
+{
+  "brand": "Reloop",
+  "model": "BUDDY",
+  "ports": [
+    "Reloop Buddy In",
+    "Reloop Buddy Out"
+  ],
+  "mappings": [
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":12}},"action":{"action":"PlayPause","deck":0},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":6}},"action":{"action":"JogTurn","deck":0},"interaction":"Relative","invert":false,"scale":0.017201051,"sensitivity":30.196077},
+    {"input":{"MidiPair":{"lsb":{"channel":0,"kind":"Cc","number":63},"msb":{"channel":0,"kind":"Cc","number":9}}},"action":{"action":"Tempo","deck":0},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":13}},"action":{"action":"Cue","deck":0},"interaction":"Hold","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":14}},"action":{"action":"Sync","deck":0},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":15}},"action":{"action":"Master","deck":0},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":43}},"action":{"action":"MoveSize","deck":0,"size":8},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":43}},"action":{"action":"MoveMode","deck":0,"mode":"BeatJump"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":33}},"action":{"action":"MoveSize","deck":0,"size":12},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":33}},"action":{"action":"MoveMode","deck":0,"mode":"Loop"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":25}},"action":{"action":"Keylock","deck":0},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":27}},"action":{"action":"Modifier","index":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":1,"value":0}],"value":1}},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":27}},"action":{"action":"Modifier","index":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":1,"value":1}],"value":0}},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":18}},"action":{"action":"JogTouch","deck":0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":1,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Cc","number":52}},"action":{"action":"LoopSizeStep","deck":0},"interaction":"Relative","invert":false},
+    {"input":{"Midi":{"channel":8,"kind":"Note","number":16}},"action":{"action":"LoopActive","deck":0},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":76}},"action":{"action":"FastLoop","deck":0},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":19}},"action":{"action":"Slip","deck":0},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Cc","number":0}},"action":{"action":"BrowserUpDown"},"interaction":"Relative","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Note","number":14}},"action":{"action":"LoadSelectedAs","deck":0,"mode":"Track"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Note","number":15}},"action":{"action":"LoadSelectedAs","deck":1,"mode":"Track"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Note","number":39}},"action":{"action":"LoadSelectedAs","deck":0,"mode":"Stems"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Note","number":28}},"action":{"action":"LoadSelectedAs","deck":1,"mode":"Stems"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":22}},"action":{"action":"Gain","channel":0},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":22}},"action":{"action":"Gain","channel":1},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":23}},"action":{"action":"Eq","channel":0,"band":2},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":0,"value":0}]},"soft_takeover":true},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":23}},"action":{"action":"Eq","channel":1,"band":2},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":0,"value":0}]},"soft_takeover":true},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":23}},"action":{"action":"Eq","channel":0,"band":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":0,"value":1}]},"soft_takeover":true},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":23}},"action":{"action":"Eq","channel":1,"band":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":0,"value":1}]},"soft_takeover":true},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":25}},"action":{"action":"Eq","channel":0,"band":0},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":25}},"action":{"action":"Eq","channel":1,"band":0},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":26}},"action":{"action":"Filter","channel":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":0,"value":0}]},"soft_takeover":true},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":26}},"action":{"action":"Filter","channel":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":0,"value":0}]},"soft_takeover":true},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":39}},"action":{"action":"MonitorCue","channel":0},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":39}},"action":{"action":"MonitorCue","channel":1},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":47}},"action":{"action":"MixerFxOn","channel":0},"interaction":"Hold","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":47}},"action":{"action":"MixerFxOn","channel":1},"interaction":"Hold","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":28}},"action":{"action":"Volume","channel":0},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":28}},"action":{"action":"Volume","channel":1},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Cc","number":8}},"action":{"action":"Crossfader"},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Note","number":12}},"action":{"action":"Modifier","index":0},"interaction":"Hold","invert":false,"gate":{"value":1}},
+    {"input":{"Midi":{"channel":14,"kind":"Note","number":12}},"action":{"action":"Modifier","index":0},"interaction":"Hold","invert":false,"gate":{"value":1}},
+    {"input":{"Midi":{"channel":14,"kind":"Note","number":18}},"action":{"action":"BrowserView"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Cc","number":10}},"action":{"action":"MasterVolume"},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Cc","number":13}},"action":{"action":"CueMix"},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":14,"kind":"Cc","number":12}},"action":{"action":"CueVolume"},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":26}},"action":{"action":"MixerFxOn","channel":0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":0,"value":0}]}},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":26}},"action":{"action":"MixerFxOn","channel":0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":0,"value":1}]}},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":26}},"action":{"action":"MixerFxOn","channel":1},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":0,"value":1}]}},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":26}},"action":{"action":"MixerFxOn","channel":1},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":0,"value":0}]}},
+    {"input":{"Midi":{"channel":0,"kind":"Cc","number":26}},"action":{"action":"Filter","channel":0},"interaction":"Reset","invert":false,"gate":{"conditions":[{"modifier":0,"value":1}]}},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":26}},"action":{"action":"Filter","channel":1},"interaction":"Reset","invert":false,"gate":{"conditions":[{"modifier":0,"value":1}]}},
+    {"input":{"Midi":{"channel":14,"kind":"Cc","number":120}},"action":{"action":"BrowserTree"},"interaction":"Relative","invert":false,"sensitivity":99.60784},
+    {"input":{"Midi":{"channel":8,"kind":"Note","number":17}},"action":{"action":"FxButton","unit":0,"button":0},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":9,"kind":"Note","number":12}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":9,"kind":"Note","number":18}},"action":{"action":"FxButton","unit":0,"button":1},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":0,"kind":"Note","number":28}},"action":{"action":"FxOn","unit":0},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":28}},"action":{"action":"FxOn","unit":0},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":8,"kind":"Note","number":17}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Relative","invert":true,"encoder":"Button","auto_repeat":true},
+    {"input":{"Midi":{"channel":8,"kind":"Cc","number":0}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"soft_takeover":true},
+    {"input":{"Midi":{"channel":9,"kind":"Cc","number":1}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"soft_takeover":true},
+    {"input":{"Midi":{"channel":8,"kind":"Note","number":12}},"action":{"action":"FxDryWet","unit":0},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":9,"kind":"Cc","number":0}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":54}},"action":{"action":"FxKnob","unit":0,"knob":1},"interaction":"Relative","invert":true,"encoder":"Button","auto_repeat":true},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":55}},"action":{"action":"FxKnob","unit":0,"knob":1},"interaction":"Relative","invert":false,"encoder":"Button","auto_repeat":true},
+    {"input":{"Midi":{"channel":8,"kind":"Note","number":14}},"action":{"action":"FxButton","unit":0,"button":2},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":9,"kind":"Note","number":13}},"action":{"action":"Snap"},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":9,"kind":"Note","number":14}},"action":{"action":"Quantize"},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":9,"kind":"Note","number":24}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Relative","invert":false,"encoder":"Button"},
+    {"input":{"Midi":{"channel":9,"kind":"Note","number":23}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Relative","invert":true,"encoder":"Button"},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":12}},"action":{"action":"PlayPause","deck":1},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":6}},"action":{"action":"JogTurn","deck":1},"interaction":"Relative","invert":false,"scale":0.017201051,"sensitivity":30.196077},
+    {"input":{"MidiPair":{"lsb":{"channel":1,"kind":"Cc","number":63},"msb":{"channel":1,"kind":"Cc","number":9}}},"action":{"action":"Tempo","deck":1},"interaction":"Direct","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":13}},"action":{"action":"Cue","deck":1},"interaction":"Hold","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":14}},"action":{"action":"Sync","deck":1},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":15}},"action":{"action":"Master","deck":1},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":43}},"action":{"action":"MoveSize","deck":1,"size":8},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Cc","number":43}},"action":{"action":"MoveMode","deck":1,"mode":"BeatJump"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":9,"kind":"Cc","number":3}},"action":{"action":"MoveSize","deck":1,"size":12},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":9,"kind":"Cc","number":3}},"action":{"action":"MoveMode","deck":1,"mode":"Loop"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":25}},"action":{"action":"Keylock","deck":1},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":27}},"action":{"action":"Modifier","index":2},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":2,"value":0}],"value":1}},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":27}},"action":{"action":"Modifier","index":2},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":2,"value":1}],"value":0}},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":18}},"action":{"action":"JogTouch","deck":1},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":2,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Cc","number":52}},"action":{"action":"LoopSizeStep","deck":1},"interaction":"Relative","invert":false},
+    {"input":{"Midi":{"channel":9,"kind":"Note","number":16}},"action":{"action":"LoopActive","deck":1},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":76}},"action":{"action":"FastLoop","deck":1},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":1,"kind":"Note","number":19}},"action":{"action":"Slip","deck":1},"interaction":"Toggle","invert":false},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"Hotcue","deck":0,"slot":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"Hotcue","deck":0,"slot":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"Hotcue","deck":0,"slot":2},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"Hotcue","deck":0,"slot":3},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"Hotcue","deck":0,"slot":4},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"Hotcue","deck":0,"slot":5},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"Hotcue","deck":0,"slot":6},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"Hotcue","deck":0,"slot":7},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":40}},"action":{"action":"DeleteHotcue","deck":0,"slot":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":41}},"action":{"action":"DeleteHotcue","deck":0,"slot":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":42}},"action":{"action":"DeleteHotcue","deck":0,"slot":2},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":43}},"action":{"action":"DeleteHotcue","deck":0,"slot":3},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":44}},"action":{"action":"DeleteHotcue","deck":0,"slot":4},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":45}},"action":{"action":"DeleteHotcue","deck":0,"slot":5},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":46}},"action":{"action":"DeleteHotcue","deck":0,"slot":6},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":47}},"action":{"action":"DeleteHotcue","deck":0,"slot":7},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":0}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":29}},"action":{"action":"MoveMode","deck":0,"mode":"BeatJump"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"MoveSize","deck":0,"size":6},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"MoveSize","deck":0,"size":6},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"MoveSize","deck":0,"size":7},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"MoveSize","deck":0,"size":7},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"MoveSize","deck":0,"size":8},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"MoveSize","deck":0,"size":8},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"MoveSize","deck":0,"size":9},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"MoveSize","deck":0,"size":9},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"Move","deck":0,"direction":-1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"Move","deck":0,"direction":1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"Move","deck":0,"direction":-1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"Move","deck":0,"direction":1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"Move","deck":0,"direction":-1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"Move","deck":0,"direction":1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"Move","deck":0,"direction":-1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"Move","deck":0,"direction":1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":3,"value":1}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":12}},"action":{"action":"Modifier","index":3},"interaction":"Direct","invert":false,"gate":{"value":0}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":29}},"action":{"action":"Modifier","index":3},"interaction":"Direct","invert":false,"gate":{"value":1}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":14}},"action":{"action":"Modifier","index":3},"interaction":"Direct","invert":false,"gate":{"value":2}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":23}},"action":{"action":"Modifier","index":3},"interaction":"Direct","invert":false,"gate":{"value":3}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":27}},"action":{"action":"Modifier","index":3},"interaction":"Direct","invert":false,"gate":{"value":4}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":21}},"action":{"action":"Modifier","index":3},"interaction":"Direct","invert":false,"gate":{"value":5}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":20}},"action":{"action":"Modifier","index":3},"interaction":"Direct","invert":false,"gate":{"value":6}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":30}},"action":{"action":"Modifier","index":3},"interaction":"Direct","invert":false,"gate":{"value":7}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":3}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":3}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":3}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":3}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":3}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":3}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":3}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":3}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":6}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":3,"value":2}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"Slip","deck":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":5}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"Slip","deck":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":5}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"Slip","deck":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":5}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"Slip","deck":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":5}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FastLoop","deck":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":5}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FastLoop","deck":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":5}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"FastLoop","deck":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":5}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FastLoop","deck":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":3,"value":5}]}},
+    {"input":{"Midi":{"channel":4,"kind":"Note","number":27}},"action":{"action":"Keylock","deck":0},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"Hotcue","deck":1,"slot":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"Hotcue","deck":1,"slot":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"Hotcue","deck":1,"slot":2},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"Hotcue","deck":1,"slot":3},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"Hotcue","deck":1,"slot":4},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"Hotcue","deck":1,"slot":5},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"Hotcue","deck":1,"slot":6},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"Hotcue","deck":1,"slot":7},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":40}},"action":{"action":"DeleteHotcue","deck":1,"slot":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":41}},"action":{"action":"DeleteHotcue","deck":1,"slot":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":42}},"action":{"action":"DeleteHotcue","deck":1,"slot":2},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":43}},"action":{"action":"DeleteHotcue","deck":1,"slot":3},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":44}},"action":{"action":"DeleteHotcue","deck":1,"slot":4},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":45}},"action":{"action":"DeleteHotcue","deck":1,"slot":5},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":46}},"action":{"action":"DeleteHotcue","deck":1,"slot":6},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":47}},"action":{"action":"DeleteHotcue","deck":1,"slot":7},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":0}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":29}},"action":{"action":"MoveMode","deck":1,"mode":"BeatJump"},"interaction":"Trigger","invert":false},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"MoveSize","deck":1,"size":6},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"MoveSize","deck":1,"size":6},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"MoveSize","deck":1,"size":7},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"MoveSize","deck":1,"size":7},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"MoveSize","deck":1,"size":8},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"MoveSize","deck":1,"size":8},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"MoveSize","deck":1,"size":9},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"MoveSize","deck":1,"size":9},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"Move","deck":1,"direction":-1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"Move","deck":1,"direction":1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"Move","deck":1,"direction":-1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"Move","deck":1,"direction":1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"Move","deck":1,"direction":-1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"Move","deck":1,"direction":1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"Move","deck":1,"direction":-1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"Move","deck":1,"direction":1.0},"interaction":"Hold","invert":false,"gate":{"conditions":[{"modifier":4,"value":1}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":12}},"action":{"action":"Modifier","index":4},"interaction":"Direct","invert":false,"gate":{"value":0}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":29}},"action":{"action":"Modifier","index":4},"interaction":"Direct","invert":false,"gate":{"value":1}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":14}},"action":{"action":"Modifier","index":4},"interaction":"Direct","invert":false,"gate":{"value":2}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":23}},"action":{"action":"Modifier","index":4},"interaction":"Direct","invert":false,"gate":{"value":3}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":27}},"action":{"action":"Modifier","index":4},"interaction":"Direct","invert":false,"gate":{"value":4}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":21}},"action":{"action":"Modifier","index":4},"interaction":"Direct","invert":false,"gate":{"value":5}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":20}},"action":{"action":"Modifier","index":4},"interaction":"Direct","invert":false,"gate":{"value":6}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":30}},"action":{"action":"Modifier","index":4},"interaction":"Direct","invert":false,"gate":{"value":7}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":3}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":3}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":3}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":3}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":3}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":3}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":3}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxKnob","unit":0,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":3}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxSelect","unit":1,"slot":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxButton","unit":1,"button":0},"interaction":"Toggle","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxKnob","unit":1,"knob":0},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":6}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxDryWet","unit":1},"interaction":"Direct","invert":false,"gate":{"conditions":[{"modifier":4,"value":2}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"Slip","deck":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":5}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"Slip","deck":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":5}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"Slip","deck":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":5}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"Slip","deck":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":5}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FastLoop","deck":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":5}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FastLoop","deck":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":5}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"FastLoop","deck":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":5}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FastLoop","deck":1},"interaction":"Trigger","invert":false,"gate":{"conditions":[{"modifier":4,"value":5}]}},
+    {"input":{"Midi":{"channel":5,"kind":"Note","number":27}},"action":{"action":"Keylock","deck":1},"interaction":"Trigger","invert":false}
+  ],
+  "outputs": [
+    {"output":{"Midi":{"channel":0,"kind":"Note","number":12}},"action":{"action":"PlayPause","deck":0},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":0,"kind":"Note","number":13}},"action":{"action":"PlayPause","deck":0},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":true},
+    {"output":{"Midi":{"channel":0,"kind":"Note","number":25}},"action":{"action":"Keylock","deck":0},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":0,"kind":"Note","number":27}},"action":{"action":"Modifier","index":1},"range":[0.0,1.0],"midi_range":[0,127],"blend":true,"invert":false},
+    {"output":{"Midi":{"channel":0,"kind":"Note","number":14}},"action":{"action":"Sync","deck":0},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":0,"kind":"Note","number":19}},"action":{"action":"Slip","deck":0},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":0,"kind":"Note","number":39}},"action":{"action":"MonitorCue","channel":0},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":1,"kind":"Note","number":39}},"action":{"action":"MonitorCue","channel":1},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":0,"kind":"Note","number":47}},"action":{"action":"MixerFxOn","channel":0},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":1,"kind":"Note","number":47}},"action":{"action":"MixerFxOn","channel":1},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":0,"kind":"Note","number":28}},"action":{"action":"FxOn","unit":0},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":1,"kind":"Note","number":28}},"action":{"action":"FxOn","unit":0},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":9,"kind":"Note","number":14}},"action":{"action":"Quantize"},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":1,"kind":"Note","number":12}},"action":{"action":"PlayPause","deck":1},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":1,"kind":"Note","number":13}},"action":{"action":"PlayPause","deck":1},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":true},
+    {"output":{"Midi":{"channel":1,"kind":"Note","number":25}},"action":{"action":"Keylock","deck":1},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":1,"kind":"Note","number":27}},"action":{"action":"Modifier","index":1},"range":[0.0,1.0],"midi_range":[0,127],"blend":true,"invert":false},
+    {"output":{"Midi":{"channel":1,"kind":"Note","number":14}},"action":{"action":"Sync","deck":1},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":1,"kind":"Note","number":19}},"action":{"action":"Slip","deck":1},"range":[0.0,1.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"Hotcue","deck":0,"slot":0},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":40}},"action":{"action":"Hotcue","deck":0,"slot":0},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":41}},"action":{"action":"Hotcue","deck":0,"slot":1},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":42}},"action":{"action":"Hotcue","deck":0,"slot":2},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":43}},"action":{"action":"Hotcue","deck":0,"slot":3},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":44}},"action":{"action":"Hotcue","deck":0,"slot":4},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":45}},"action":{"action":"Hotcue","deck":0,"slot":5},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":46}},"action":{"action":"Hotcue","deck":0,"slot":6},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":47}},"action":{"action":"Hotcue","deck":0,"slot":7},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":12}},"action":{"action":"Modifier","index":0},"range":[0.0,0.0],"midi_range":[3,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":29}},"action":{"action":"Modifier","index":0},"range":[1.0,1.0],"midi_range":[63,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":14}},"action":{"action":"Modifier","index":0},"range":[2.0,2.0],"midi_range":[52,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":23}},"action":{"action":"Modifier","index":0},"range":[3.0,3.0],"midi_range":[12,76],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":27}},"action":{"action":"Modifier","index":0},"range":[4.0,4.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":21}},"action":{"action":"Modifier","index":0},"range":[5.0,5.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":20}},"action":{"action":"Modifier","index":0},"range":[6.0,6.0],"midi_range":[48,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":30}},"action":{"action":"Modifier","index":0},"range":[7.0,7.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"Hotcue","deck":0,"slot":1},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"Hotcue","deck":0,"slot":2},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"Hotcue","deck":0,"slot":3},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"Hotcue","deck":0,"slot":5},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"Hotcue","deck":0,"slot":6},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"Hotcue","deck":0,"slot":7},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"Hotcue","deck":0,"slot":4},"conditions":[{"modifier":3,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":3,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":32}},"action":{"action":"Slip","deck":0},"conditions":[{"modifier":3,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":33}},"action":{"action":"Slip","deck":0},"conditions":[{"modifier":3,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":34}},"action":{"action":"Slip","deck":0},"conditions":[{"modifier":3,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":35}},"action":{"action":"Slip","deck":0},"conditions":[{"modifier":3,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":37}},"action":{"action":"LoopActive","deck":0},"conditions":[{"modifier":3,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":36}},"action":{"action":"LoopActive","deck":0},"conditions":[{"modifier":3,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":38}},"action":{"action":"LoopActive","deck":0},"conditions":[{"modifier":3,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":4,"kind":"Note","number":39}},"action":{"action":"LoopActive","deck":0},"conditions":[{"modifier":3,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"Hotcue","deck":1,"slot":0},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":40}},"action":{"action":"Hotcue","deck":1,"slot":0},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":41}},"action":{"action":"Hotcue","deck":1,"slot":1},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":42}},"action":{"action":"Hotcue","deck":1,"slot":2},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":43}},"action":{"action":"Hotcue","deck":1,"slot":3},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":44}},"action":{"action":"Hotcue","deck":1,"slot":4},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":45}},"action":{"action":"Hotcue","deck":1,"slot":5},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":46}},"action":{"action":"Hotcue","deck":1,"slot":6},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":47}},"action":{"action":"Hotcue","deck":1,"slot":7},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":12}},"action":{"action":"Modifier","index":0},"range":[0.0,0.0],"midi_range":[3,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":29}},"action":{"action":"Modifier","index":0},"range":[1.0,1.0],"midi_range":[63,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":14}},"action":{"action":"Modifier","index":0},"range":[2.0,2.0],"midi_range":[52,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":23}},"action":{"action":"Modifier","index":0},"range":[3.0,3.0],"midi_range":[12,76],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":27}},"action":{"action":"Modifier","index":0},"range":[4.0,4.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":21}},"action":{"action":"Modifier","index":0},"range":[5.0,5.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":20}},"action":{"action":"Modifier","index":0},"range":[6.0,6.0],"midi_range":[48,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":30}},"action":{"action":"Modifier","index":0},"range":[7.0,7.0],"midi_range":[0,127],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":2}],"range":[0.0,1.0],"midi_range":[0,116],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"Hotcue","deck":1,"slot":1},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"Hotcue","deck":1,"slot":2},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"Hotcue","deck":1,"slot":3},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"Hotcue","deck":1,"slot":5},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"Hotcue","deck":1,"slot":6},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"Hotcue","deck":1,"slot":7},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"Hotcue","deck":1,"slot":4},"conditions":[{"modifier":4,"value":0}],"range":[0.0,5.0],"midi_range":[64,67],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"FxButton","unit":1,"button":0},"conditions":[{"modifier":4,"value":6}],"range":[0.0,1.0],"midi_range":[64,112],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":32}},"action":{"action":"Slip","deck":1},"conditions":[{"modifier":4,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":33}},"action":{"action":"Slip","deck":1},"conditions":[{"modifier":4,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":34}},"action":{"action":"Slip","deck":1},"conditions":[{"modifier":4,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":35}},"action":{"action":"Slip","deck":1},"conditions":[{"modifier":4,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":37}},"action":{"action":"LoopActive","deck":1},"conditions":[{"modifier":4,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":36}},"action":{"action":"LoopActive","deck":1},"conditions":[{"modifier":4,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":38}},"action":{"action":"LoopActive","deck":1},"conditions":[{"modifier":4,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false},
+    {"output":{"Midi":{"channel":5,"kind":"Note","number":39}},"action":{"action":"LoopActive","deck":1},"conditions":[{"modifier":4,"value":5}],"range":[0.0,1.0],"midi_range":[51,115],"blend":false,"invert":false}
+  ],
+  "pair_ranges": [
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 32
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 0
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 9
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 63
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 63
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 9
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 63
+      },
+      "msb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 9
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 9
+      },
+      "msb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 63
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 36
+      },
+      "msb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 4
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 63
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 31
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 36
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 4
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 36
+      },
+      "msb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 4
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 36
+      },
+      "msb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 4
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 39
+      },
+      "msb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 7
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 39
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 7
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 39
+      },
+      "msb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 7
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 39
+      },
+      "msb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 7
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 43
+      },
+      "msb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 11
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 43
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 11
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 43
+      },
+      "msb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 11
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 43
+      },
+      "msb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 11
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 47
+      },
+      "msb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 15
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 47
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 15
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 47
+      },
+      "msb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 15
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 47
+      },
+      "msb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 15
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 57
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 25
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 55
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 23
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 56
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 24
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 58
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 26
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 51
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 19
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 51
+      },
+      "msb": {
+        "channel": 2,
+        "kind": "Cc",
+        "number": 19
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 51
+      },
+      "msb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 19
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 51
+      },
+      "msb": {
+        "channel": 3,
+        "kind": "Cc",
+        "number": 19
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 40
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 8
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 44
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 12
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 12
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 44
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 45
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 13
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 13
+      },
+      "msb": {
+        "channel": 6,
+        "kind": "Cc",
+        "number": 45
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 14,
+        "kind": "Cc",
+        "number": 13
+      },
+      "msb": {
+        "channel": 14,
+        "kind": "Cc",
+        "number": 12
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 32
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 0
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 9
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 63
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 63
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 9
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 63
+      },
+      "msb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 9
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 9
+      },
+      "msb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 63
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 6
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 26
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 9
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 63
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 63
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 9
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 1,
+        "kind": "Cc",
+        "number": 6
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 26
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 9
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 63
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 63
+      },
+      "msb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 9
+      },
+      "min": 0.0,
+      "max": 1023.0
+    },
+    {
+      "lsb": {
+        "channel": 0,
+        "kind": "Cc",
+        "number": 6
+      },
+      "msb": {
+        "channel": 14,
+        "kind": "Cc",
+        "number": 12
+      },
+      "min": 0.0,
+      "max": 1023.0
+    }
+  ],
+  "notes": "Not mapped yet: Loop Roll pads, stems mute pads, beatjump with SHIFT + jog, Auto Master, per-channel Mixer FX select, Limiter, tree expand/collapse, Track Start, level meters."
+}

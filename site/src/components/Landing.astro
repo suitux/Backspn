@@ -1,0 +1,223 @@
+---
+import '@fontsource-variable/inter';
+import '@fontsource/geist-mono/500.css';
+import '../styles/site.css';
+import { getRelativeLocaleUrl } from 'astro:i18n';
+import AppWindow from './AppWindow.astro';
+import Media from './Media.astro';
+import Ui from './Ui.astro';
+import { dictionaries, github, type Lang } from '../i18n';
+import { features, videos, hero } from '../media';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const t = dictionaries[lang];
+const other: Lang = lang === 'en' ? 'es' : 'en';
+const home = (l: Lang) => getRelativeLocaleUrl(l, '');
+const featureIds = ['mixing', 'stems', 'effects', 'samples', 'library', 'controllers'] as const;
+const videoIds = ['overview', 'set', 'setup'] as const;
+
+const deck = ['border-deck-a', 'border-deck-b', 'border-deck-c', 'border-deck-d', 'border-deck-a', 'border-deck-b'];
+const bullet = ['before:bg-deck-a', 'before:bg-deck-b', 'before:bg-deck-c', 'before:bg-deck-d', 'before:bg-deck-a', 'before:bg-deck-b'];
+const mock: Record<(typeof featureIds)[number], string> = {
+  mixing: 'grid-cols-1 sm:grid-cols-2 [&>:last-child]:sm:col-span-2 max-sm:[&>:nth-child(2)]:hidden',
+  stems: 'grid-cols-1',
+  effects: 'grid-cols-1 sm:grid-cols-2 [&>:last-child]:sm:col-span-2 max-sm:[&>:nth-child(2)]:hidden',
+  samples: 'grid-cols-2 [&>:last-child]:col-span-2',
+  library: 'grid-cols-1',
+  controllers: 'grid-cols-1 sm:grid-cols-[1fr_1.4fr] items-center max-sm:[&>:first-child]:hidden',
+};
+
+const page = 'mx-auto w-[min(1200px,100%-32px)] sm:w-[min(1200px,100%-48px)]';
+const button = 'inline-flex min-h-12 items-center gap-2.5 rounded-full px-[22px] font-semibold no-underline transition active:scale-[0.97]';
+const primary = `${button} bg-accent text-ink-dark hover:bg-accent-hover`;
+const ghost = `${button} bg-tile text-paper hover:bg-tile-2`;
+const h2 = 'text-[clamp(2rem,1.4rem+2.2vw,3.25rem)] font-[650] leading-[1.05] tracking-[-0.03em] text-balance';
+const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fill-current"><path d="M4 2.5v11l9-5.5z" /></svg>';
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{t.meta.title}</title>
+    <meta name="description" content={t.meta.description} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="alternate" hreflang="en" href={home('en')} />
+    <link rel="alternate" hreflang="es" href={home('es')} />
+    <meta property="og:title" content={t.meta.title} />
+    <meta property="og:description" content={t.meta.description} />
+  </head>
+  <body>
+    <header class={`${page} sticky top-0 z-10 grid grid-cols-[1fr_auto] items-center gap-6 bg-ground py-3.5 md:grid-cols-[1fr_auto_1fr]`}>
+      <a class="inline-flex items-center gap-2.5 text-lg font-[650] tracking-[-0.02em] no-underline" href={home(lang)}>
+        <img src="/favicon.svg" alt="" width="28" height="28" />Backspn
+      </a>
+      <nav class="hidden gap-7 md:flex" aria-label={t.nav.features}>
+        {[['#features', t.nav.features], ['#videos', t.nav.videos], ['#faq', t.nav.faq]].map(([href, label]) => (
+          <a class="text-soft no-underline transition-colors hover:text-paper" href={href}>{label}</a>
+        ))}
+      </nav>
+      <div class="flex items-center gap-5 justify-self-end">
+        <a class="hidden text-soft no-underline transition-colors hover:text-paper sm:inline" href={home(other)} hreflang={other} lang={other}>{t.nav.otherLang}</a>
+        <a class={`${primary} min-h-10 px-[18px] text-[15px]`} href={github}>{t.nav.github}</a>
+      </div>
+    </header>
+
+    <main>
+      <section class={`${page} pt-10 sm:pt-[72px]`} aria-labelledby="title">
+        <div class="grid justify-items-start gap-[22px] sm:justify-items-center sm:text-center">
+          <h1 id="title" class="max-w-[13ch] text-[clamp(2.75rem,1.2rem+6vw,5.5rem)] leading-[0.98] font-bold tracking-[-0.045em] text-balance">{t.hero.title}</h1>
+          <p class="max-w-[54ch] text-xl text-pretty text-soft">{t.hero.lead}</p>
+          <div class="mt-1.5 flex flex-wrap gap-3 sm:justify-center">
+            <a class={primary} href={github}>{t.hero.primary}</a>
+            <a class={ghost} href="#videos"><Fragment set:html={playIcon} />{t.hero.secondary}</a>
+          </div>
+        </div>
+        <div class="mt-10 overflow-hidden rounded-[10px] shadow-[0_0_0_1px_var(--color-line),0_40px_120px_-40px_rgb(45_129_255/0.35)] sm:mt-16 sm:rounded-[14px]">
+          <Media clip={hero} as="loop" alt={t.hero.windowLabel} eager><AppWindow /></Media>
+        </div>
+        <ul class="mt-10 grid grid-cols-2 gap-px overflow-hidden rounded-[14px] bg-line md:grid-cols-4">
+          {t.hero.facts.map((f, i) => (
+            <li class={`grid gap-0.5 border-t-[3px] bg-ground px-6 py-[22px] ${deck[i]}`}>
+              <b class="text-4xl leading-none font-bold tracking-[-0.03em]">{f.value}</b>
+              <span class="text-soft">{f.label}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section class={`${page} grid gap-20 pt-[100px] md:gap-[120px] md:pt-40`} id="features" aria-labelledby="features-title">
+        <div class="grid max-w-[640px] gap-4">
+          <h2 id="features-title" class={h2}>{t.features.title}</h2>
+          <p class="text-[19px] text-soft">{t.features.lead}</p>
+        </div>
+        {featureIds.map((id, i) => {
+          const f = t.features.items[id];
+          return (
+            <article class="grid items-center gap-7 md:grid-cols-[7fr_5fr] md:gap-16">
+              <div class={`overflow-hidden rounded-xl border-t-[3px] bg-app shadow-[0_0_0_1px_var(--color-line)] max-sm:has-[[role=img]]:aspect-auto aspect-[16/10] ${deck[i]} ${i % 2 ? 'md:order-2' : ''}`}>
+                <Media clip={features[id]} as="loop" alt={f.title}>
+                  <div class={`grid h-full content-center gap-2 bg-app p-3.5 sm:gap-3.5 sm:p-7 ${mock[id]}`}>
+                    {id === 'mixing' && (<><Ui kind="deck" deck="A" seed={7} /><Ui kind="deck" deck="B" seed={13} /><Ui kind="clock" /></>)}
+                    {id === 'stems' && (<><Ui kind="deck" deck="A" seed={21} /><Ui kind="stems" seed={33} /></>)}
+                    {id === 'effects' && (<><Ui kind="fx" /><Ui kind="fx" /><Ui kind="overview" seed={9} /></>)}
+                    {id === 'samples' && (<><Ui kind="sample" /><Ui kind="loops" /><Ui kind="pads" /></>)}
+                    {id === 'library' && (<><Ui kind="browser" /><Ui kind="overview" seed={4} /></>)}
+                    {id === 'controllers' && (<><Ui kind="mixer" /><Ui kind="pads" class="grid-cols-4!" /></>)}
+                  </div>
+                </Media>
+              </div>
+              <div class="grid gap-4">
+                <h3 class="text-[clamp(1.625rem,1.2rem+1.2vw,2.25rem)] leading-[1.1] font-[650] tracking-[-0.025em]">{f.title}</h3>
+                <p class="text-soft">{f.text}</p>
+                <ul class="mt-1.5 grid gap-2.5">
+                  {f.points.map((p) => (
+                    <li class={`flex items-baseline gap-3 before:size-2 before:flex-none before:-translate-y-0.5 before:content-[''] ${bullet[i]}`}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            </article>
+          );
+        })}
+      </section>
+
+      <section class={`${page} grid gap-10 pt-[100px] md:pt-40`} id="videos" aria-labelledby="videos-title">
+        <div class="grid max-w-[640px] gap-4">
+          <h2 id="videos-title" class={h2}>{t.videos.title}</h2>
+          <p class="text-[19px] text-soft">{t.videos.lead}</p>
+        </div>
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-[2fr_1fr]">
+          {videoIds.map((id, i) => {
+            const v = t.videos.items[id];
+            return (
+              <figure class={`grid content-start gap-3 ${i === 0 ? 'sm:col-span-2 lg:col-span-1 lg:row-span-2' : ''}`}>
+                <div class="aspect-video overflow-hidden rounded-xl bg-raised shadow-[0_0_0_1px_var(--color-line)]">
+                  <Media clip={videos[id]} as="player" alt={v.title}>
+                    <div class="grid h-full content-center justify-items-center gap-3.5 text-soft">
+                      <span class={`grid place-items-center rounded-full bg-tile-2 [&>svg]:size-[40%] [&>svg]:translate-x-[8%] [&>svg]:fill-soft ${i === 0 ? 'size-16' : 'size-12'}`}><Fragment set:html={playIcon} /></span>
+                      <span>{t.videos.soon}</span>
+                    </div>
+                  </Media>
+                </div>
+                <figcaption class="grid gap-0.5"><b class="font-semibold">{v.title}</b><span class="text-soft">{v.text}</span></figcaption>
+              </figure>
+            );
+          })}
+        </div>
+      </section>
+
+      <section class={`${page} grid gap-12 pt-[100px] md:grid-cols-[4fr_8fr] md:pt-40`} aria-labelledby="specs-title">
+        <h2 id="specs-title" class={h2}>{t.specs.title}</h2>
+        <dl>
+          {t.specs.rows.map(([k, v]) => (
+            <div class="grid gap-0.5 border-b border-line py-4 sm:grid-cols-[180px_1fr] sm:gap-6">
+              <dt class="text-soft">{k}</dt><dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section class={`${page} mt-[100px] grid items-center gap-12 rounded-[20px] bg-raised p-6 md:mt-40 md:grid-cols-2 md:p-12`} aria-labelledby="open-title">
+        <div class="grid justify-items-start gap-[18px]">
+          <h2 id="open-title" class={h2}>{t.open.title}</h2>
+          <p class="max-w-[46ch] text-soft">{t.open.text}</p>
+          <a class={ghost} href={github}>{t.open.action}</a>
+        </div>
+        <pre class="overflow-x-auto rounded-xl bg-well p-4 font-mono text-[13px] leading-[1.8] font-medium sm:p-6 sm:text-[15px]"><code><span class="text-dim"># {t.open.code}</span>
+git clone {github}
+cd Backspn
+cargo run --release -p backspn-app</code></pre>
+      </section>
+
+      <section class={`${page} grid gap-12 pt-[100px] md:grid-cols-[4fr_8fr] md:pt-40`} id="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title" class={h2}>{t.faq.title}</h2>
+        <div>
+          {t.faq.items.map((item, i) => (
+            <details class="group border-b border-line" open={i === 0}>
+              <summary class="flex cursor-pointer list-none justify-between gap-4 py-5 text-[19px] font-[550] after:font-normal after:text-soft after:transition-transform after:content-['+'] group-open:after:rotate-45">{item.q}</summary>
+              <p class="max-w-[60ch] pb-[22px] text-soft">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section class={`${page} mt-[100px] grid justify-items-center gap-[18px] px-6 py-[72px] text-center md:mt-40`} aria-labelledby="cta-title">
+        <div class="mb-2 flex gap-1.5" aria-hidden="true">
+          {['bg-deck-a', 'bg-deck-b', 'bg-deck-c', 'bg-deck-d'].map((c) => <i class={`h-2 w-10 ${c}`}></i>)}
+        </div>
+        <h2 id="cta-title" class={h2}>{t.cta.title}</h2>
+        <p class="max-w-[48ch] text-soft">{t.cta.text}</p>
+        <a class={primary} href={github}>{t.cta.action}</a>
+      </section>
+    </main>
+
+    <footer class={`${page} mt-20 grid grid-cols-2 gap-8 border-t border-line pt-10 pb-12 md:grid-cols-[2fr_1fr_1fr_1fr]`}>
+      <a class="col-span-2 inline-flex items-center gap-2.5 self-start text-lg font-[650] tracking-[-0.02em] no-underline md:col-span-1" href={home(lang)}>
+        <img src="/favicon.svg" alt="" width="28" height="28" />Backspn
+      </a>
+      {[
+        [t.footer.product, [['#features', t.nav.features], ['#videos', t.nav.videos], ['#faq', t.nav.faq]]],
+        [t.footer.source, [[github, 'GitHub'], [`${github}/issues`, t.footer.issues], ['https://www.gnu.org/licenses/gpl-3.0.html', t.footer.licence]]],
+      ].map(([title, links]) => (
+        <div>
+          <h2 class="mb-2.5 text-[15px] font-medium text-soft">{title}</h2>
+          <ul class="grid gap-1.5">
+            {(links as string[][]).map(([href, label]) => <li><a class="no-underline hover:underline hover:underline-offset-4" href={href}>{label}</a></li>)}
+          </ul>
+        </div>
+      ))}
+      <div>
+        <h2 class="mb-2.5 text-[15px] font-medium text-soft">{t.footer.language}</h2>
+        <ul class="grid gap-1.5">
+          <li><a class="no-underline hover:underline hover:underline-offset-4" href={home('en')} hreflang="en" lang="en" aria-current={lang === 'en' ? 'page' : undefined}>English</a></li>
+          <li><a class="no-underline hover:underline hover:underline-offset-4" href={home('es')} hreflang="es" lang="es" aria-current={lang === 'es' ? 'page' : undefined}>Español</a></li>
+        </ul>
+      </div>
+      <p class="col-span-full text-sm text-soft">{t.footer.copyright}</p>
+    </footer>
+  </body>
+</html>

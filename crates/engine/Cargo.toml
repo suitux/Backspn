@@ -1,0 +1,26 @@
+[package]
+name = "backspn-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+cpal = "0.18.2"
+log = "0.4.34"
+rtrb = "0.4.0"
+thiserror.workspace = true
+backspn-deck = { version = "0.1.0", path = "../deck" }
+backspn-fx = { version = "0.1.0", path = "../fx" }
+backspn-link = { version = "0.1.0", path = "../link" }
+backspn-mixer = { version = "0.1.0", path = "../mixer" }
+backspn-sampler = { version = "0.1.0", path = "../sampler" }
+backspn-sync = { version = "0.1.0", path = "../sync" }
+triple_buffer = "9.0.0"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+backspn-decode = { path = "../decode" }

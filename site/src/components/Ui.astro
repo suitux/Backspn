@@ -1,0 +1,155 @@
+---
+import { bars, path } from './wave';
+
+interface Props {
+  kind: 'deck' | 'mixer' | 'fx' | 'stems' | 'pads' | 'browser' | 'overview' | 'sample' | 'loops' | 'clock';
+  deck?: 'A' | 'B';
+  seed?: number;
+  class?: string;
+}
+const { kind, deck = 'A', seed = 7, class: extra = '' } = Astro.props;
+const wave = bars(seed, 260);
+const stems = [
+  { name: 'DRUMS', on: 'bg-deck-a text-paper', fill: 'fill-deck-a', key: 'low' as const },
+  { name: 'BASS', on: 'bg-deck-b text-ink-dark', fill: 'fill-deck-b', key: 'high' as const },
+  { name: 'OTHER', on: 'bg-deck-d text-ink-dark', fill: 'fill-deck-d', key: 'high' as const },
+  { name: 'VOCALS', on: '', fill: 'fill-[#3a3a3f]', key: 'high' as const },
+];
+const padColour: Record<string, string> = {
+  a: 'bg-deck-a text-paper',
+  b: 'bg-deck-b text-ink-dark',
+  c: 'bg-deck-c text-ink-dark',
+  d: 'bg-deck-d text-ink-dark',
+  off: 'bg-ink-dark text-dim ring-1 ring-inset ring-paper/15',
+};
+const low = deck === 'A' ? 'fill-deck-a' : 'fill-deck-b';
+const root = `grid content-start gap-2 bg-raised p-2.5 text-[10px] font-medium tracking-[0.06em] text-paper sm:text-[13px] ${extra}`;
+const btn = 'inline-grid min-w-[2.6em] place-items-center px-[0.7em] py-[0.4em] bg-ink-dark ring-1 ring-inset ring-paper/15';
+const on = (c: string) => `inline-grid min-w-[2.6em] place-items-center px-[0.7em] py-[0.4em] ${c}`;
+const knob = 'relative size-[2.3em] rounded-full bg-ink-dark ring-2 ring-inset ring-[#3a3a3f] after:absolute after:top-[0.25em] after:left-1/2 after:-ml-px after:h-[0.8em] after:w-0.5 after:bg-paper';
+const label = 'text-dim';
+---
+
+{kind === 'deck' && (
+  <div class={root} data-ui>
+    <div class="flex items-center gap-1.5">
+      <span class={`grid size-[1.8em] place-items-center ${deck === 'A' ? 'bg-deck-a text-paper' : 'bg-deck-b text-ink-dark'}`}>{deck}</span>
+      <span class="flex-1 truncate tracking-normal text-[1.15em]">{deck === 'A' ? 'Night Ferry' : 'Copper Wire'}</span>
+      <span class="tabular-nums">124.00</span>
+    </div>
+    <div class="relative h-[5.5em] overflow-hidden bg-well sm:h-[8em]">
+      <svg class="h-full w-[200%] max-w-none animate-wave motion-reduce:animate-none" viewBox="0 0 780 80" preserveAspectRatio="none" aria-hidden="true">
+        <path d={path(wave, 80, 'low')} class={low} />
+        <path d={path(wave, 80, 'high')} class="fill-paper/85" />
+      </svg>
+      <span class="absolute inset-y-0 left-1/2 w-0.5 bg-paper"></span>
+    </div>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <span class="bg-accent/15 px-[0.5em] py-[0.15em] text-a-ink">{deck === 'A' ? 'F min' : 'C maj'}</span>
+      <span class={btn}>CUE</span>
+      <span class={on('bg-deck-d text-ink-dark')}>PLAY</span>
+      {deck === 'A' ? <span class={on('bg-master text-ink-dark')}>MASTER</span> : <span class={on('bg-accent text-ink-dark')}>SYNC</span>}
+    </div>
+  </div>
+)}
+
+{kind === 'overview' && (
+  <div class={`relative h-[7em] overflow-hidden bg-well py-3 text-[10px] sm:text-[13px] ${extra}`} data-ui>
+    <svg class="size-full" viewBox="0 0 780 80" preserveAspectRatio="none" aria-hidden="true">
+      <path d={path(bars(seed + 3, 260), 80, 'low')} class="fill-deck-a" />
+      <path d={path(bars(seed + 3, 260), 80, 'high')} class="fill-paper/85" />
+    </svg>
+    <span class="absolute inset-y-0 left-0 w-[38%] border-r-2 border-paper bg-paper/12"></span>
+  </div>
+)}
+
+{kind === 'mixer' && (
+  <div class={`${root} grid-cols-2`} data-ui>
+    {['A', 'B'].map((d) => (
+      <div class="grid justify-items-center gap-2 bg-tile py-2">
+        <span class={label}>{d}</span>
+        {['HI', 'MID', 'LOW'].map((band, i) => (
+          <span class="grid justify-items-center gap-1 text-dim">
+            <i class={knob} style={`transform:rotate(${[30, -40, 75][i] + (d === 'B' ? -60 : 0)}deg)`}></i>
+            {band}
+          </span>
+        ))}
+        <span class="relative mt-1 h-[7em] w-1.5 bg-well">
+          <i class="absolute -left-3 h-3.5 w-[30px] bg-paper" style={`top:${d === 'A' ? 22 : 40}%`}></i>
+        </span>
+      </div>
+    ))}
+  </div>
+)}
+
+{kind === 'fx' && (
+  <div class={root} data-ui>
+    <div class="flex items-center gap-1.5"><span class={label}>FX 1</span><span class="tracking-normal text-[1.15em]">Beat Chopper</span></div>
+    <div class="flex justify-between">
+      {[['D/W', 60], ['RATE', -20], ['SIZE', 100]].map(([n, t]) => (
+        <span class="grid justify-items-center gap-1 text-dim"><i class={`${knob} size-[3em]!`} style={`transform:rotate(${t}deg)`}></i>{n}</span>
+      ))}
+    </div>
+    <div class="flex justify-between"><span class={on('bg-accent text-ink-dark')}>ON</span><span class={btn}>1/4</span><span class={btn}>RST</span></div>
+  </div>
+)}
+
+{kind === 'stems' && (
+  <div class={`${root} gap-1.5`} data-ui>
+    {stems.map((s, i) => (
+      <div class="grid h-[3.6em] grid-cols-[6em_1fr] gap-1.5">
+        <span class={s.on ? on(s.on) : btn}>{s.name}</span>
+        <svg class="size-full bg-well" viewBox="0 0 390 40" preserveAspectRatio="none" aria-hidden="true">
+          <path d={path(bars(seed + i * 11, 130), 40, s.key)} class={s.fill} />
+        </svg>
+      </div>
+    ))}
+  </div>
+)}
+
+{kind === 'pads' && (
+  <div class={`${root} grid-cols-8`} data-ui>
+    {['a', 'b', 'c', 'd', 'a', 'b', 'off', 'off'].map((c, i) => (
+      <span class={`grid aspect-square content-end justify-items-start p-[0.4em] ${padColour[c]}`}>{i + 1}</span>
+    ))}
+  </div>
+)}
+
+{kind === 'sample' && (
+  <div class={`${root} grid-cols-2`} data-ui>
+    {['Clap', 'Vox', 'Hat', 'Riser'].map((n, i) => (
+      <span class={`grid aspect-[3/2] content-end justify-items-start p-[0.5em] tracking-normal ${padColour[i === 2 ? 'off' : ['a', 'b', 'c', 'd'][i]]}`}>{n}</span>
+    ))}
+  </div>
+)}
+
+{kind === 'loops' && (
+  <div class={`${root} grid-cols-4`} data-ui>
+    {['1/4', '1/2', '1', '2', '4', '8', '16', '32'].map((s) => <span class={s === '4' ? on('bg-deck-d text-ink-dark') : btn}>{s}</span>)}
+  </div>
+)}
+
+{kind === 'clock' && (
+  <div class={`${root} grid-cols-[auto_auto_1fr] items-center gap-3`} data-ui>
+    <span class={label}>MASTER CLOCK</span>
+    <span class="text-[2.6em] leading-none tracking-normal tabular-nums">124.00</span>
+    <div class="flex gap-1.5"><span class={on('bg-master text-ink-dark')}>AUTO</span><span class={btn}>TAP</span></div>
+  </div>
+)}
+
+{kind === 'browser' && (
+  <div class={`${root} gap-0.5 p-1.5`} data-ui>
+    {[
+      ['Slow Orbit', '120.00', 'A min'],
+      ['Harbour Lights', '122.00', 'A min'],
+      ['Late Bus', '123.00', 'E min'],
+      ['Night Ferry', '124.00', 'F min'],
+      ['Signal Fire', '125.00', 'Eb maj'],
+      ['Copper Wire', '126.00', 'C maj'],
+    ].map(([t, b, k], i) => (
+      <div class={`grid grid-cols-[1fr_auto_4.5em] gap-2.5 px-2 py-[0.55em] text-[1.15em] tracking-normal tabular-nums ${i === 3 ? 'bg-accent/28' : 'bg-tile'}`}>
+        <span>{t}</span><span>{b}</span><span>{k}</span>
+      </div>
+    ))}
+  </div>
+)}

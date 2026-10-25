@@ -1,0 +1,19 @@
+[package]
+name = "backspn-analysis"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+ebur128 = "0.1.10"
+realfft = "3.5.0"
+backspn-decode = { version = "0.1.0", path = "../decode" }
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+rayon = "1.12.0"
+backspn-formats = { path = "../formats" }

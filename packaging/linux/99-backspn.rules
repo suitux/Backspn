@@ -1,0 +1,2 @@
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="17cc", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="17cc", TAG+="uaccess"

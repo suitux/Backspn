@@ -1,0 +1,91 @@
+---
+import { bars, path } from './wave';
+
+const decks = [
+  { id: 'A', title: 'Night Ferry', artist: 'Ottoline', bpm: '124.00', key: 'F min', time: '-3:12', wave: bars(7, 520), master: true, at: 46 },
+  { id: 'B', title: 'Copper Wire', artist: 'Mateo Sanz', bpm: '124.00', key: 'C maj', time: '-5:40', wave: bars(13, 520), master: false, at: 22 },
+];
+const rows = [
+  ['Slow Orbit', 'Kanae Mori', '120.00', 'A min', '6:48'],
+  ['Harbour Lights', 'Ilse Varga', '122.00', 'A min', '7:02'],
+  ['Night Ferry', 'Ottoline', '124.00', 'F min', '6:15'],
+  ['Signal Fire', 'Halde', '125.00', 'Eb maj', '5:57'],
+  ['Copper Wire', 'Mateo Sanz', '126.00', 'C maj', '7:31'],
+];
+const colour = (id: string) => (id === 'A' ? { bg: 'bg-deck-a text-paper', fill: 'fill-deck-a' } : { bg: 'bg-deck-b text-ink-dark', fill: 'fill-deck-b' });
+const btn = 'min-w-[34px] px-2 py-1.5 text-center bg-ink-dark ring-1 ring-inset ring-paper/15';
+const lit = (c: string) => `min-w-[34px] px-2 py-1.5 text-center ${c}`;
+const knob = 'relative size-7 rounded-full bg-ink-dark ring-2 ring-inset ring-[#3a3a3f] after:absolute after:top-[3px] after:left-1/2 after:-ml-px after:h-[9px] after:w-0.5 after:bg-paper';
+---
+
+<div class="grid gap-px bg-app text-[11px] font-medium tracking-[0.06em] text-paper" data-ui aria-hidden="true">
+  <div class="flex items-center gap-2 bg-raised px-3.5 py-2.5 text-soft">
+    <i class="size-3 rounded-full bg-[#3a3b40]"></i><i class="size-3 rounded-full bg-[#3a3b40]"></i><i class="size-3 rounded-full bg-[#3a3b40]"></i>
+    <span class="mx-auto pr-14">Backspn</span>
+  </div>
+
+  <div class="grid gap-0.5 bg-well py-1">
+    {decks.map((d, i) => (
+      <div class="relative h-14 overflow-hidden sm:h-[76px]">
+        <svg class={`h-full w-[200%] max-w-none animate-wave motion-reduce:animate-none ${i ? '[animation-duration:21s]' : ''}`} viewBox="0 0 1560 80" preserveAspectRatio="none">
+          <path d={path(d.wave, 80, 'low')} class={colour(d.id).fill} />
+          <path d={path(d.wave, 80, 'high')} class="fill-paper/85" />
+        </svg>
+        <span class="absolute inset-y-0 left-1/2 w-0.5 bg-paper"></span>
+      </div>
+    ))}
+  </div>
+
+  <div class="grid grid-cols-1 gap-px bg-line sm:grid-cols-2 lg:grid-cols-[1fr_200px_1fr]">
+    {decks.map((d, i) => (
+      <div class={`grid content-start gap-2.5 bg-app p-3 ${i ? 'hidden sm:grid lg:order-2' : ''}`}>
+        <div class="flex items-center gap-2.5">
+          <span class={`grid size-6 place-items-center font-semibold ${colour(d.id).bg}`}>{d.id}</span>
+          <span class="grid flex-1 text-sm leading-tight tracking-normal"><b class="font-medium">{d.title}</b><span class="text-dim">{d.artist}</span></span>
+          <span class="text-[22px] tracking-normal tabular-nums">{d.bpm}</span>
+        </div>
+        <div class="relative h-[34px] bg-well">
+          <svg class="size-full" viewBox="0 0 1560 40" preserveAspectRatio="none"><path d={path(d.wave, 40, 'low')} class={colour(d.id).fill} /></svg>
+          <span class="absolute inset-y-0 left-0 border-r-2 border-paper bg-paper/12" style={`width:${d.at}%`}></span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="bg-accent/15 px-1.5 py-0.5 text-a-ink">{d.key}</span>
+          <span class="bg-tile px-1.5 py-0.5 text-dim">{d.time}</span>
+          <span class="flex-1"></span>
+          {d.master ? <span class={lit('bg-master text-ink-dark')}>MASTER</span> : <span class={lit('bg-accent text-ink-dark')}>SYNC</span>}
+          <span class={btn}>KEY</span>
+        </div>
+        <div class="grid grid-cols-8 gap-1">
+          {['bg-deck-a text-paper', 'bg-deck-b text-ink-dark', 'bg-deck-c text-ink-dark', 'bg-deck-d text-ink-dark', 'bg-deck-a text-paper', '', '', ''].map((c, n) => (
+            <span class={`grid aspect-[1.4] content-end justify-items-start px-1.5 py-1 ${c || 'bg-ink-dark text-dim ring-1 ring-inset ring-paper/12'}`}>{n + 1}</span>
+          ))}
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class={btn}>CUE</span>
+          <span class={lit('bg-deck-d text-ink-dark')}>PLAY</span>
+          <span class="flex-1"></span>
+          {['1', '2', '4', '8'].map((s) => <span class={s === '4' ? lit('bg-deck-d text-ink-dark') : btn}>{s}</span>)}
+        </div>
+      </div>
+    ))}
+    <div class="hidden grid-cols-2 content-start justify-items-center gap-2.5 bg-app p-3 lg:order-1 lg:grid">
+      {decks.map((d, i) => (
+        <div class="grid justify-items-center gap-2">
+          <span class={`grid size-6 place-items-center font-semibold ${colour(d.id).bg}`}>{d.id}</span>
+          {[40, -20, 70].map((t) => <span class={knob} style={`transform:rotate(${t + i * -50}deg)`}></span>)}
+          <span class={`${knob} after:bg-accent`}></span>
+          <span class="relative mt-1 h-[92px] w-1.5 bg-well"><i class="absolute -left-[11px] h-3 w-7 bg-paper" style={`top:${i === 0 ? 18 : 30}%`}></i></span>
+        </div>
+      ))}
+      <span class="relative col-span-2 mt-1.5 h-1.5 w-4/5 bg-well"><i class="absolute -top-1.5 left-2/5 h-[18px] w-3.5 bg-paper"></i></span>
+    </div>
+  </div>
+
+  <div class="grid gap-px bg-line">
+    {rows.map((r, i) => (
+      <div class={`grid grid-cols-[1fr_auto_auto] gap-3 px-3.5 py-2 text-[13px] tracking-normal tabular-nums sm:grid-cols-[3fr_3fr_1fr_1fr_1fr] ${i === 2 ? 'bg-accent/22' : 'bg-app'} ${i > 2 ? 'max-sm:hidden' : ''}`}>
+        <span>{r[0]}</span><span class="text-dim max-sm:hidden">{r[1]}</span><span>{r[2]}</span><span>{r[3]}</span><span class="text-dim max-sm:hidden">{r[4]}</span>
+      </div>
+    ))}
+  </div>
+</div>
