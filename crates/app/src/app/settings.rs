@@ -110,6 +110,7 @@ impl App {
                 Some(crate::prefs::Global::SetupWizard) => self.start_wizard(),
                 Some(crate::prefs::Global::ReportProblem) => Self::report_problem(),
                 Some(crate::prefs::Global::ShowLogFile) => Self::show_log_file(),
+                Some(crate::prefs::Global::ResetSettings) => self.ask_reset(),
                 None => {}
             }
             self.apply_kit_edits();

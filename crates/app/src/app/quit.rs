@@ -72,6 +72,41 @@ impl App {
             self.quit = Quit::Free;
         }
     }
+
+    pub(crate) fn ask_reset(&mut self) {
+        self.reset_ask = Some(
+            Ask::new(RESET, reset_text())
+                .cancel("Cancel")
+                .button("Delete and Restart", ()),
+        );
+    }
+
+    pub(crate) fn reset_prompt(&mut self, ctx: &Context) {
+        if modal::show(ctx, &mut self.reset_ask).is_some() {
+            crate::support::reset::request();
+            self.quit = Quit::Confirmed;
+            ctx.send_viewport_cmd(ViewportCommand::Close);
+        }
+    }
+}
+
+const RESET: &str = "Reset All Settings";
+
+fn reset_text() -> String {
+    let mut text = String::new();
+    for (heading, items) in [
+        ("This deletes:", crate::support::reset::DELETED),
+        ("This stays:", crate::support::reset::KEPT),
+    ] {
+        text.push_str(tr(heading));
+        for item in items {
+            text.push_str("\n• ");
+            text.push_str(tr(item));
+        }
+        text.push_str("\n\n");
+    }
+    text.push_str(tr("Backspn closes and starts again as on first launch."));
+    text
 }
 
 #[cfg(test)]

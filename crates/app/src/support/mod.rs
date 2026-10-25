@@ -1,6 +1,7 @@
 pub mod crash;
 pub mod github;
 pub mod log;
+pub mod reset;
 pub mod update;
 
 use std::path::PathBuf;

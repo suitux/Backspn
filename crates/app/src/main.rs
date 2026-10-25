@@ -130,6 +130,7 @@ fn main() -> eframe::Result {
         }),
     );
     support::log::close();
+    support::reset::finish();
     result
 }
 
@@ -185,6 +186,7 @@ struct App {
     persist: bool,
     quit: app::Quit,
     quit_ask: Option<modal::Ask<()>>,
+    reset_ask: Option<modal::Ask<()>>,
     audio_offer: app::AudioOffer,
     wizard: Option<app::Wizard>,
     crash: Option<support::crash::Pending>,
@@ -326,6 +328,7 @@ impl App {
             persist,
             quit: app::Quit::Free,
             quit_ask: None,
+            reset_ask: None,
             audio_offer: app::AudioOffer::default(),
             wizard: None,
             crash: None,
@@ -516,6 +519,7 @@ impl App {
         self.preferences(&ctx);
         self.setup_wizard(&ctx);
         self.crash_prompt(&ctx);
+        self.reset_prompt(&ctx);
         if let Some(message) = self.browser.take_message() {
             toast::info(message);
         }

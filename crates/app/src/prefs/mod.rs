@@ -142,6 +142,7 @@ pub enum Global {
     SetupWizard,
     ReportProblem,
     ShowLogFile,
+    ResetSettings,
 }
 
 pub struct Prefs {

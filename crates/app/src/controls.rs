@@ -19,7 +19,7 @@ mod manager;
 mod profiles;
 mod tables;
 
-fn mappings_path() -> PathBuf {
+pub(crate) fn mappings_path() -> PathBuf {
     if let Some(path) = std::env::var_os("BACKSPN_MAPPINGS") {
         return PathBuf::from(path);
     }

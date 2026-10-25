@@ -951,6 +951,16 @@ pub(super) fn global_settings(ui: &mut Ui, s: &mut Settings) -> Option<super::Gl
         {
             action = Some(super::Global::ShowLogFile);
         }
+        if ui
+            .button(tr("Reset All Settings…"))
+            .on_hover_text(tr(
+                "Deletes all of Backspn's configuration and restarts it as on first launch; \
+                 the music library stays",
+            ))
+            .clicked()
+        {
+            action = Some(super::Global::ResetSettings);
+        }
     });
     ui.add_space(6.0);
     ui.horizontal(|ui| {

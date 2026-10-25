@@ -213,7 +213,7 @@ pub fn switch_device(s: &mut Settings, device: &str, first_time: impl FnOnce(&mu
 fn apply_generic(s: &mut Settings) {
     s.buffer_frames = Some(512);
     s.sample_rate = Some(44_100);
-    s.monitor = Monitor::None;
+    s.monitor = Monitor::Auto;
     let x = &mut s.external_mixer;
     x.on = false;
     x.decks = [p(0), None, None, None];
@@ -283,7 +283,7 @@ mod tests {
         switch_device(&mut s, "Some Card", first_time("Some Card"));
         assert!(!s.external_mixer.on);
         assert_eq!((s.buffer_frames, s.sample_rate), (Some(512), Some(44_100)));
-        assert_eq!(s.monitor, Monitor::None);
+        assert_eq!(s.monitor, Monitor::Auto);
         assert_eq!(s.external_mixer.decks, [Some((0, 1)), None, None, None]);
         assert_eq!(s.input_routing.decks, [Some((0, 1)), None, None, None]);
         assert_eq!(s.input_routing.microphone, None);

@@ -751,6 +751,22 @@ Show Log File	Mostrar el fichero de log
 Report on GitHub…	Informar en GitHub…
 Opens a new GitHub issue in your browser with the version, the system and the log	Abre en el navegador un issue nuevo de GitHub con la versión, el sistema y el log
 Shows the log file in the file manager	Muestra el fichero de log en el gestor de archivos
+Reset All Settings…	Restablecer toda la configuración…
+Deletes all of Backspn's configuration and restarts it as on first launch; the music library stays	Borra toda la configuración de Backspn y lo reinicia como la primera vez; la biblioteca de música se conserva
+Reset All Settings	Restablecer toda la configuración
+Delete and Restart	Borrar y reiniciar
+This deletes:	Se borra:
+This stays:	Se conserva:
+Backspn closes and starts again as on first launch.	Backspn se cierra y vuelve a arrancar como la primera vez.
+Settings and preferences	Ajustes y preferencias
+Window and panel layout	Disposición de ventanas y paneles
+Controller and MIDI mappings	Mapeos de controladores y MIDI
+Downloaded stem separation model	Modelo de separación de stems descargado
+Logs and crash reports	Logs e informes de fallos
+Music library: collection, playlists, analysis and cues	Biblioteca de música: colección, playlists, análisis y cues
+Library backups and covers	Copias de seguridad de la biblioteca y carátulas
+Own kits	Kits propios
+Recordings, samples, stems and music files	Grabaciones, samples, stems y archivos de música
 Backspn did not close properly last time. Report it on GitHub? The issue opens in your browser with the error and the log; nothing is sent until you send it.	Backspn no se cerró bien la última vez. ¿Informar en GitHub? El issue se abre en el navegador con el error y el log; no se envía nada hasta que lo envíes tú.
 Hide until the next version	Ocultar hasta la siguiente versión
 Backspn {v} is available	Backspn {v} ya está disponible
