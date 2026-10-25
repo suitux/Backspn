@@ -1,9 +1,12 @@
 export default {
   lang: 'en',
   meta: {
+    locale: 'en_US',
+    imageAlt: 'The Backspn window with two decks, the FX units, the mixer and the library',
+    notFound: { title: 'Page not found · Backspn', heading: 'This page is not here', text: 'The link may be old or mistyped.', action: 'Go to the home page' },
     title: 'Backspn: free, open-source DJ software for any controller',
     description:
-      'Free, open-source DJ software for macOS, Windows and Linux, now in public beta. Mix four decks with sync and keylock, split stems on your machine, play 74 beat-synced effects and use your controller.',
+      'Free, open-source DJ software for macOS, Windows and Linux. Four decks with sync, stems on your own CPU, 74 beat-synced effects and support for any controller.',
   },
   nav: { features: 'Features', gallery: 'Screenshots', videos: 'Videos', faq: 'Questions', github: 'GitHub', otherLang: 'Español' },
   hero: {

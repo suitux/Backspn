@@ -1,0 +1,36 @@
+---
+import '@fontsource-variable/inter';
+import '../styles/site.css';
+import { getRelativeLocaleUrl } from 'astro:i18n';
+import { dictionaries, type Lang } from '../i18n';
+import { asset } from '../media';
+
+// GitHub Pages serves this for every missing path, so it speaks both languages.
+const langs = Object.keys(dictionaries) as Lang[];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{dictionaries.en.meta.notFound.title}</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href={asset('favicon.svg')} type="image/svg+xml" />
+  </head>
+  <body>
+    <main class="mx-auto grid min-h-svh w-[min(640px,100%-32px)] content-center gap-12 py-16">
+      <img src={asset('favicon.svg')} alt="Backspn" width="48" height="48" />
+      {langs.map((l) => {
+        const n = dictionaries[l].meta.notFound;
+        return (
+          <section class="grid justify-items-start gap-3" lang={l}>
+            <h1 class="text-4xl font-bold tracking-[-0.03em]">{n.heading}</h1>
+            <p class="text-soft">{n.text}</p>
+            <a class="mt-2 inline-flex min-h-11 items-center rounded-full bg-accent px-5 font-semibold text-ink-dark no-underline hover:bg-accent-hover" href={getRelativeLocaleUrl(l, '')}>{n.action}</a>
+          </section>
+        );
+      })}
+    </main>
+  </body>
+</html>

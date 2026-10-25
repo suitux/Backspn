@@ -3,9 +3,12 @@ import type en from './en';
 const es: typeof en = {
   lang: 'es',
   meta: {
-    title: 'Backspn: software de DJ gratis y de código abierto para cualquier controladora',
+    locale: 'es_ES',
+    imageAlt: 'La ventana de Backspn con dos decks, las unidades de FX, el mixer y la biblioteca',
+    notFound: { title: 'Página no encontrada · Backspn', heading: 'Esta página no existe', text: 'Puede que el enlace sea antiguo o tenga una errata.', action: 'Ir a la portada' },
+    title: 'Backspn: software de DJ gratis y de código abierto',
     description:
-      'Software de DJ libre y de código abierto para macOS, Windows y Linux, ya en beta pública. Mezcla cuatro decks con sync y keylock, separa stems en tu ordenador, usa 74 efectos a tiempo y tu controladora.',
+      'Software de DJ gratis y de código abierto para macOS, Windows y Linux. Cuatro decks con sync, stems en tu CPU, 74 efectos a tiempo y cualquier controladora.',
   },
   nav: { features: 'Funciones', gallery: 'Capturas', videos: 'Vídeos', faq: 'Preguntas', github: 'GitHub', otherLang: 'English' },
   hero: {

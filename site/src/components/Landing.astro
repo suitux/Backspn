@@ -7,7 +7,7 @@ import AppWindow from './AppWindow.astro';
 import Media from './Media.astro';
 import Ui from './Ui.astro';
 import { dictionaries, github, releases, type Lang } from '../i18n';
-import { features, gallery, videos, hero, ready, anyReady, asset } from '../media';
+import { features, gallery, videos, hero, ready, anyReady, asset, url } from '../media';
 
 interface Props {
   lang: Lang;
@@ -40,6 +40,30 @@ const button = 'inline-flex min-h-12 items-center gap-2.5 rounded-full px-[22px]
 const primary = `${button} bg-accent text-ink-dark hover:bg-accent-hover`;
 const ghost = `${button} bg-tile text-paper hover:bg-tile-2`;
 const h2 = 'text-[clamp(2rem,1.4rem+2.2vw,3.25rem)] font-[650] leading-[1.05] tracking-[-0.03em] text-balance';
+const abs = (path: string) => new URL(path, Astro.site).href;
+const canonical = abs(home(lang));
+const ogImage = abs(asset('og.jpg'));
+// Structured data for search engines: the app itself, free, on three systems.
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Backspn',
+  description: t.meta.description,
+  url: canonical,
+  inLanguage: lang,
+  applicationCategory: 'MultimediaApplication',
+  applicationSubCategory: 'DJ software',
+  operatingSystem: 'macOS, Windows, Linux',
+  softwareVersion: 'beta',
+  downloadUrl: releases,
+  license: 'https://www.gnu.org/licenses/gpl-3.0.html',
+  isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  image: ogImage,
+  screenshot: [hero, ...Object.values(features)].map((c) => abs(url(c.file))),
+  author: { '@type': 'Person', name: 'Xavier Rincón' },
+  sameAs: [github],
+};
 const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fill-current"><path d="M4 2.5v11l9-5.5z" /></svg>';
 ---
 
@@ -50,11 +74,32 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{t.meta.title}</title>
     <meta name="description" content={t.meta.description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en" href={abs(home('en'))} />
+    <link rel="alternate" hreflang="es" href={abs(home('es'))} />
+    <link rel="alternate" hreflang="x-default" href={abs(home('en'))} />
     <link rel="icon" href={asset('favicon.svg')} type="image/svg+xml" />
-    <link rel="alternate" hreflang="en" href={home('en')} />
-    <link rel="alternate" hreflang="es" href={home('es')} />
+    <link rel="apple-touch-icon" href={asset('apple-touch-icon.png')} />
+    <link rel="sitemap" href={asset('sitemap.xml')} />
+    <meta name="theme-color" content="#0e0f11" />
+    <meta name="author" content="Xavier Rincón" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Backspn" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={t.meta.locale} />
+    <meta property="og:locale:alternate" content={dictionaries[other].meta.locale} />
     <meta property="og:title" content={t.meta.title} />
     <meta property="og:description" content={t.meta.description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={t.meta.imageAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={t.meta.title} />
+    <meta name="twitter:description" content={t.meta.description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={t.meta.imageAlt} />
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   </head>
   <body>
     <header class={`${page} sticky top-0 z-10 grid grid-cols-[1fr_auto] items-center gap-6 bg-ground py-3.5 md:grid-cols-[1fr_auto_1fr]`}>

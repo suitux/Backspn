@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://backspn.com/sitemap.xml
