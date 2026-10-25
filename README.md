@@ -5,7 +5,7 @@
 <h1 align="center">Backspn</h1>
 
 <p align="center">
-  Free, open-source DJ software for four decks.<br>
+  Free, open source and made for any controller<br>
   macOS · Windows · Linux
 </p>
 
