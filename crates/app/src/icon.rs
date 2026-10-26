@@ -1,16 +1,17 @@
 use eframe::egui::{self, ColorImage, IconData, TextureHandle, TextureOptions};
 use image::RgbaImage;
 
-const PNG: &[u8] = include_bytes!("../icon/backspn.png");
+const LOGO_PNG: &[u8] = include_bytes!("../icon/backspn.png");
+const APP_PNG: &[u8] = include_bytes!("../icon/backspn-app.png");
 
 const LOGO_PX: u32 = 96;
 
-fn decode() -> Option<RgbaImage> {
-    Some(image::load_from_memory(PNG).ok()?.into_rgba8())
+fn decode(png: &[u8]) -> Option<RgbaImage> {
+    Some(image::load_from_memory(png).ok()?.into_rgba8())
 }
 
 pub fn app_icon() -> Option<IconData> {
-    let image = decode()?;
+    let image = decode(APP_PNG)?;
     let (width, height) = image.dimensions();
     Some(IconData {
         rgba: image.into_raw(),
@@ -25,7 +26,7 @@ pub fn logo(ctx: &egui::Context) -> Option<TextureHandle> {
         return Some(texture);
     }
     let small = image::imageops::resize(
-        &decode()?,
+        &decode(LOGO_PNG)?,
         LOGO_PX,
         LOGO_PX,
         image::imageops::FilterType::Lanczos3,
