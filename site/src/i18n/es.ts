@@ -135,6 +135,7 @@ const es: typeof en = {
     issues: 'Incidencias',
     stats: 'Estadísticas',
     licence: 'Licencia',
+    bmc: 'Invítame a un café',
     copyright: '© 2026 Xavier Rincón. El nombre y el logotipo de Backspn no forman parte de la licencia del código.',
   },
   insights: {

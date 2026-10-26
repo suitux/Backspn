@@ -6,7 +6,7 @@ import { getRelativeLocaleUrl } from 'astro:i18n';
 import AppWindow from './AppWindow.astro';
 import Media from './Media.astro';
 import Ui from './Ui.astro';
-import { dictionaries, github, releases, type Lang } from '../i18n';
+import { bmc, dictionaries, github, releases, type Lang } from '../i18n';
 import { features, gallery, videos, hero, ready, anyReady, asset, url } from '../media';
 
 interface Props {
@@ -63,7 +63,7 @@ const jsonLd = {
   image: ogImage,
   screenshot: [hero, ...Object.values(features)].map((c) => abs(url(c.file))),
   author: { '@type': 'Person', name: 'Xavier Rincón' },
-  sameAs: [github],
+  sameAs: [github, bmc],
 };
 const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fill-current"><path d="M4 2.5v11l9-5.5z" /></svg>';
 ---
@@ -278,9 +278,15 @@ cargo run --release -p backspn-app</code></pre>
     </main>
 
     <footer class={`${page} mt-20 grid grid-cols-2 gap-8 border-t border-line pt-10 pb-12 md:grid-cols-[2fr_1fr_1fr_1fr]`}>
-      <a class="col-span-2 inline-flex items-center gap-2.5 self-start text-lg font-[650] tracking-[-0.02em] no-underline md:col-span-1" href={home(lang)}>
-        <img src={asset('favicon.svg')} alt="" width="28" height="28" />Backspn
-      </a>
+      <div class="col-span-2 flex flex-col items-start gap-5 md:col-span-1">
+        <a class="inline-flex items-center gap-2.5 text-lg font-[650] tracking-[-0.02em] no-underline" href={home(lang)}>
+          <img src={asset('favicon.svg')} alt="" width="28" height="28" />Backspn
+        </a>
+        <a class="inline-flex h-9 items-center gap-2 rounded-md bg-bmc px-3.5 text-sm font-semibold text-black no-underline transition-[filter] hover:brightness-95" href={bmc} target="_blank" rel="noopener">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2v2"/><path d="M14 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/><path d="M6 2v2"/></svg>
+          {t.footer.bmc}
+        </a>
+      </div>
       {[
         [t.footer.product, [[releases, t.footer.download], ...sections, [getRelativeLocaleUrl(lang, 'insights'), t.footer.stats]]],
         [t.footer.source, [[github, 'GitHub'], [`${github}/issues`, t.footer.issues], ['https://www.gnu.org/licenses/gpl-3.0.html', t.footer.licence]]],

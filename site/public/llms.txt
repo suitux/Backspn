@@ -1,0 +1,84 @@
+# Backspn
+
+> Backspn is free, open source DJ software for macOS, Windows and Linux, written in Rust and made
+> for any controller. Mix with sync and keylock, split any track into stems on your own machine,
+> and play 74 effects on the beat. It is in public beta: every listed feature is finished.
+
+- License: GPL-3.0-or-later
+- Repository: https://github.com/suitux/Backspn
+- Downloads: https://github.com/suitux/Backspn/releases (macOS .dmg, Windows .exe, Linux .deb and AppImage)
+- Stack: Rust, egui/eframe, cpal, Symphonia, SQLite (rusqlite), ONNX Runtime (ort), Signalsmith Stretch
+- Support the author: https://buymeacoffee.com/suitux
+
+## What it is for
+
+DJs who want a full mixing application without a subscription or a locked ecosystem. Backspn
+plays on two or four decks, works with native HID controllers, MIDI profiles or MIDI learn, and
+reads the libraries of other DJ applications, so you can bring your collection and your mappings
+with you. Everything it writes uses its own open formats.
+
+## Features
+
+- Decks and mixer: two or four decks, sync to a master clock (half and double time included),
+  keylock, eight hotcues, loops and beat jump from 1/32 to 64 beats, slip and reverse. Four
+  channel mixer with isolator EQ, standard or resonant club filter, crossfader, headphone cue on
+  a second output and a master limiter.
+- Stems: split any track into drums, bass, other and vocals on the CPU, offline once the model is
+  downloaded. Stem decks give each part its own volume, filter and FX send. Results are cached.
+  .stem.mp4 files load as stems too.
+- Effects: 74 beat synced effects (delays, reverbs, filters, modulation, slicing, pitch and time,
+  distortion, macros) in two or four FX units, group or single mode, insert, post fader or send.
+- Drum Machine: any FX unit becomes a step sequencer in time with the master clock. Build your
+  own kits and patterns (eight per kit, 1/4, 1/8 or 1/16 beat steps per row), and share them as
+  .bskit files.
+- Sample decks: four slots of stacked cells per deck, loop or one shot, gate or latch, keylock,
+  punch in, reverse, and per slot volume, filter and FX send. Sample sets are saved in the library.
+- Loop recorder: 4 to 32 beat loops from the master, cue, external or aux input, with overdub and
+  undo. Any active deck loop can be saved as a loop too.
+- Mix recorder: WAV in 16 bit, 24 bit or 32 bit float, optionally split by file size.
+- Library: BPM, beatgrid, key and EBU R128 loudness analysis; search with filters such as
+  `techno $BPM ~ 128`; playlists, smartlists, favorites, ratings, history, configurable columns
+  and keyboard navigation. Imports NML collections and .tsi mappings, and reads Serato, VirtualDJ
+  and Engine DJ libraries.
+- Layouts: Micro, Essential, Full or Advanced decks, or parallel waveform lanes. Saved layouts.
+- Themes: Dark, Light, Darcula, Solar, Purple and Ocean.
+
+## Supported audio formats
+
+MP3, AAC/M4A, ALAC, FLAC, WAV, AIFF, Ogg Vorbis and .stem.mp4.
+
+## Controllers
+
+- Native HID drivers: Kontrol S4 MK3 (tested on hardware, with its own screen layouts); Kontrol
+  S4 MK2, S2 MK3, S2 MK2, S3, MX2 and Z1 (untested).
+- MIDI profiles: Pioneer DJ DDJ series, Denon DJ MC7000, Hercules DJControl Inpulse 200/300/500,
+  Numark Mixtrack Pro FX and Platinum FX, Reloop READY and Buddy.
+- Anything else: MIDI learn and keyboard mappings.
+
+## Install
+
+Download a build from https://github.com/suitux/Backspn/releases. Beta builds are not notarised
+or signed yet: on macOS open the app once, then choose Open Anyway in System Settings > Privacy &
+Security; on Windows choose More info > Run anyway in SmartScreen.
+
+To build from source you need stable Rust, CMake and a C/C++ compiler with libclang:
+
+```
+git clone https://github.com/suitux/Backspn
+cd Backspn
+cargo run --release -p backspn-app
+```
+
+## Privacy
+
+Backspn can send an anonymous summary of counts once a day (version, system, settings, usage
+counts). Nothing is sent until the user answers the notice on first launch, and it can be turned
+off in Preferences or with BACKSPN_INSIGHTS=0. Track, artist and playlist names, file paths, tags,
+device names and IP addresses are never sent. Public results: https://backspn.com/insights
+
+## Links
+
+- Landing page: https://backspn.com/
+- Spanish landing page: https://backspn.com/es
+- Usage statistics: https://backspn.com/insights
+- Issues: https://github.com/suitux/Backspn/issues

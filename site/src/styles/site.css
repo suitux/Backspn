@@ -23,6 +23,8 @@
   --color-deck-b: #d97700;
   --color-deck-c: #a55cff;
   --color-deck-d: #00a873;
+  /* The only non brand color on the site. Official Buy Me a Coffee yellow. */
+  --color-bmc: #ffdd00;
 
   --animate-wave: wave 24s linear infinite;
   @keyframes wave {

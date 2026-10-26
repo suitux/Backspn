@@ -16,7 +16,7 @@ export interface Video extends Clip {
 export const features = {
   mixing: { file: 'screens/layout-parallel.webp', size: [2000, 1275], record: 'Four decks with their waveforms in parallel lanes.' },
   stems: { file: 'screens/stems.webp', size: [1125, 725], record: 'A stem deck with Drums, Bass, Other and Vocals lanes.' },
-  effects: { file: 'screens/four-decks-light.webp', size: [2000, 1189], record: 'Four decks and four FX units (light theme).' },
+  effects: { file: 'screens/effects.webp', size: [1118, 632], record: 'FX1 in group mode and FX2 in single mode, both on.' },
   samples: { file: 'screens/sample-decks.webp', size: [2000, 723], record: 'A track deck next to a sample deck with four slots.' },
   library: { file: 'screens/layout-essential.webp', size: [2000, 1275], record: 'Four Essential decks with the library below.' },
   controllers: { file: 'screens/s4-screens.webp', size: [1456, 380], record: 'The four screen layouts of the Kontrol S4 MK3.' },

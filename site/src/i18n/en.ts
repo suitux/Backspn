@@ -133,6 +133,7 @@ export default {
     issues: 'Issues',
     stats: 'Statistics',
     licence: 'Licence',
+    bmc: 'Buy me a coffee',
     copyright: '© 2026 Xavier Rincón. The Backspn name and logo are not covered by the code licence.',
   },
   insights: {
