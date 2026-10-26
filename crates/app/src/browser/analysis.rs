@@ -73,6 +73,7 @@ impl Browser {
 
     pub fn collect_analysis(&mut self) -> Vec<AnalysedGrid> {
         self.collect_rescan();
+        self.collect_deletion();
         let mut grids = Vec::new();
         for done in self.analysis.poll() {
             self.store_overview(done.track, &done.overview);
@@ -128,10 +129,24 @@ impl Browser {
         self.activity_toggle(&bar);
     }
 
+    fn deletion_status(&mut self, ui: &mut Ui) {
+        let Some(deletion) = &self.deletion else {
+            return;
+        };
+        let (n, total) = (deletion.done, deletion.total.max(1));
+        let bar = ui.add(
+            egui::ProgressBar::new(n as f32 / total as f32)
+                .desired_width(140.0)
+                .text(format!("{} {n}/{total}", tr("Deleting"))),
+        );
+        self.activity_toggle(&bar);
+    }
+
     pub fn progress(&mut self, ui: &mut Ui) {
         self.stems_status(ui);
         self.analysis_status(ui);
         self.rescan_status(ui);
+        self.deletion_status(ui);
         self.activity.window(ui.ctx());
     }
 

@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS history_entries (
     played_public INTEGER NOT NULL DEFAULT 1
 );
 CREATE INDEX IF NOT EXISTS history_entries_session ON history_entries(session_id, position);
+CREATE INDEX IF NOT EXISTS history_entries_track ON history_entries(track_id);
 ";
 
 #[derive(Debug, Clone, PartialEq, Eq)]

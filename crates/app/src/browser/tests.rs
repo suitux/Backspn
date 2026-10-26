@@ -703,3 +703,51 @@ fn analyze_and_scan_ask_before_they_start() {
     finish_rescan(&mut b);
     std::fs::remove_file(&file).unwrap();
 }
+
+#[test]
+fn deleting_tracks_runs_in_steps_and_then_refreshes() {
+    let files: Vec<String> = (0..120).map(|i| format!("/m/{i}.mp3")).collect();
+    let files: Vec<&str> = files.iter().map(String::as_str).collect();
+    let mut b = browser(&files);
+    let ids: Vec<i64> = b.view.clone();
+    b.delete_tracks(&ids[..100], false);
+    assert_eq!(b.deletion.as_ref().map(|d| d.total), Some(100));
+    assert_eq!(
+        b.view.len(),
+        120,
+        "nothing is deleted before the queue runs"
+    );
+    while b.deletion.is_some() {
+        b.collect_deletion();
+    }
+    assert_eq!(b.view.len(), 20);
+    assert_eq!(b.running_tasks(), Vec::<&str>::new());
+}
+
+#[test]
+fn a_folder_favorite_lists_the_tracks_of_its_lists_once() {
+    let mut b = browser(&["/m/A.mp3", "/m/B.mp3"]);
+    let (a, c) = (b.view[0], b.view[1]);
+    let lib = b.library().unwrap();
+    let folder = lib
+        .create_node(None, NodeKind::Folder, "Gigs", None)
+        .unwrap();
+    let one = lib
+        .create_node(Some(folder), NodeKind::Playlist, "One", None)
+        .unwrap();
+    let two = lib
+        .create_node(Some(folder), NodeKind::Playlist, "Two", None)
+        .unwrap();
+    lib.add_to_playlist(one, &[a]).unwrap();
+    lib.add_to_playlist(two, &[a, c]).unwrap();
+    b.refresh();
+    let slot = b.favorite_slot(&Source::Node(folder)).unwrap();
+    assert_eq!(slot, "$PLAYLIST/tGigs");
+    b.show_favorite(&slot);
+    assert_eq!(b.source, Source::Node(folder));
+    assert_eq!(b.view.len(), 2);
+    let collection = b.favorite_slot(&Source::Collection).unwrap();
+    assert_eq!(b.favorite_label(&collection), "Collection");
+    b.show_favorite(&collection);
+    assert_eq!(b.source, Source::Collection);
+}

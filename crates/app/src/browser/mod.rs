@@ -83,6 +83,9 @@ pub struct SetDrag(pub i64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NodeDrag(pub i64);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceDrag(pub Source);
+
 pub enum BrowserAction {
     Load {
         deck: usize,
@@ -148,6 +151,7 @@ pub struct Browser {
     analysis: AnalysisQueue,
     pub activity: crate::activity::Activity,
     rescan: crate::rescan_queue::RescanQueue,
+    deletion: Option<files::Deletion>,
     analysis_dialog: Option<(Vec<i64>, Parts)>,
     stem_jobs: crate::stem_jobs::StemJobs,
     stem_dirs: crate::stems::StemDirs,
@@ -266,6 +270,7 @@ impl Browser {
             analysis: AnalysisQueue::default(),
             activity: crate::activity::Activity::default(),
             rescan: crate::rescan_queue::RescanQueue::default(),
+            deletion: None,
             analysis_dialog: None,
             stem_jobs: crate::stem_jobs::StemJobs::new(crate::prefs::stem_model_path()),
             stem_dirs: crate::stems::StemDirs {
@@ -564,9 +569,25 @@ impl Browser {
                     played: Some(&self.played),
                     ..backspn_library::smart::Context::default()
                 };
+                let folder = self
+                    .nodes
+                    .iter()
+                    .any(|n| n.id == node && n.kind == NodeKind::Folder);
+                let lists = if folder {
+                    self.folder_lists(node)
+                } else {
+                    vec![node]
+                };
+                let mut seen = HashSet::new();
                 self.lib
                     .as_ref()
-                    .map(|lib| lib.node_tracks_in(node, &cx).unwrap_or_default())
+                    .map(|lib| {
+                        lists
+                            .into_iter()
+                            .flat_map(|list| lib.node_tracks_in(list, &cx).unwrap_or_default())
+                            .filter(|id| !folder || seen.insert(*id))
+                            .collect()
+                    })
                     .unwrap_or_default()
             }
             Source::Recordings => self.recorded_tracks(),
@@ -710,7 +731,7 @@ impl Browser {
                 });
             });
         });
-        drag_preview(ui.ctx());
+        drag_preview(ui.ctx(), self.dragged_list(ui.ctx()));
         self.columns_popup(ui.ctx());
         self.rename_dialog(ui.ctx());
         self.folder_playlist_dialog(ui.ctx());
@@ -938,40 +959,125 @@ impl Browser {
     }
 
     pub fn step_favorite(&mut self, step: i32) {
-        use crate::favorites::{SLOTS, resolve, step as next};
+        use crate::favorites::{SLOTS, step as next};
         self.favorites.resize(SLOTS, String::new());
-        let shown =
-            (0..SLOTS).find(|&slot| self.shows(resolve(&self.nodes, &self.favorites[slot])));
-        let target = resolve(&self.nodes, &self.favorites[next(shown, step)]);
-        self.show_favorite(target);
-    }
-
-    fn shows(&self, target: Option<crate::favorites::Target>) -> bool {
-        use crate::favorites::Target;
-        match target {
-            Some(Target::Collection) => self.source == Source::Collection,
-            Some(Target::Node(id)) => self.source == Source::Node(id),
-            Some(Target::Recordings) => self.source == Source::Recordings,
-            Some(Target::History) => {
-                matches!(self.source, Source::History(h) if Some(h) == self.current_history)
-            }
-            None => false,
+        let targets: Vec<Option<Source>> = (0..SLOTS)
+            .map(|slot| self.favorite_source(&self.favorites[slot]))
+            .collect();
+        let shown = targets
+            .iter()
+            .position(|t| t.as_ref() == Some(&self.source));
+        let filled: Vec<bool> = targets.iter().map(Option::is_some).collect();
+        if let Some(slot) = next(shown, step, &filled) {
+            let slot = self.favorites[slot].clone();
+            self.show_favorite(&slot);
         }
     }
 
-    fn show_favorite(&mut self, target: Option<crate::favorites::Target>) {
+    fn favorite(&self, slot: &str) -> Option<crate::favorites::Target> {
+        use crate::favorites::{Target, resolve};
+        let target = resolve(&self.nodes, slot)?;
+        let exists = match &target {
+            Target::Archive(id) => self.histories.iter().any(|h| h.id == *id),
+            Target::Set(id) => self.sets.iter().any(|s| s.id == *id),
+            Target::External { library, .. } => self.outside_by_key(library).is_some(),
+            _ => true,
+        };
+        exists.then_some(target)
+    }
+
+    pub(super) fn favorite_source(&self, slot: &str) -> Option<Source> {
         use crate::favorites::Target;
-        match target {
-            Some(Target::Collection) => self.show(Source::Collection),
-            Some(Target::Node(id)) => self.show(Source::Node(id)),
-            Some(Target::Recordings) => self.show(Source::Recordings),
-            Some(Target::History) => {
-                if let Some(h) = self.current_history {
-                    self.show(Source::History(h));
-                }
+        Some(match self.favorite(slot)? {
+            Target::Collection => Source::Collection,
+            Target::History => Source::History(self.current_history?),
+            Target::Recordings => Source::Recordings,
+            Target::Loops => Source::Loops,
+            Target::Node(id) => Source::Node(id),
+            Target::Archive(id) => Source::History(id),
+            Target::Set(id) => Source::Set(id),
+            Target::Folder(dir) => Source::Folder(dir),
+            Target::External { library, at, .. } => {
+                Source::External(self.outside_by_key(&library)?, at)
             }
+        })
+    }
+
+    pub(super) fn favorite_slot(&self, source: &Source) -> Option<String> {
+        use crate::favorites::{Target, encode};
+        let target = match source {
+            Source::Collection => Target::Collection,
+            Source::History(id) if Some(*id) == self.current_history => Target::History,
+            Source::History(id) => Target::Archive(*id),
+            Source::Recordings => Target::Recordings,
+            Source::Loops => Target::Loops,
+            Source::Node(id) => Target::Node(*id),
+            Source::Set(id) => Target::Set(*id),
+            Source::Folder(dir) => Target::Folder(dir.clone()),
+            Source::External(kind, at) => Target::External {
+                library: self.outside_key(*kind)?,
+                at: at.clone(),
+                name: self.outside_name(*kind, at)?,
+            },
+        };
+        encode(&self.nodes, &target)
+    }
+
+    pub(super) fn favorite_label(&self, slot: &str) -> String {
+        use crate::favorites::Target;
+        let Some(target) = self.favorite(slot) else {
+            return String::new();
+        };
+        match target {
+            Target::Collection => "Collection".to_owned(),
+            Target::History => "History".to_owned(),
+            Target::Recordings => "Audio Recordings".to_owned(),
+            Target::Loops => "Loops".to_owned(),
+            Target::Node(id) => self
+                .nodes
+                .iter()
+                .find(|n| n.id == id)
+                .map_or_else(String::new, |n| n.name.clone()),
+            Target::Archive(id) => self
+                .histories
+                .iter()
+                .find(|h| h.id == id)
+                .map_or_else(String::new, |h| h.name.clone()),
+            Target::Set(id) => self
+                .sets
+                .iter()
+                .find(|s| s.id == id)
+                .map_or_else(String::new, |s| s.set.title.clone()),
+            Target::Folder(dir) => dir.file_name().map_or_else(
+                || dir.display().to_string(),
+                |n| n.to_string_lossy().into_owned(),
+            ),
+            Target::External { name, .. } => name,
+        }
+    }
+
+    pub(super) fn show_favorite(&mut self, slot: &str) {
+        match self.favorite_source(slot) {
+            Some(Source::External(kind, at)) => self.open_outside(kind, at),
+            Some(source) => self.show(source),
             None => {}
         }
+    }
+
+    fn folder_lists(&self, folder: i64) -> Vec<i64> {
+        let mut children: Vec<&Node> = self
+            .nodes
+            .iter()
+            .filter(|n| n.parent == Some(folder))
+            .collect();
+        children.sort_by_key(|n| n.position);
+        children
+            .into_iter()
+            .flat_map(|n| match n.kind {
+                NodeKind::Folder => self.folder_lists(n.id),
+                NodeKind::Playlist | NodeKind::Smartlist => vec![n.id],
+            })
+            .collect()
     }
 
     pub fn selected(&self) -> Option<i64> {

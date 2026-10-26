@@ -5,7 +5,20 @@ use crate::i18n::tr;
 use crate::track_filter::TrackFilter;
 use crate::{theme, widgets};
 
-use super::{Browser, NodeDrag, Source, TrackDrag};
+use super::{Browser, NodeDrag, SetDrag, Source, SourceDrag, TrackDrag};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct FavoriteDrag(pub usize);
+
+/// Like `dnd_release_payload`, but leaves a payload of another type for the
+/// widget it is meant for: egui drops it otherwise.
+fn released<T: std::any::Any + Send + Sync>(
+    response: &egui::Response,
+) -> Option<std::sync::Arc<T>> {
+    egui::DragAndDrop::has_payload_of_type::<T>(&response.ctx)
+        .then(|| response.dnd_release_payload::<T>())
+        .flatten()
+}
 
 pub(super) fn list_statistics(rows: &[&TrackRow]) -> String {
     let seconds: f64 = rows.iter().filter_map(|t| t.duration_s).sum();
@@ -132,7 +145,7 @@ impl Browser {
     }
 
     pub(super) fn favorites_bar(&mut self, ui: &mut Ui) {
-        use crate::favorites::{SLOTS, label, node_path, resolve};
+        use crate::favorites::SLOTS;
         self.favorites.resize(SLOTS, String::new());
         let t = theme::get(ui.ctx());
         let width = ((ui.available_width() - 4.0 * (SLOTS as f32 - 1.0)) / SLOTS as f32).max(40.0);
@@ -140,47 +153,77 @@ impl Browser {
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
             for slot in 0..SLOTS {
-                let target = resolve(&self.nodes, &self.favorites[slot]);
-                let name = label(&self.nodes, &self.favorites[slot]);
-                let selected = self.shows(target);
+                let target = self.favorite_source(&self.favorites[slot]);
+                let name = self.favorite_label(&self.favorites[slot]);
+                let selected = target.as_ref() == Some(&self.source);
                 let text = if name.is_empty() {
                     "·".to_owned()
                 } else {
                     name
                 };
-                let colour = if target.is_some() { t.text } else { t.text_dim };
+                // Filled slots take the theme's text colour, so hovering inverts it.
+                let text = RichText::new(text).size(11.0);
+                let text = if target.is_some() {
+                    text
+                } else {
+                    text.color(t.text_dim)
+                };
                 let response = ui
                     .add_sized(
                         egui::vec2(width, 20.0),
-                        egui::Button::new(RichText::new(text).size(11.0).color(colour))
+                        egui::Button::new(text)
                             .selected(selected)
                             .truncate(),
                     )
-                    .on_hover_text(tr("Drop a playlist here, or tracks to add them"));
-                if response.clicked() {
-                    show = target;
+                    .interact(egui::Sense::drag())
+                    .on_hover_text(tr(
+                        "Drop a list of the sidebar here, or tracks to add them. Drag a favorite onto another to swap them",
+                    ));
+                if !self.favorites[slot].is_empty() {
+                    response.dnd_set_drag_payload(FavoriteDrag(slot));
                 }
-                if let Some(drag) = response.dnd_release_payload::<NodeDrag>()
-                    && let Some(path) = node_path(&self.nodes, drag.0)
-                {
+                if response.clicked() && target.is_some() {
+                    show = Some(slot);
+                }
+                let list = response.dnd_hover_payload::<NodeDrag>().is_some()
+                    || response.dnd_hover_payload::<SetDrag>().is_some()
+                    || response.dnd_hover_payload::<SourceDrag>().is_some()
+                    || response
+                        .dnd_hover_payload::<FavoriteDrag>()
+                        .is_some_and(|from| from.0 != slot);
+                let tracks = response.dnd_hover_payload::<TrackDrag>().is_some()
+                    && self.takes_tracks(target.as_ref());
+                if list || tracks {
+                    ui.painter().rect_stroke(
+                        response.rect,
+                        2.0,
+                        egui::Stroke::new(2.0, t.accent),
+                        egui::StrokeKind::Inside,
+                    );
+                }
+                if let Some(from) = released::<FavoriteDrag>(&response) {
+                    self.favorites.swap(from.0, slot);
+                }
+                let dropped = if let Some(drag) = released::<NodeDrag>(&response) {
+                    Some(Source::Node(drag.0))
+                } else if let Some(drag) = released::<SetDrag>(&response) {
+                    Some(Source::Set(drag.0))
+                } else {
+                    released::<SourceDrag>(&response).map(|drag| drag.0.clone())
+                };
+                if let Some(path) = dropped.and_then(|s| self.favorite_slot(&s)) {
                     self.favorites[slot] = path;
                 }
-                if let Some(drag) = response.dnd_release_payload::<TrackDrag>() {
-                    self.drop_on_favorite(slot, target, &drag.tracks);
+                if let Some(drag) = released::<TrackDrag>(&response) {
+                    self.drop_on_favorite(slot, target.as_ref(), &drag.tracks);
                 }
                 response.context_menu(|ui| {
-                    if ui.button(tr("Use the list shown")).clicked() {
-                        let path = match &self.source {
-                            Source::Collection => Some("$COLLECTION".to_owned()),
-                            Source::History(_) => Some("$HISTORY".to_owned()),
-                            Source::Recordings => Some("$RECORDER".to_owned()),
-                            Source::Node(id) => node_path(&self.nodes, *id),
-                            Source::Folder(_)
-                            | Source::Set(_)
-                            | Source::Loops
-                            | Source::External(..) => None,
-                        };
-                        if let Some(path) = path {
+                    let shown = self.favorite_slot(&self.source);
+                    if ui
+                        .add_enabled(shown.is_some(), egui::Button::new(tr("Use the list shown")))
+                        .clicked()
+                    {
+                        if let Some(path) = shown {
                             self.favorites[slot] = path;
                         }
                         ui.close();
@@ -192,27 +235,60 @@ impl Browser {
                 });
             }
         });
-        if show.is_some() {
-            self.show_favorite(show);
+        if let Some(slot) = show {
+            let slot = self.favorites[slot].clone();
+            self.show_favorite(&slot);
+        }
+    }
+
+    /// Name and icon of a list being dragged, for the drag preview.
+    pub(super) fn dragged_list(&self, ctx: &egui::Context) -> Option<super::table::DraggedList> {
+        use egui::DragAndDrop;
+        let (source, slot) = if let Some(d) = DragAndDrop::payload::<NodeDrag>(ctx) {
+            (Some(Source::Node(d.0)), None)
+        } else if let Some(d) = DragAndDrop::payload::<SetDrag>(ctx) {
+            (Some(Source::Set(d.0)), None)
+        } else if let Some(d) = DragAndDrop::payload::<SourceDrag>(ctx) {
+            (Some(d.0.clone()), None)
+        } else {
+            (None, Some(DragAndDrop::payload::<FavoriteDrag>(ctx)?.0))
+        };
+        let slot = match (&source, slot) {
+            (Some(source), _) => self.favorite_slot(source)?,
+            (None, Some(slot)) => self.favorites.get(slot)?.clone(),
+            (None, None) => return None,
+        };
+        let text = self.favorite_label(&slot);
+        (!text.is_empty()).then_some(super::table::DraggedList {
+            text,
+            favorite: source.is_none(),
+        })
+    }
+
+    fn takes_tracks(&self, target: Option<&Source>) -> bool {
+        match target {
+            Some(Source::Node(id)) => self
+                .nodes
+                .iter()
+                .any(|n| n.id == *id && n.kind == NodeKind::Playlist),
+            Some(_) => false,
+            None => true,
         }
     }
 
     pub(super) fn drop_on_favorite(
         &mut self,
         slot: usize,
-        target: Option<crate::favorites::Target>,
+        target: Option<&Source>,
         tracks: &[i64],
     ) {
+        if !self.takes_tracks(target) {
+            return;
+        }
         let tracks: Vec<i64> = tracks.iter().filter_map(|&id| self.resolve(id)).collect();
         let result = match target {
-            Some(crate::favorites::Target::Node(id))
-                if self
-                    .nodes
-                    .iter()
-                    .any(|n| n.id == id && n.kind == NodeKind::Playlist) =>
-            {
-                self.with_lib(|lib| lib.add_to_playlist(id, &tracks))
-            }
+            Some(Source::Node(id)) => self.with_lib(|lib| lib.add_to_playlist(*id, &tracks)),
+            Some(_) => Ok(()),
             None => {
                 let created = self.with_lib_value(|lib| {
                     let name = lib.unique_node_name(None, "New Playlist")?;
@@ -227,7 +303,6 @@ impl Browser {
                     }
                 })
             }
-            _ => Ok(()),
         };
         Self::report(result);
         self.recompute();

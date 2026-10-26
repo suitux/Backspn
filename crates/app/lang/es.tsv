@@ -375,7 +375,7 @@ Import NML…	Importar NML…
 Add files…	Añadir ficheros…
 Narrow the list by BPM, key, rating and colour	Filtrar la lista por BPM, tonalidad, valoración y color
 Tracks that mix well after the one on the master deck	Pistas que mezclan bien tras la del deck master
-Drop a playlist here, or tracks to add them	Suelta aquí una playlist, o pistas para añadirlas
+Drop a list of the sidebar here, or tracks to add them. Drag a favorite onto another to swap them	Suelta aquí una lista de la barra lateral, o pistas para añadirlas. Arrastra un favorito sobre otro para intercambiarlos
 Use the list shown	Usar la lista mostrada
 Add a folder of your computer	Añadir una carpeta del ordenador
 Remove from list	Quitar de la lista
@@ -858,3 +858,7 @@ Not sent yet	Aún no enviado
 Last try failed	El último intento falló
 What Is Sent	Qué se envía
 Usage counts are what happened since the last report.	Los recuentos de uso son lo ocurrido desde el último informe.
+Read the file's tags again	Volver a leer las etiquetas del archivo
+Deleted:	Borradas:
+Deleting	Borrando
+Deleting tracks	Borrando pistas

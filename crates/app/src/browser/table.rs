@@ -51,9 +51,18 @@ pub(super) fn drop_line(row: &egui::Response, colour: egui::Color32) {
     );
 }
 
-pub(super) fn drag_preview(ctx: &egui::Context) {
-    let Some(drag) = egui::DragAndDrop::payload::<TrackDrag>(ctx) else {
-        return;
+pub(super) fn drag_preview(ctx: &egui::Context, list: Option<DraggedList>) {
+    let text = match egui::DragAndDrop::payload::<TrackDrag>(ctx) {
+        Some(drag) => format!("♫  {}", drag.title),
+        None => match list {
+            Some(list) => {
+                if list_ghost(ctx, &list) {
+                    return;
+                }
+                list.text
+            }
+            None => return,
+        },
     };
     let Some(pos) = ctx.pointer_latest_pos() else {
         return;
@@ -70,10 +79,64 @@ pub(super) fn drag_preview(ctx: &egui::Context) {
                 .corner_radius(0)
                 .inner_margin(egui::Margin::symmetric(10, 6))
                 .show(ui, |ui| {
-                    ui.label(RichText::new(format!("♫  {}", drag.title)).color(t.text));
+                    ui.label(RichText::new(text).color(t.text));
                 });
         });
     ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+}
+
+pub(super) struct DraggedList {
+    pub text: String,
+    pub favorite: bool,
+}
+
+/// Draws a dragged list as a copy of the widget it was taken from, the same
+/// size and held at the same point. False when that widget is not known.
+fn list_ghost(ctx: &egui::Context, list: &DraggedList) -> bool {
+    let Some(rect) = ctx
+        .dragged_id()
+        .and_then(|id| ctx.read_response(id))
+        .map(|r| r.rect)
+    else {
+        return false;
+    };
+    let (Some(pos), Some(origin)) = (
+        ctx.pointer_latest_pos(),
+        ctx.input(|i| i.pointer.press_origin()),
+    ) else {
+        return false;
+    };
+    let rect = rect.translate(pos - origin);
+    let t = theme::get(ctx);
+    let painter = ctx.layer_painter(egui::LayerId::new(
+        egui::Order::Tooltip,
+        egui::Id::unique("list-drag"),
+    ));
+    painter.rect(
+        rect,
+        2.0,
+        t.surface,
+        egui::Stroke::new(1.0, t.accent),
+        egui::StrokeKind::Inside,
+    );
+    let (anchor, at, size) = if list.favorite {
+        (egui::Align2::CENTER_CENTER, rect.center(), 11.0)
+    } else {
+        (
+            egui::Align2::LEFT_CENTER,
+            rect.left_center() + egui::vec2(4.0, 0.0),
+            13.5,
+        )
+    };
+    painter.with_clip_rect(rect).text(
+        at,
+        anchor,
+        &list.text,
+        egui::FontId::proportional(size),
+        t.text,
+    );
+    ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+    true
 }
 
 impl Browser {
@@ -419,24 +482,35 @@ impl Browser {
                                 ui.close();
                             }
                         });
-                        ui.menu_button(tr("Scan"), |ui| {
+                        if count == 1 {
                             if ui
-                                .button(tr("Full Rescan"))
-                                .on_hover_text(tr("Read every selected file's tags again"))
+                                .button(tr("Scan"))
+                                .on_hover_text(tr("Read the file's tags again"))
                                 .clicked()
                             {
                                 pending.push(Pending::Rescan(false));
                                 ui.close();
                             }
-                            if ui
-                                .button(tr("Quick Scan"))
-                                .on_hover_text(tr("Read again only the files modified since"))
-                                .clicked()
-                            {
-                                pending.push(Pending::Rescan(true));
-                                ui.close();
-                            }
-                        });
+                        } else {
+                            ui.menu_button(tr("Scan"), |ui| {
+                                if ui
+                                    .button(tr("Full Rescan"))
+                                    .on_hover_text(tr("Read every selected file's tags again"))
+                                    .clicked()
+                                {
+                                    pending.push(Pending::Rescan(false));
+                                    ui.close();
+                                }
+                                if ui
+                                    .button(tr("Quick Scan"))
+                                    .on_hover_text(tr("Read again only the files modified since"))
+                                    .clicked()
+                                {
+                                    pending.push(Pending::Rescan(true));
+                                    ui.close();
+                                }
+                            });
+                        }
                         if ui.button(tr("Lock analysis")).clicked() {
                             pending.push(Pending::Lock(true));
                             ui.close();

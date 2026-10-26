@@ -41,10 +41,10 @@ impl Browser {
             BrowserAsk::PurgeRecordings => self.delete_recordings(),
             BrowserAsk::DeleteFromDisk(tracks) => self.delete_tracks(&tracks, true),
             BrowserAsk::RemoveMissing(missing) => {
-                let result = self.with_lib(|lib| lib.delete_tracks(&missing));
-                Self::report(result);
-                self.refresh();
-                self.check_consistency();
+                self.delete_tracks(&missing, false);
+                if let Some(deletion) = &mut self.deletion {
+                    deletion.check_after = true;
+                }
             }
             BrowserAsk::ClearCollection => {
                 let result = self.with_lib(Library::clear_collection);

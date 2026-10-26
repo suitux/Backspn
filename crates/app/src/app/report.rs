@@ -69,13 +69,6 @@ impl App {
         if !update::shows(&release, self.settings.dismissed_version.as_deref()) {
             return;
         }
-        if ui
-            .small_button("×")
-            .on_hover_text(tr("Hide until the next version"))
-            .clicked()
-        {
-            self.settings.dismissed_version = Some(release.version().to_owned());
-        }
         let text = tr("Backspn {v} is available").replace("{v}", release.version());
         if ui
             .link(text)
@@ -83,6 +76,13 @@ impl App {
             .clicked()
         {
             github::open(&release.url());
+        }
+        if ui
+            .small_button("×")
+            .on_hover_text(tr("Hide until the next version"))
+            .clicked()
+        {
+            self.settings.dismissed_version = Some(release.version().to_owned());
         }
     }
 

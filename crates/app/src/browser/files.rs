@@ -83,6 +83,18 @@ pub(super) fn is_inside_other_app_data(path: &Path) -> bool {
         .any(|c| c.as_os_str() == backspn_formats::interop::DATA_FOLDER)
 }
 
+const DELETE_CHUNK: usize = 50;
+const DELETE_BUDGET: Duration = Duration::from_millis(15);
+
+#[derive(Default)]
+pub(super) struct Deletion {
+    queue: Vec<(i64, Option<PathBuf>)>,
+    problems: Vec<String>,
+    pub(super) done: usize,
+    pub(super) total: usize,
+    pub(super) check_after: bool,
+}
+
 pub(super) fn remove_files(files: &[PathBuf]) -> Vec<String> {
     let mut problems = Vec::new();
     for file in files {
@@ -440,23 +452,64 @@ impl Browser {
     }
 
     pub(super) fn delete_tracks(&mut self, tracks: &[i64], from_disk: bool) {
-        let files: Vec<PathBuf> = if from_disk {
-            tracks
-                .iter()
-                .filter_map(|&id| self.row(id))
-                .map(|t| PathBuf::from(t.path.split('#').next().unwrap_or(&t.path)))
-                .collect()
-        } else {
-            Vec::new()
-        };
-        self.selection.clear();
-        let result = self.with_lib(|lib| lib.delete_tracks(tracks));
-        Self::report(result);
-        let problems = remove_files(&files);
-        if !problems.is_empty() {
-            crate::toast::error(problems.join("\n"));
+        let jobs: Vec<(i64, Option<PathBuf>)> = tracks
+            .iter()
+            .map(|&id| {
+                let file = self
+                    .row(id)
+                    .filter(|_| from_disk)
+                    .map(|t| PathBuf::from(t.path.split('#').next().unwrap_or(&t.path)));
+                (id, file)
+            })
+            .collect();
+        if jobs.is_empty() {
+            return;
         }
+        self.selection.clear();
+        let deletion = self.deletion.get_or_insert_with(Deletion::default);
+        deletion.total += jobs.len();
+        deletion.queue.extend(jobs);
+        if let Some(ctx) = &self.ctx {
+            ctx.request_repaint();
+        }
+    }
+
+    pub(super) fn collect_deletion(&mut self) {
+        let Some(mut deletion) = self.deletion.take() else {
+            return;
+        };
+        let start = Instant::now();
+        while !deletion.queue.is_empty() && start.elapsed() < DELETE_BUDGET {
+            let n = deletion.queue.len().min(DELETE_CHUNK);
+            let (ids, files): (Vec<i64>, Vec<Option<PathBuf>>) = deletion.queue.drain(..n).unzip();
+            let result = self.with_lib(|lib| lib.delete_tracks(&ids));
+            Self::report(result);
+            let files: Vec<PathBuf> = files.into_iter().flatten().collect();
+            deletion.problems.extend(remove_files(&files));
+            deletion.done += n;
+        }
+        if !deletion.queue.is_empty() {
+            self.deletion = Some(deletion);
+            if let Some(ctx) = &self.ctx {
+                ctx.request_repaint();
+            }
+            return;
+        }
+        if !deletion.problems.is_empty() {
+            crate::toast::error(deletion.problems.join("\n"));
+        }
+        self.activity.push(
+            crate::activity::Level::Done,
+            format!(
+                "{} {}",
+                crate::i18n::tr("Deleted:"),
+                super::analysis::count(deletion.done)
+            ),
+        );
         self.refresh();
+        if deletion.check_after {
+            self.check_consistency();
+        }
     }
 
     pub fn running_tasks(&self) -> Vec<&'static str> {
@@ -466,6 +519,7 @@ impl Browser {
             (!self.rescan.is_idle(), "Rescanning tracks"),
             (!self.stem_jobs.is_idle(), "Generating stems"),
             (self.tag_writer.busy(), "Writing tags to files"),
+            (self.deletion.is_some(), "Deleting tracks"),
         ]
         .into_iter()
         .filter_map(|(on, name)| on.then_some(name))

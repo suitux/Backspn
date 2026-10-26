@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS sample_cells (
     bpm REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (set_id, slot, idx)
 );
+CREATE INDEX IF NOT EXISTS sample_cells_track ON sample_cells(track_id);
 ";
 
 #[derive(Debug, Clone, PartialEq)]

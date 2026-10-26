@@ -6,7 +6,7 @@ use backspn_library::external::{ExternalLibrary, ExternalNode, ExternalTrack};
 use eframe::egui::{self, RichText, Ui};
 
 use super::dialogs::BrowserAsk;
-use super::{Browser, BrowserAction, Source};
+use super::{Browser, BrowserAction, Source, SourceDrag};
 use crate::i18n::tr;
 use crate::modal::Ask;
 use crate::widgets;
@@ -332,6 +332,42 @@ impl Browser {
         self.outside(kind)?.library()
     }
 
+    pub(super) fn outside_key(&self, kind: Outside) -> Option<String> {
+        match kind {
+            Outside::Xml => self.library_xml.as_ref().map(|_| "xml".to_owned()),
+            Outside::Music => self.music.as_ref().map(|_| "music".to_owned()),
+            Outside::Program(i) => Some(self.programs.get(i)?.program?.name().to_lowercase()),
+        }
+    }
+
+    pub(super) fn outside_by_key(&self, key: &str) -> Option<Outside> {
+        let kind = match key {
+            "xml" => Outside::Xml,
+            "music" => Outside::Music,
+            _ => Outside::Program(
+                self.programs
+                    .iter()
+                    .position(|p| p.program.is_some_and(|p| p.name().to_lowercase() == key))?,
+            ),
+        };
+        self.outside(kind).map(|_| kind)
+    }
+
+    pub(super) fn outside_name(&self, kind: Outside, at: &[usize]) -> Option<String> {
+        let lib = self.outside(kind)?;
+        let Some((&first, rest)) = at.split_first() else {
+            return Some(lib.label());
+        };
+        let mut node = lib.library()?.playlists.get(first)?;
+        for &i in rest {
+            let ExternalNode::Folder { children, .. } = node else {
+                return None;
+            };
+            node = children.get(i)?;
+        }
+        Some(node.name().to_owned())
+    }
+
     pub fn set_library_xml(&mut self, path: Option<PathBuf>) {
         if self.library_xml.as_ref().and_then(|x| x.path.as_ref()) != path.as_ref() {
             self.library_xml = path.map(OutsideLibrary::xml);
@@ -501,7 +537,7 @@ impl Browser {
         self.refresh();
     }
 
-    fn open_outside(&mut self, kind: Outside, at: Vec<usize>) {
+    pub(super) fn open_outside(&mut self, kind: Outside, at: Vec<usize>) {
         if let Some(lib) = self.outside_mut(kind)
             && matches!(lib.state, State::Idle)
         {
@@ -590,7 +626,10 @@ impl Browser {
             "🗂"
         };
         let selected = self.source == Source::External(kind, Vec::new());
-        let mut response = ui.selectable_label(selected, format!("{icon}  {label}"));
+        let mut response = ui
+            .selectable_label(selected, format!("{icon}  {label}"))
+            .interact(egui::Sense::drag());
+        response.dnd_set_drag_payload(SourceDrag(Source::External(kind, Vec::new())));
         if response.clicked() {
             self.open_outside(kind, Vec::new());
         }
@@ -680,6 +719,8 @@ impl Browser {
                 response.expect("header shown")
             }
         };
+        let response = response.interact(egui::Sense::drag());
+        response.dnd_set_drag_payload(SourceDrag(Source::External(kind, at.to_vec())));
         if response.clicked() {
             self.open_outside(kind, at.to_vec());
         }

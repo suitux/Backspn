@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS playlist_entries (
     key TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS entries_node ON playlist_entries(node_id, position);
+CREATE INDEX IF NOT EXISTS entries_track ON playlist_entries(track_id);
 ";
 
 #[derive(Debug, thiserror::Error)]

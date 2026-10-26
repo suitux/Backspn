@@ -11,7 +11,7 @@ use crate::{theme, widgets};
 
 use super::dialogs::BrowserAsk;
 use super::files::subfolders;
-use super::{Browser, BrowserAction, NodeDrag, SetDrag, Source, TrackDrag};
+use super::{Browser, BrowserAction, NodeDrag, SetDrag, Source, SourceDrag, TrackDrag};
 
 const DECK_NAMES: [&str; 4] = ["A", "B", "C", "D"];
 
@@ -104,8 +104,10 @@ impl Browser {
     }
 
     pub(super) fn tree(&mut self, ui: &mut Ui) {
-        let collection =
-            ui.selectable_label(self.source == Source::Collection, tr("◉  Collection"));
+        let collection = ui
+            .selectable_label(self.source == Source::Collection, tr("◉  Collection"))
+            .interact(egui::Sense::drag());
+        collection.dnd_set_drag_payload(SourceDrag(Source::Collection));
         if collection.clicked() {
             self.show(Source::Collection);
         }
@@ -262,8 +264,10 @@ impl Browser {
     }
 
     fn recordings_node(&mut self, ui: &mut Ui) {
-        let response =
-            ui.selectable_label(self.source == Source::Recordings, tr("⏺ Audio Recordings"));
+        let response = ui
+            .selectable_label(self.source == Source::Recordings, tr("⏺ Audio Recordings"))
+            .interact(egui::Sense::drag());
+        response.dnd_set_drag_payload(SourceDrag(Source::Recordings));
         if response.clicked() {
             self.show(Source::Recordings);
         }
@@ -277,7 +281,10 @@ impl Browser {
     }
 
     fn loops_node(&mut self, ui: &mut Ui) {
-        let response = ui.selectable_label(self.source == Source::Loops, tr("🔁 Loops"));
+        let response = ui
+            .selectable_label(self.source == Source::Loops, tr("🔁 Loops"))
+            .interact(egui::Sense::drag());
+        response.dnd_set_drag_payload(SourceDrag(Source::Loops));
         if response.clicked() {
             self.show(Source::Loops);
         }
@@ -319,10 +326,15 @@ impl Browser {
 
     pub(super) fn history_tree(&mut self, ui: &mut Ui) {
         let current = self.current_history;
-        let label = ui.selectable_label(
-            current.is_some_and(|c| self.source == Source::History(c)),
-            "🕘 History",
-        );
+        let label = ui
+            .selectable_label(
+                current.is_some_and(|c| self.source == Source::History(c)),
+                "🕘 History",
+            )
+            .interact(egui::Sense::drag());
+        if let Some(c) = current {
+            label.dnd_set_drag_payload(SourceDrag(Source::History(c)));
+        }
         if label.clicked() {
             match current {
                 Some(c) => self.show(Source::History(c)),
@@ -367,10 +379,13 @@ impl Browser {
             .default_open(false);
         crate::theme::collapsing(ui, header, |ui| {
             for h in archived {
-                let response = ui.selectable_label(
-                    self.source == Source::History(h.id),
-                    format!("🕘 {}", h.name),
-                );
+                let response = ui
+                    .selectable_label(
+                        self.source == Source::History(h.id),
+                        format!("🕘 {}", h.name),
+                    )
+                    .interact(egui::Sense::drag());
+                response.dnd_set_drag_payload(SourceDrag(Source::History(h.id)));
                 if response.clicked() {
                     self.show(Source::History(h.id));
                 }
@@ -424,6 +439,8 @@ impl Browser {
                 });
             response.expect("header shown")
         };
+        let response = response.interact(egui::Sense::drag());
+        response.dnd_set_drag_payload(SourceDrag(Source::Folder(dir.to_path_buf())));
         if response.clicked() {
             self.show(Source::Folder(dir.to_path_buf()));
         }

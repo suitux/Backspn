@@ -48,6 +48,7 @@ impl App {
                     .color(t.accent)
                     .extra_letter_spacing(2.0),
             );
+            self.update_notice(ui);
             if cfg!(not(target_os = "macos"))
                 && widgets::toggle(ui, "⚙", self.prefs.open, t.accent)
                     .on_hover_text(tr("Preferences (Ctrl+,)"))
@@ -410,7 +411,6 @@ impl App {
             self.status_bar(ui);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 self.browser.progress(ui);
-                self.update_notice(ui);
             });
         });
     }
