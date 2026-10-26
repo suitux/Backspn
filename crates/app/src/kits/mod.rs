@@ -1,4 +1,6 @@
 mod bundle;
+mod factory;
+mod synth;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -8,6 +10,8 @@ use anyhow::{Context, bail};
 pub use backspn_engine::fx_pattern::Steps;
 use backspn_engine::fx_pattern::{PATTERNS, Sound};
 use serde::{Deserialize, Serialize};
+
+use crate::recorder::wav::{Format, WavWriter};
 
 pub const DEFAULT_KNOBS: [f32; 4] = [1.0, 0.5, 0.0, 0.5];
 
@@ -294,6 +298,34 @@ impl KitLibrary {
         Ok(backspn_engine::Track::from_stereo(rate as u32, stereo))
     }
 
+    pub fn install_factory(&mut self, replace: bool) -> usize {
+        let mut installed = 0;
+        for f in &factory::KITS {
+            if !replace && self.folder(f.id).exists() {
+                continue;
+            }
+            match self.install_one(f) {
+                Ok(()) => installed += 1,
+                Err(e) => log::warn!("cannot install kit {}: {e}", f.name),
+            }
+        }
+        installed
+    }
+
+    fn install_one(&mut self, f: &factory::FactoryKit) -> anyhow::Result<()> {
+        let folder = self.folder(f.id);
+        if folder.exists() {
+            std::fs::remove_dir_all(&folder)?;
+        }
+        std::fs::create_dir_all(&folder)?;
+        for voice in synth::Voice::ALL {
+            let path = folder.join(factory::file_name(voice));
+            self.decoded.remove(&path);
+            write_mono_wav(&path, &synth::render(f.style, voice))?;
+        }
+        self.save(f.id, &f.kit())
+    }
+
     pub fn export(&self, id: &str, to: &Path) -> anyhow::Result<()> {
         let kit = &self.find(id).context("no such kit")?.kit;
         let mut files = bundle::Files::new();
@@ -326,6 +358,13 @@ impl KitLibrary {
         self.save(&id, &kit)?;
         Ok(id)
     }
+}
+
+fn write_mono_wav(path: &Path, mono: &[f32]) -> std::io::Result<()> {
+    let mut writer = WavWriter::create(path, Format::Pcm24, synth::RATE)?;
+    let stereo: Vec<f32> = mono.iter().flat_map(|&x| [x, x]).collect();
+    writer.write(&stereo, 1.0)?;
+    writer.finish()
 }
 
 fn decode_mono(path: &Path) -> anyhow::Result<Decoded> {
@@ -418,6 +457,29 @@ mod tests {
 
         let again = KitLibrary::open(dir.join("Kits"));
         assert_eq!(again.kits().len(), 2);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn factory_kits_install_once_and_restore() {
+        let dir = temp_dir("factory");
+        let mut lib = KitLibrary::open(dir.join("Kits"));
+        assert_eq!(lib.install_factory(false), factory::KITS.len());
+        for f in &factory::KITS {
+            assert_eq!(lib.find(f.id).unwrap().kit, f.kit());
+            assert_eq!(lib.sounds(f.id).len(), synth::Voice::ALL.len());
+        }
+        let id = factory::KITS[0].id;
+        let mut edited = factory::KITS[0].kit();
+        edited.name = "Edited".into();
+        lib.save(id, &edited).unwrap();
+        assert_eq!(
+            lib.install_factory(false),
+            0,
+            "installed kits are left alone"
+        );
+        assert_eq!(lib.install_factory(true), factory::KITS.len());
+        assert_eq!(lib.find(id).unwrap().kit.name, factory::KITS[0].name);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -220,7 +220,10 @@ Remove the sound	Quitar el sonido
 Add sounds…	Añadir sonidos…
 Clear	Vaciar
 Steps of a beat: the grid and what ROLL repeats at	Pasos de un beat: la rejilla y lo que repite ROLL
-No kits yet: make one with New.	Aún no hay kits: crea uno con Nuevo.
+No kits yet: make one with New or restore the factory kits.	Aún no hay kits: crea uno con Nuevo o restaura los kits de fábrica.
+Restore factory kits	Restaurar los kits de fábrica
+Restore the kits that come with Backspn? Your edits to them will be lost.	¿Restaurar los kits que trae Backspn? Se perderán los cambios que les hayas hecho.
+Adds the kits that come with Backspn again, undoing their edits	Vuelve a añadir los kits que trae Backspn y deshace sus cambios
 Add sounds to write their patterns.	Añade sonidos para escribir sus patrones.
 Headphone volume and cue mix: mappable to keyboard, MIDI or controllers.	Volumen de auriculares y mezcla de cue: se pueden mapear al teclado, MIDI o controladoras.
 How fast the platter turns in TT mode while the deck plays	Velocidad del plato en modo TT mientras el deck toca

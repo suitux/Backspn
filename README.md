@@ -100,7 +100,10 @@ deck.
   <img src="docs/images/drum-machine.webp" alt="FX unit 1 in Drum Machine mode with a kit, the sound selector, pattern, pitch and decay knobs and a row of 16 steps">
 </p>
 
-Kits are yours to build in **Preferences ▸ Drum Machine**:
+Two kits come with the app, **Analog Kit** and **Club Kit**, each with eight
+sounds and eight patterns. Their sounds are synthesized by Backspn itself, so
+they are as free as the rest of the code. Build more in
+**Preferences ▸ Drum Machine**:
 
 - **New**, **Duplicate** and **Delete** kits, and give each one a name and an author.
 - **Add sounds…** loads your own samples in any supported audio format. Rename

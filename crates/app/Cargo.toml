@@ -23,6 +23,7 @@ uuid = { version = "1.28.0", features = ["v4"] }
 backspn-analysis = { path = "../analysis" }
 backspn-control = { path = "../control" }
 backspn-decode = { path = "../decode" }
+backspn-dsp = { path = "../dsp" }
 backspn-encode = { path = "../encode" }
 backspn-engine = { path = "../engine" }
 backspn-formats = { path = "../formats" }

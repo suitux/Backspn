@@ -555,6 +555,7 @@ dependencies = [
  "backspn-analysis",
  "backspn-control",
  "backspn-decode",
+ "backspn-dsp",
  "backspn-encode",
  "backspn-engine",
  "backspn-formats",

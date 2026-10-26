@@ -17,6 +17,7 @@ pub(super) struct KitEditor {
     pattern: usize,
     error: Option<String>,
     delete_ask: Option<Ask<String>>,
+    restore_ask: Option<Ask<()>>,
 }
 
 impl Prefs {
@@ -35,7 +36,12 @@ impl Prefs {
             .or_else(|| kits.kits().first().map(|k| k.id.clone()));
         self.kit.selected.clone_from(&selected);
         let Some(id) = selected else {
-            ui.label(RichText::new(tr("No kits yet: make one with New.")).weak());
+            ui.label(
+                RichText::new(tr(
+                    "No kits yet: make one with New or restore the factory kits.",
+                ))
+                .weak(),
+            );
             return;
         };
         let Some(mut kit) = kits.find(&id).map(|k| k.kit.clone()) else {
@@ -60,6 +66,9 @@ impl Prefs {
                 self.kit.error = Some(e.to_string());
             }
             self.kit.selected = None;
+        }
+        if modal::show(ui.ctx(), &mut self.kit.restore_ask).is_some() {
+            kits.install_factory(true);
         }
         let result = ui
             .horizontal(|ui| -> anyhow::Result<()> {
@@ -109,6 +118,15 @@ impl Prefs {
                         .pick_file()
                 {
                     self.kit.selected = Some(kits.import(&from)?);
+                }
+                if ui
+                    .button(tr("Restore factory kits"))
+                    .on_hover_text(tr(
+                        "Adds the kits that come with Backspn again, undoing their edits",
+                    ))
+                    .clicked()
+                {
+                    self.kit.restore_ask = Some(ask_restore());
                 }
                 Ok(())
             })
@@ -277,6 +295,14 @@ fn file_label(path: &Path) -> String {
     path.file_name().map_or_else(
         || path.display().to_string(),
         |n| n.to_string_lossy().into_owned(),
+    )
+}
+
+fn ask_restore() -> Ask<()> {
+    Ask::yes_no(
+        "Restore factory kits",
+        "Restore the kits that come with Backspn? Your edits to them will be lost.",
+        (),
     )
 }
 
