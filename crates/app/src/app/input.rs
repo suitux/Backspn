@@ -893,7 +893,11 @@ impl App {
                         .duration_since(std::time::UNIX_EPOCH)
                         .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(0)),
                 };
-                screen::render(&deck, &style, &theme, self.settings.screen_layout)
+                if self.settings.screen_idle_logo && screen::idle(&deck) {
+                    screen::render_logo(&theme, self.settings.screen_logo.as_deref())
+                } else {
+                    screen::render(&deck, &style, &theme, self.settings.screen_layout)
+                }
             })
             .collect();
         if let Some(dir) = preview {
@@ -904,6 +908,24 @@ impl App {
             }
         }
         controls.send_screens(frames);
+    }
+
+    pub(crate) fn leave_screens(&self) {
+        let Some(controls) = &self.controls else {
+            return;
+        };
+        if !self.settings.screen_quit_logo {
+            return;
+        }
+        if let Some((size, decks)) = controls.screens()
+            && size == (screen::WIDTH, screen::HEIGHT)
+        {
+            let logo = screen::render_logo(
+                &self.settings.theme.theme(),
+                self.settings.screen_logo.as_deref(),
+            );
+            controls.send_screens(vec![logo; decks.len()]);
+        }
     }
 }
 

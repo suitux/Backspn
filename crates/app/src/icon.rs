@@ -20,17 +20,21 @@ pub fn app_icon() -> Option<IconData> {
     })
 }
 
+pub fn logo_rgba(px: u32) -> Option<RgbaImage> {
+    Some(image::imageops::resize(
+        &decode(LOGO_PNG)?,
+        px,
+        px,
+        image::imageops::FilterType::Lanczos3,
+    ))
+}
+
 pub fn logo(ctx: &egui::Context) -> Option<TextureHandle> {
     let id = egui::Id::unique("backspn-logo");
     if let Some(texture) = ctx.data(|d| d.get_temp::<TextureHandle>(id)) {
         return Some(texture);
     }
-    let small = image::imageops::resize(
-        &decode(LOGO_PNG)?,
-        LOGO_PX,
-        LOGO_PX,
-        image::imageops::FilterType::Lanczos3,
-    );
+    let small = logo_rgba(LOGO_PX)?;
     let color =
         ColorImage::from_rgba_unmultiplied([LOGO_PX as usize, LOGO_PX as usize], small.as_raw());
     let texture = ctx.load_texture("backspn-logo", color, TextureOptions::LINEAR);

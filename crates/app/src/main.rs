@@ -388,6 +388,7 @@ impl App {
 
 impl Drop for App {
     fn drop(&mut self) {
+        self.leave_screens();
         self.finish_recording();
         self.close_history();
         self.save_insights();

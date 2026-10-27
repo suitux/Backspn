@@ -229,6 +229,107 @@ fn x_of((x0, x1): (i32, i32), (from_s, to_s): (f64, f64), t: f64) -> i32 {
     x0 + ((t - from_s) / (to_s - from_s) * f64::from(x1 - x0)).round() as i32
 }
 
+/// An empty deck with nothing else to show.
+pub fn idle(deck: &ScreenDeck) -> bool {
+    !deck.state.loaded && deck.sample_deck.is_none() && deck.stem.is_none()
+}
+
+const LOGO_PX: u32 = 128;
+
+fn logo_image() -> Option<&'static image::RgbaImage> {
+    static LOGO: std::sync::OnceLock<Option<image::RgbaImage>> = std::sync::OnceLock::new();
+    LOGO.get_or_init(|| crate::icon::logo_rgba(LOGO_PX))
+        .as_ref()
+}
+
+pub const LOGO_EXTENSIONS: [&str; 3] = ["png", "jpg", "jpeg"];
+
+/// The largest size with the picture's proportions that fits the screen.
+fn fit((width, height): (u32, u32)) -> (u32, u32) {
+    let (max_w, max_h) = (WIDTH as u32, HEIGHT as u32);
+    if width == 0 || height == 0 {
+        return (0, 0);
+    }
+    if u64::from(width) * u64::from(max_h) > u64::from(height) * u64::from(max_w) {
+        let h = (u64::from(height) * u64::from(max_w) / u64::from(width)).max(1);
+        (max_w, h as u32)
+    } else {
+        let w = (u64::from(width) * u64::from(max_h) / u64::from(height)).max(1);
+        (w as u32, max_h)
+    }
+}
+
+fn load_custom_logo(path: &std::path::Path) -> Option<image::RgbaImage> {
+    let picture = image::open(path)
+        .map_err(|e| log::warn!("screen logo {}: {e}", path.display()))
+        .ok()?
+        .into_rgba8();
+    let (width, height) = fit(picture.dimensions());
+    Some(image::imageops::resize(
+        &picture,
+        width,
+        height,
+        image::imageops::FilterType::Lanczos3,
+    ))
+}
+
+type CustomLogo = Option<(std::path::PathBuf, Option<std::sync::Arc<image::RgbaImage>>)>;
+
+/// Read once per path; a file that cannot be read falls back to our logo.
+fn custom_logo(path: &std::path::Path) -> Option<std::sync::Arc<image::RgbaImage>> {
+    static CACHE: std::sync::Mutex<CustomLogo> = std::sync::Mutex::new(None);
+    let mut cache = CACHE.lock().ok()?;
+    if cache.as_ref().is_none_or(|(cached, _)| cached != path) {
+        let logo = load_custom_logo(path).map(std::sync::Arc::new);
+        *cache = Some((path.to_owned(), logo));
+    }
+    cache.as_ref().and_then(|(_, logo)| logo.clone())
+}
+
+fn draw_image(c: &mut Canvas, picture: &image::RgbaImage, (left, top): (i32, i32)) {
+    for (col, row, px) in picture.enumerate_pixels() {
+        let [red, green, blue, alpha] = px.0;
+        c.blend(
+            (left + col as i32, top + row as i32),
+            Color32::from_rgb(red, green, blue),
+            f32::from(alpha) / 255.0,
+        );
+    }
+}
+
+/// The logo screen: the chosen picture fitted to the screen, or ours with
+/// the name under it.
+pub fn render_logo(t: &Theme, custom: Option<&std::path::Path>) -> Frame {
+    const NAME: &str = "Backspn";
+    const NAME_SIZE: f32 = 30.0;
+    const GAP: i32 = 10;
+    let mut c = Canvas::new(t.base);
+    if let Some(picture) = custom.and_then(custom_logo) {
+        let (width, height) = picture.dimensions();
+        let left = (WIDTH as i32 - width as i32) / 2;
+        let top = (HEIGHT as i32 - height as i32) / 2;
+        draw_image(&mut c, &picture, (left, top));
+        return c.frame();
+    }
+    let top = (HEIGHT as i32 - LOGO_PX as i32 - GAP - NAME_SIZE as i32) / 2;
+    if let Some(logo) = logo_image() {
+        draw_image(&mut c, logo, ((WIDTH as i32 - LOGO_PX as i32) / 2, top));
+    }
+    let f = fonts();
+    let width = text_width(&f.sans, NAME_SIZE, NAME);
+    let name_top = (top + LOGO_PX as i32 + GAP) as f32;
+    text(
+        &mut c,
+        &f.sans,
+        NAME_SIZE,
+        ((WIDTH as f32 - width) / 2.0, name_top),
+        width + 1.0,
+        t.text,
+        NAME,
+    );
+    c.frame()
+}
+
 pub fn render(deck: &ScreenDeck, style: &WaveStyle, t: &Theme, layout: Layout) -> Frame {
     if let Some(r) = &deck.sample_deck {
         return sample_deck::render(r).frame();
@@ -974,6 +1075,55 @@ mod tests {
         let deck = deck(&state, 0.25);
         let frame = render(&deck, &style(), &DARK, Layout::Standard);
         assert_eq!(pixel(&frame, 80, 150), rgb565(DARK.play));
+    }
+
+    #[test]
+    fn only_an_empty_deck_is_idle() {
+        let empty = DeckState::default();
+        assert!(idle(&deck(&empty, 4.0)));
+        let loaded = DeckState {
+            loaded: true,
+            ..DeckState::default()
+        };
+        assert!(!idle(&deck(&loaded, 4.0)));
+    }
+
+    #[test]
+    fn logo_screen_is_centred_on_the_theme_background() {
+        let frame = render_logo(&DARK, None);
+        assert_eq!((frame.width, frame.height), (WIDTH, HEIGHT));
+        assert_eq!(pixel(&frame, 1, 1), rgb565(DARK.base));
+        assert_ne!(
+            pixel(&frame, WIDTH / 2, HEIGHT / 2 - 20),
+            rgb565(DARK.base),
+            "logo"
+        );
+    }
+
+    #[test]
+    fn pictures_fit_the_screen_keeping_their_proportions() {
+        assert_eq!(fit((320, 240)), (320, 240));
+        assert_eq!(fit((64, 48)), (320, 240), "small pictures grow");
+        assert_eq!(fit((1000, 100)), (320, 32), "wide");
+        assert_eq!(fit((100, 1000)), (24, 240), "tall");
+        assert_eq!(fit((0, 10)), (0, 0));
+    }
+
+    #[test]
+    fn a_custom_logo_fills_the_screen_and_a_missing_one_falls_back() {
+        let dir = std::env::temp_dir().join(format!("backspn-logo-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("logo.png");
+        image::RgbaImage::from_pixel(32, 24, image::Rgba([255, 0, 0, 255]))
+            .save(&path)
+            .unwrap();
+        let red = Frame::rgb565(255, 0, 0);
+        let frame = render_logo(&DARK, Some(&path));
+        assert_eq!(pixel(&frame, 0, 0), red);
+        assert_eq!(pixel(&frame, WIDTH - 1, HEIGHT - 1), red);
+        let missing = render_logo(&DARK, Some(&dir.join("missing.png")));
+        assert_eq!(missing.pixels, render_logo(&DARK, None).pixels);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

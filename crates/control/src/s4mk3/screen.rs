@@ -70,6 +70,7 @@ pub struct Screens {
     running: Arc<AtomicBool>,
     connected: Arc<AtomicBool>,
     problem: Arc<Mutex<Option<String>>>,
+    thread: Option<std::thread::JoinHandle<()>>,
 }
 
 impl std::fmt::Debug for Screens {
@@ -81,8 +82,13 @@ impl std::fmt::Debug for Screens {
 }
 
 impl Drop for Screens {
+    /// Waits for the frames already sent to reach the controller, so the last
+    /// one stays on the screens after the app quits.
     fn drop(&mut self) {
         self.running.store(false, Ordering::Relaxed);
+        if let Some(thread) = self.thread.take() {
+            drop(thread.join());
+        }
     }
 }
 
@@ -97,7 +103,7 @@ impl Screens {
             Arc::clone(&connected),
             Arc::clone(&problem),
         );
-        std::thread::Builder::new()
+        let thread = std::thread::Builder::new()
             .name("s4mk3-screens".into())
             .spawn(move || supervise(&rx, &alive, &online, &why))
             .map_err(|e| e.to_string())?;
@@ -106,6 +112,7 @@ impl Screens {
             running,
             connected,
             problem,
+            thread: Some(thread),
         })
     }
 
@@ -218,13 +225,19 @@ fn run(
     running: &AtomicBool,
 ) {
     let mut last: [Option<Frame>; 2] = [None, None];
-    while running.load(Ordering::Relaxed) {
-        let Ok(mut latest) = frames.recv_timeout(Duration::from_millis(200)) else {
+    loop {
+        let stopping = !running.load(Ordering::Relaxed);
+        let first = if stopping {
+            frames.try_recv().ok()
+        } else {
+            frames.recv_timeout(Duration::from_millis(200)).ok()
+        };
+        let Some(latest) = first.map(|f| frames.try_iter().last().unwrap_or(f)) else {
+            if stopping {
+                return;
+            }
             continue;
         };
-        while let Ok(newer) = frames.try_recv() {
-            latest = newer;
-        }
         for (screen, frame) in (0u8..).zip(latest) {
             let previous = last[usize::from(screen)].as_ref();
             let bytes = encode(screen, &frame, previous);
