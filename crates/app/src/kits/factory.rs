@@ -58,89 +58,34 @@ fn level_db(voice: Voice) -> f32 {
     }
 }
 
-fn patterns(voice: Voice) -> [&'static str; 8] {
+/// P4 to P8: the sound alone on an even grid that halves each time, from
+/// quarters to sixty-fourths, so stepping up tightens it into a roll.
+const ROLL: [&str; 5] = [
+    "x...x...x...x...",
+    "x.x.x.x.x.x.x.x.",
+    "xxxxxxxxxxxxxxxx",
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+];
+
+/// P1 to P3: driving one-bar grooves.
+fn grooves(voice: Voice) -> [&'static str; 3] {
     match voice {
-        Voice::Kick => [
-            "x...x...x...x...",
-            "x.......x.......",
-            "x...x...x...x.x.",
-            "x..x..x...x.x...",
-            "x...x..xx...x...",
-            "x.x...x.x...x...",
-            "x...x...x..xx..x",
-            "x..x....x..x....",
-        ],
-        Voice::Snare => [
-            "....x.......x...",
-            "....x.......x..x",
-            "....x..x....x...",
-            "....x.......x.x.",
-            ".x..x.......x..x",
-            "....x...x...x...",
-            "....x.x.....x.xx",
-            "..x.x...x...x.x.",
-        ],
-        Voice::Clap => [
-            "....x.......x...",
-            "....x.......xx..",
-            "....x..x....x...",
-            "x.......x.......",
-            "....x.......x.x.",
-            "...x....x...x...",
-            "....x.x.....x...",
-            "..x...x...x...x.",
-        ],
-        Voice::ClosedHat => [
-            "..x...x...x...x.",
-            "x.x.x.x.x.x.x.x.",
-            "xxxxxxxxxxxxxxxx",
-            ".xx..xx..xx..xx.",
-            "x.xxx.xxx.xxx.xx",
-            "..x...x...xx..x.",
-            "x.x.x.xxx.x.x.xx",
-            ".x.x.x.x.x.x.x.x",
-        ],
-        Voice::OpenHat => [
-            "..x...x...x...x.",
-            "......x.......x.",
-            "..x.......x.....",
-            ".x...x...x...x..",
-            "..x...x...x...xx",
-            "x...............",
-            "..x..x..x...x...",
-            "...x...x...x...x",
-        ],
-        Voice::Ride => [
-            "x.x.x.x.x.x.x.x.",
-            "x...x...x...x...",
-            "..x...x...x...x.",
-            "x.xxx.xxx.xxx.xx",
-            "x..x..x..x..x...",
-            ".x.x.x.x.x.x.x.x",
-            "x.x.x.x.x.x.x.xx",
-            "x...x.x.x...x.x.",
-        ],
-        Voice::Rim => [
-            "...x..x....x..x.",
-            "..x....x..x....x",
-            "...x...x...x...x",
-            "x..x..x...x..x..",
-            ".x...x...x...x..",
-            "....x.......x...",
-            "..x.x...x.x.....",
-            "...x.x....x.x...",
-        ],
-        Voice::Tom => [
-            "..........x.x.x.",
-            "...x......x.....",
-            "......x.......x.",
-            "x..x..x.........",
-            "............xxxx",
-            "..x...x.x.......",
-            ".......x...x..x.",
-            "x.....x.....x...",
-        ],
+        Voice::Kick => ["x...x...x...x.x.", "x..x..x.x..x..x.", "x.x.x..xx.x.x.xx"],
+        Voice::Snare => ["....x.......x..x", "....x.x.....x.xx", "....x..x.x..xxxx"],
+        Voice::Clap => ["....x.......xx..", "....x.x.....x.x.", "..x.x..x..x.x.xx"],
+        Voice::ClosedHat => ["x.xxx.xxx.xxx.xx", "x.x.x.xxx.x.x.xx", "xxx.xxx.xxx.xxxx"],
+        Voice::OpenHat => ["..x...x...x...x.", "..x...x...x...xx", "..x..xx...x..xxx"],
+        Voice::Ride => ["x.x.x.x.x.x.x.x.", "x.xxx.xxx.xxx.xx", "x.x.x.xxx.x.x.xx"],
+        Voice::Rim => ["...x..x....x..x.", "x..x..x...x..x..", "..x.xx.x..x.xx.x"],
+        Voice::Tom => ["..........x.x.x.", "x..x..x.....xxxx", "......x.x.x.xxxx"],
     }
+}
+
+fn patterns(voice: Voice) -> [&'static str; 8] {
+    let [p1, p2, p3] = grooves(voice);
+    let [p4, p5, p6, p7, p8] = ROLL;
+    [p1, p2, p3, p4, p5, p6, p7, p8]
 }
 
 impl FactoryKit {
@@ -167,11 +112,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_pattern_is_one_bar_of_sixteenths() {
+    fn every_pattern_parses() {
         for voice in Voice::ALL {
             for p in patterns(voice) {
-                assert_eq!(Steps::parse(p).map(Steps::cells), Some(16), "{p}");
+                assert!(Steps::parse(p).is_some(), "{p}");
             }
+        }
+    }
+
+    #[test]
+    fn upper_patterns_double_the_hits_on_an_even_grid() {
+        let hits = ROLL.map(|p| Steps::parse(p).map_or(0, |s| s.bits.count_ones()));
+        assert_eq!(hits, [4, 8, 16, 32, 64]);
+        for p in ROLL {
+            let steps = Steps::parse(p).unwrap_or_default();
+            let gap = steps.cells() / steps.bits.count_ones() as usize;
+            assert!(
+                (0..steps.cells()).all(|i| steps.on(i) == (i % gap == 0)),
+                "{p}"
+            );
         }
     }
 
