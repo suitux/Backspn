@@ -33,10 +33,33 @@ Windows and Linux, and is released under the GPL.
 > [Issues](https://github.com/suitux/Backspn/issues); testers with a
 > controller are especially welcome.
 >
-> The beta builds are not notarised by Apple or signed for Windows yet. On
-> macOS, open the app once, then choose **Open Anyway** in System Settings ▸
-> Privacy & Security; on Windows, choose **More info ▸ Run anyway** in
-> SmartScreen.
+> The beta builds are not notarised by Apple or signed for Windows yet (see
+> [Installing on macOS](#installing-on-macos)). On Windows, choose
+> **More info ▸ Run anyway** in SmartScreen.
+
+### Installing on macOS
+
+While Backspn is in beta, the macOS build is not notarised: that needs a paid
+Apple developer certificate, which will come once the app has more users.
+Until then, macOS blocks it the first time you open it:
+
+1. Drag Backspn to Applications and open it. macOS shows *"Backspn" Not
+   Opened*. Press **Done** (not *Move to Bin*).
+
+   <p align="center">
+     <img src="docs/images/macos-not-opened.webp" width="270" alt="The macOS dialog saying Backspn was not opened because Apple could not verify it">
+   </p>
+
+2. Open **System Settings ▸ Privacy & Security**, scroll down to *Security*
+   and press **Open Anyway** next to *"Backspn" was blocked to protect your
+   Mac*. Confirm with your password or Touch ID.
+
+   <p align="center">
+     <img src="docs/images/macos-open-anyway.webp" width="640" alt="Privacy and Security settings with the Open Anyway button for Backspn">
+   </p>
+
+3. Open Backspn again and choose **Open**. You only need to do this once per
+   version.
 
 ## Features
 
