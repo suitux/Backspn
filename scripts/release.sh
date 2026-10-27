@@ -17,7 +17,7 @@ version="${tag#v}"
 version="${version%%-*}"
 
 [[ "$(git branch --show-current)" == main ]] || die "not on main"
-[[ -z "$(git status --porcelain)" ]] || die "working tree is not clean"
+[[ -z "$(git status --porcelain -- Cargo.toml Cargo.lock)" ]] || die "Cargo.toml or Cargo.lock has uncommitted changes"
 git fetch --quiet --tags origin main
 [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] || die "main is not in sync with origin/main"
 
@@ -71,6 +71,6 @@ else
     echo "Not pushed. To push: git push --atomic origin main $tag"
     undo="git tag -d $tag"
     $redo && undo+=" && git fetch origin tag $tag"
-    $committed && undo+=" && git reset --hard HEAD~1"
+    $committed && undo+=" && git reset --keep HEAD~1"
     echo "To undo: $undo"
 fi
