@@ -12,4 +12,4 @@ __pycache__/
 /.claude/skills/
 /.agents/skills/
 /scripts/kill-ni.sh
-/docs/test-plan.md
+/docs/plans/
