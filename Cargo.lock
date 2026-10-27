@@ -537,7 +537,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "backspn-analysis"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-decode",
  "backspn-formats",
@@ -548,7 +548,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-app"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -580,7 +580,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-control"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-formats",
  "hidapi",
@@ -592,7 +592,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-deck"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-decode",
  "backspn-formats",
@@ -601,7 +601,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-decode"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-formats",
  "opus",
@@ -611,11 +611,11 @@ dependencies = [
 
 [[package]]
 name = "backspn-dsp"
-version = "0.0.8"
+version = "0.0.9"
 
 [[package]]
 name = "backspn-encode"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-analysis",
  "backspn-decode",
@@ -626,7 +626,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-engine"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-deck",
  "backspn-decode",
@@ -644,7 +644,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-formats"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "quick-xml 0.42.0",
  "serde",
@@ -654,7 +654,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-fx"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-dsp",
  "serde",
@@ -663,7 +663,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-library"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-formats",
  "base64 0.22.1",
@@ -678,7 +678,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-link"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "if-addrs",
  "socket2",
@@ -686,7 +686,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-mixer"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-dsp",
  "serde",
@@ -694,7 +694,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-sampler"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-deck",
  "backspn-decode",
@@ -704,7 +704,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-separate"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-analysis",
  "backspn-decode",
@@ -716,14 +716,14 @@ dependencies = [
 
 [[package]]
 name = "backspn-stretch"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "signalsmith-stretch",
 ]
 
 [[package]]
 name = "backspn-sync"
-version = "0.0.8"
+version = "0.0.9"
 dependencies = [
  "backspn-deck",
 ]
