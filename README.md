@@ -230,6 +230,20 @@ mappings (see [MIXXX-NOTICE.md](crates/control/profiles/MIXXX-NOTICE.md)).
 Controller names are trademarks of their owners and are used only to identify
 the hardware.
 
+**S4 MK3 screens**: the manufacturer's background services (`NIHardwareAgent`
+and `NTKDaemon`) hold the screens, so Backspn can't draw on them while they
+run. Stop them before opening Backspn. They start again with the manufacturer's
+apps or after a restart, so repeat this if the screens stay blank.
+
+- **macOS**: open Activity Monitor, search for `NIHardwareAgent`, select it
+  and press the ✕ button (Force Quit). Do the same for `NTKDaemon`. Or, in
+  Terminal: `killall NIHardwareAgent NTKDaemon`
+- **Windows**: open Task Manager (Ctrl+Shift+Esc), go to the Details tab,
+  right-click `NIHardwareAgent.exe` and choose End task. Do the same for
+  `NTKDaemon.exe`.
+- **Linux**: the manufacturer ships no services for Linux, so there is nothing
+  to stop.
+
 **Linux**: to reach HID controllers and the S4 MK3 screens without `sudo`,
 install the udev rules and plug the controller in again:
 
