@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Usage: scripts/release.sh 0.1.0 | v0.1.0 | 0.1.0-beta1
+# Without a version it prints the current one and the latest tag.
 #
 # Sets the workspace version, commits, tags and (after confirmation) pushes
 # main and the tag, which triggers .github/workflows/release.yml.
@@ -10,6 +11,16 @@ cd "$(dirname "$0")/.."
 
 die() { echo "error: $*" >&2; exit 1; }
 
+workspace_version() {
+    sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml
+}
+
+if [[ $# -eq 0 ]]; then
+    echo "Current version: $(workspace_version)"
+    echo "Latest tag: $(git describe --tags --abbrev=0 2>/dev/null || echo none)"
+    echo "usage: $0 <X.Y.Z[-suffix]>"
+    exit 0
+fi
 [[ $# -eq 1 ]] || die "usage: $0 <X.Y.Z[-suffix]>"
 tag="v${1#v}"
 [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || die "invalid version: $1"
@@ -33,10 +44,6 @@ fi
 
 read -r -p "Tag message [$tag]: " message
 message="${message:-$tag}"
-
-workspace_version() {
-    sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' Cargo.toml
-}
 
 committed=false
 current="$(workspace_version)"

@@ -292,6 +292,25 @@ impl ColorFx {
         for f in &mut self.filters {
             f.clear();
         }
+        for a in &mut self.allpasses {
+            a.clear();
+        }
+        for d in &mut self.damp {
+            d.clear();
+        }
+        self.held = [0.0; 2];
+        self.hold_left = 0.0;
+        self.env = [0.0; 4];
+        self.gate = [1.0; 4];
+    }
+
+    /// Jumps to the knob and parameter positions instead of stepping there,
+    /// for an effect that starts again after resting.
+    pub fn settle(&mut self) {
+        self.value = self.target;
+        self.param = self.param_target;
+        self.counter = 0.0;
+        self.update();
     }
 
     fn update(&mut self) {

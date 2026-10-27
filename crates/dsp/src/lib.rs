@@ -291,6 +291,10 @@ impl OnePole {
         self.state[ch] += (x - self.state[ch]) * self.coef;
         (self.state[ch], x - self.state[ch])
     }
+
+    pub fn clear(&mut self) {
+        self.state = [0.0; 2];
+    }
 }
 
 #[cfg(test)]

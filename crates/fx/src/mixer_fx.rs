@@ -147,6 +147,9 @@ pub struct ChannelFx {
     noise: u32,
     dry: Box<[f32]>,
     rate: f64,
+    /// The effects hold no sound from before: set once a faded-out effect
+    /// has been cleared, so switching it back on starts from silence.
+    clear: bool,
 }
 
 impl std::fmt::Debug for ChannelFx {
@@ -188,20 +191,30 @@ impl ChannelFx {
             noise: 0x1234_5678,
             dry: vec![0.0; 2 * MAX_BLOCK_FRAMES].into_boxed_slice(),
             rate,
+            clear: true,
         }
     }
 
     pub fn select(&mut self, effect: Option<MixerFx>) {
         if effect != self.selected {
             self.selected = effect;
-            for e in self.instances.iter_mut().flatten() {
-                e.reset();
-            }
-            for c in self.colors.iter_mut().flatten() {
-                c.reset();
-            }
-            self.colour.reset();
+            self.clear = false;
+            self.reset();
         }
+    }
+
+    fn reset(&mut self) {
+        if self.clear {
+            return;
+        }
+        for e in self.instances.iter_mut().flatten() {
+            e.reset();
+        }
+        for c in self.colors.iter_mut().flatten() {
+            c.reset();
+        }
+        self.colour.reset();
+        self.clear = true;
     }
 
     pub fn set_on(&mut self, on: bool) {
@@ -219,14 +232,20 @@ impl ChannelFx {
     }
 
     pub fn process(&mut self, buf: &mut [f32], ctx: &Context) {
-        if let Some(kind) = self.selected
-            && let Some(color) = self.colors[kind.index()].as_mut()
-        {
+        if let Some(kind) = self.selected.filter(|k| k.is_color()) {
             self.gain.set(if self.on { 1.0 } else { 0.0 });
             if !self.on && self.gain.value() == 0.0 {
+                self.reset();
                 return;
             }
+            let resuming = std::mem::take(&mut self.clear);
+            let Some(color) = self.colors[kind.index()].as_mut() else {
+                return;
+            };
             color.set_knob(self.knob);
+            if resuming {
+                color.settle();
+            }
             let n = buf.len().min(self.dry.len());
             self.dry[..n].copy_from_slice(&buf[..n]);
             color.process(&mut buf[..n]);
@@ -249,8 +268,10 @@ impl ChannelFx {
             return;
         };
         if !active && self.gain.value() == 0.0 {
+            self.reset();
             return;
         }
+        self.clear = false;
         let amount = self.knob.abs();
         let high = self.knob > 0.0;
         self.colour.set(COLOUR_HZ, 0.707, self.rate);
@@ -338,6 +359,62 @@ mod tests {
         let mut quiet = silence;
         more.process(&mut quiet, &ctx());
         assert!(rms(&quiet) < rms(&buf), "less amount, less noise");
+    }
+
+    #[test]
+    fn switching_back_on_starts_without_the_old_tail() {
+        let input = sine(220.0, 4096, 0.5);
+        let silence = vec![0.0f32; 2 * 4096];
+        for kind in [MixerFx::DubEcho, MixerFx::DualDelay, MixerFx::Reverb] {
+            let mut fx = ChannelFx::new(48_000);
+            fx.select(Some(kind));
+            fx.set_on(true);
+            fx.set_knob(0.8);
+            let mut buf = input.clone();
+            fx.process(&mut buf, &ctx());
+            fx.set_on(false);
+            fx.set_knob(0.0);
+            for _ in 0..4 {
+                let mut buf = silence.clone();
+                fx.process(&mut buf, &ctx());
+            }
+            fx.set_on(true);
+            fx.set_knob(0.8);
+            let mut buf = silence.clone();
+            fx.process(&mut buf, &ctx());
+            assert!(rms(&buf) < 1e-6, "{kind:?} replays its tail: {}", rms(&buf));
+        }
+    }
+
+    #[test]
+    fn switching_back_on_at_the_centre_leaves_the_sound() {
+        let input = sine(220.0, 4096, 0.5);
+        let silence = vec![0.0f32; 2 * 4096];
+        let mut fx = ChannelFx::new(48_000);
+        fx.select(Some(MixerFx::DubEcho));
+        fx.set_on(true);
+        fx.set_knob(0.9);
+        for _ in 0..8 {
+            let mut buf = input.clone();
+            fx.process(&mut buf, &ctx());
+        }
+        fx.set_on(false);
+        for _ in 0..4 {
+            let mut buf = silence.clone();
+            fx.process(&mut buf, &ctx());
+        }
+        fx.set_knob(0.0);
+        fx.set_on(true);
+        for _ in 0..4 {
+            let mut buf = input.clone();
+            fx.process(&mut buf, &ctx());
+            let diff = buf
+                .iter()
+                .zip(&input)
+                .map(|(a, b)| (a - b).abs())
+                .fold(0.0f32, f32::max);
+            assert!(diff < 1e-6, "the echo opens again: {diff}");
+        }
     }
 
     #[test]
