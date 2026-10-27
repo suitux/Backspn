@@ -1,4 +1,5 @@
 pub mod clock;
+pub mod energy;
 pub mod exchange;
 pub mod external;
 mod history;
@@ -6,6 +7,7 @@ pub mod library_file;
 pub mod maintenance;
 mod nml_io;
 pub mod outside;
+pub mod overview;
 pub mod paths;
 pub mod playlists;
 pub mod sample_deck;

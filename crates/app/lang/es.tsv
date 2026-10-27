@@ -872,3 +872,18 @@ Images	Imágenes
 Use Default	Usar el predeterminado
 Backspn logo	Logo de Backspn
 A PNG or JPEG picture, fitted to the 320 × 240 screens	Una imagen PNG o JPEG, ajustada a las pantallas de 320 × 240
+Configure	Configurar
+Choose how the next tracks are picked	Elige cómo se escogen las siguientes pistas
+Next Tracks Settings	Ajustes de siguientes pistas
+Tempo range	Margen de tempo
+Energy	Energía
+Energy range	Margen de energía
+Largest energy change allowed, on a scale of 1 to 10. A comment such as "Energy 7" sets a track's energy.	Cambio de energía máximo permitido, en una escala de 1 a 10. Un comentario como "Energy 7" fija la energía de una pista.
+Results	Resultados
+Reset to Defaults	Restablecer valores por defecto
+Compatible	Compatible
+Same	Igual
+Similar	Similar
+Up	Subir
+Down	Bajar
+Estimated energy (1–10) and change from the master track	Energía estimada (1–10) y cambio respecto a la pista master

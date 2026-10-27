@@ -3,7 +3,7 @@ use std::hash::BuildHasher;
 
 use serde::{Deserialize, Serialize};
 
-use crate::TrackRow;
+use crate::{TrackRow, energy};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum KeyRule {
@@ -13,11 +13,42 @@ pub enum KeyRule {
     Any,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum EnergyRule {
+    #[default]
+    Similar,
+    Up,
+    Down,
+    Any,
+}
+
+impl EnergyRule {
+    /// The change in energy this rule prefers.
+    fn target(self) -> f64 {
+        match self {
+            Self::Similar | Self::Any => 0.0,
+            Self::Up => 1.0,
+            Self::Down => -1.0,
+        }
+    }
+
+    fn allows(self, delta: f64, range: f64) -> bool {
+        match self {
+            Self::Similar => delta.abs() <= range,
+            Self::Up => (0.0..=range).contains(&delta),
+            Self::Down => (-range..=0.0).contains(&delta),
+            Self::Any => true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Criteria {
     pub bpm_tolerance: f64,
     pub key: KeyRule,
+    pub energy: EnergyRule,
+    pub energy_range: f64,
     pub same_genre: bool,
     pub skip_played: bool,
     pub count: usize,
@@ -28,6 +59,8 @@ impl Default for Criteria {
         Self {
             bpm_tolerance: 0.06,
             key: KeyRule::Compatible,
+            energy: EnergyRule::Similar,
+            energy_range: 2.0,
             same_genre: false,
             skip_played: true,
             count: 50,
@@ -40,6 +73,7 @@ pub struct Reference {
     pub track_id: Option<i64>,
     pub bpm: Option<f64>,
     pub key: Option<u8>,
+    pub energy: Option<f64>,
     pub genre: String,
 }
 
@@ -48,6 +82,8 @@ pub struct Suggestion {
     pub track_id: i64,
     pub bpm_offset: Option<f64>,
     pub key_distance: Option<u8>,
+    pub energy: Option<f64>,
+    pub energy_delta: Option<f64>,
     pub score: f64,
 }
 
@@ -107,6 +143,11 @@ pub fn suggest<S: BuildHasher>(
             if !key_ok {
                 return None;
             }
+            let energy = energy::estimate(t);
+            let energy_delta = reference.energy.zip(energy).map(|(r, c)| c - r);
+            if energy_delta.is_some_and(|d| !criteria.energy.allows(d, criteria.energy_range)) {
+                return None;
+            }
             let same_genre = !genre.is_empty() && t.genre.trim().to_lowercase() == genre;
             if criteria.same_genre && !same_genre {
                 return None;
@@ -117,12 +158,20 @@ pub fn suggest<S: BuildHasher>(
                 Some(None) => 1.5,
                 None => 1.0,
             };
+            let energy_score = match (criteria.energy, energy_delta) {
+                (EnergyRule::Any, _) => 0.0,
+                (rule, Some(d)) => (d - rule.target()).abs() / criteria.energy_range.max(1e-6),
+                (_, None) if reference.energy.is_some() => 0.5,
+                (_, None) => 0.0,
+            };
             let genre_bonus = if same_genre { -0.5 } else { 0.0 };
             Some(Suggestion {
                 track_id: t.id,
                 bpm_offset,
                 key_distance: key_distance.flatten(),
-                score: tempo + key + genre_bonus,
+                energy,
+                energy_delta,
+                score: tempo + key + energy_score + genre_bonus,
             })
         })
         .collect();
@@ -160,8 +209,67 @@ mod tests {
             track_id: Some(1),
             bpm: Some(128.0),
             key: Some(C),
+            energy: None,
             genre: "Techno".into(),
         }
+    }
+
+    fn with_energy(id: i64, energy: u8) -> TrackRow {
+        TrackRow {
+            id,
+            comment: format!("Energy {energy}"),
+            ..TrackRow::default()
+        }
+    }
+
+    #[test]
+    fn energy_rules_filter_and_rank() {
+        let tracks = [
+            with_energy(2, 6),
+            with_energy(3, 5),
+            with_energy(4, 7),
+            with_energy(5, 9),
+            with_energy(6, 2),
+            TrackRow {
+                id: 7,
+                ..TrackRow::default()
+            },
+        ];
+        let reference = Reference {
+            energy: Some(5.0),
+            ..reference()
+        };
+        let ids = |energy: EnergyRule, energy_range: f64| -> Vec<i64> {
+            let criteria = Criteria {
+                energy,
+                energy_range,
+                ..Criteria::default()
+            };
+            suggest(&reference, &tracks, &HashSet::new(), &criteria)
+                .iter()
+                .map(|s| s.track_id)
+                .collect()
+        };
+        assert_eq!(ids(EnergyRule::Similar, 2.0), [3, 2, 7, 4]);
+        assert_eq!(ids(EnergyRule::Up, 2.0), [2, 3, 4, 7]);
+        assert_eq!(ids(EnergyRule::Down, 3.0), [3, 7, 6]);
+        assert_eq!(ids(EnergyRule::Any, 1.0), [2, 3, 4, 5, 6, 7]);
+    }
+
+    #[test]
+    fn suggestions_report_energy_change() {
+        let reference = Reference {
+            energy: Some(5.0),
+            ..reference()
+        };
+        let out = suggest(
+            &reference,
+            &[with_energy(2, 6)],
+            &HashSet::new(),
+            &Criteria::default(),
+        );
+        assert_eq!(out[0].energy, Some(6.0));
+        assert_eq!(out[0].energy_delta, Some(1.0));
     }
 
     #[test]

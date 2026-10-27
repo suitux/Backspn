@@ -159,10 +159,8 @@ impl WaveStyle {
 const LOW_HZ: f32 = 200.0;
 const HIGH_HZ: f32 = 2_500.0;
 
-pub const OVERVIEW_COLUMNS: usize = 400;
-
-pub const OVERVIEW_STRIDE: usize = 7;
-const OLD_OVERVIEW_STRIDE: usize = 4;
+pub use backspn_library::overview::COLUMNS as OVERVIEW_COLUMNS;
+use backspn_library::overview::{OLD_STRIDE as OLD_OVERVIEW_STRIDE, stride as overview_stride};
 
 pub const FRAMES_PER_BIN: usize = 256;
 
@@ -404,14 +402,6 @@ pub fn paint_overview(
     }
 }
 
-fn overview_stride(overview: &[u8]) -> usize {
-    if overview.len() == OVERVIEW_COLUMNS * OLD_OVERVIEW_STRIDE {
-        OLD_OVERVIEW_STRIDE
-    } else {
-        OVERVIEW_STRIDE
-    }
-}
-
 fn overview_column(overview: &[u8], c: usize, style: &WaveStyle) -> Vec<(f32, f32, Color32)> {
     let stride = overview_stride(overview);
     let at = |i: usize| f32::from(overview[stride * c + i]) / 255.0;
@@ -576,9 +566,9 @@ mod tests {
             .collect();
         let peaks = Peaks::compute(&Track::from_stereo(rate as u32, samples));
         let o = peaks.overview(10);
-        assert_eq!(o.len(), 10 * OVERVIEW_STRIDE);
+        assert_eq!(o.len(), 10 * backspn_library::overview::STRIDE);
         assert_eq!(o[0], 0, "silent start");
-        let end = OVERVIEW_STRIDE * 8;
+        let end = backspn_library::overview::STRIDE * 8;
         assert!(o[end] > 150, "loud end: {}", o[end]);
         assert!(o[end + 1] > o[end + 3], "low band over high");
         assert!(

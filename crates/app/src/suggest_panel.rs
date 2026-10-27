@@ -1,13 +1,14 @@
 use std::collections::{HashMap, HashSet};
 
 use backspn_library::TrackRow;
-use backspn_library::suggest::{Criteria, KeyRule, Reference, Suggestion, suggest};
+use backspn_library::energy;
+use backspn_library::suggest::{Criteria, EnergyRule, KeyRule, Reference, Suggestion, suggest};
 use eframe::egui::{self, ComboBox, DragValue, RichText, ScrollArea, Ui};
 
 use crate::browser::{BrowserAction, TrackDrag, free_deck};
 use crate::covers::{self, CoverCache};
 use crate::i18n::tr;
-use crate::theme;
+use crate::theme::{self, WindowExt};
 
 pub const WIDTH: f32 = 320.0;
 
@@ -30,6 +31,7 @@ struct Inputs {
 pub struct SuggestPanel {
     pub open: bool,
     pub criteria: Criteria,
+    configuring: bool,
     cached: Option<(Inputs, Vec<Suggestion>)>,
     covers: Option<CoverCache>,
 }
@@ -72,6 +74,7 @@ impl SuggestPanel {
                         track_id: Some(t.id),
                         bpm: m.bpm.or(t.bpm),
                         key: t.musical_key,
+                        energy: energy::estimate(t),
                         genre: t.genre.clone(),
                     };
                     suggest(&reference, cx.rows, cx.played, &self.criteria)
@@ -96,6 +99,13 @@ impl SuggestPanel {
                 if ui.small_button("×").on_hover_text(tr("Close")).clicked() {
                     self.open = false;
                 }
+                if ui
+                    .small_button(tr("Configure"))
+                    .on_hover_text(tr("Choose how the next tracks are picked"))
+                    .clicked()
+                {
+                    self.configuring = !self.configuring;
+                }
             });
         });
         match cx.master.and_then(|m| cx.row(m.track_id).map(|r| (m, r))) {
@@ -118,7 +128,12 @@ impl SuggestPanel {
                 );
             }
         }
-        self.criteria_ui(ui);
+        ui.label(
+            RichText::new(summary(&self.criteria))
+                .size(10.5)
+                .color(t.text_dim),
+        );
+        self.configure_window(ui.ctx());
         ui.separator();
         let list = self.suggestions(cx).to_vec();
         if cx.master.is_some() && list.is_empty() {
@@ -142,36 +157,114 @@ impl SuggestPanel {
             });
     }
 
-    fn criteria_ui(&mut self, ui: &mut Ui) {
-        let c = &mut self.criteria;
-        ui.horizontal(|ui| {
-            ui.label("BPM ±");
+    fn configure_window(&mut self, ctx: &egui::Context) {
+        if !self.configuring {
+            return;
+        }
+        let mut open = true;
+        egui::Window::new(tr("Next Tracks Settings"))
+            .collapsible(false)
+            .resizable(false)
+            .show_closable(ctx, &mut open, |ui| criteria_ui(ui, &mut self.criteria));
+        self.configuring = open;
+    }
+}
+
+fn criteria_ui(ui: &mut Ui, c: &mut Criteria) {
+    egui::Grid::new("suggest-criteria")
+        .num_columns(2)
+        .spacing([12.0, 6.0])
+        .show(ui, |ui| {
+            ui.label(tr("Tempo range"));
             let mut percent = c.bpm_tolerance * 100.0;
             if ui
                 .add(
                     DragValue::new(&mut percent)
                         .range(1.0..=20.0)
                         .speed(0.2)
+                        .prefix("± ")
                         .suffix(" %"),
                 )
                 .changed()
             {
                 c.bpm_tolerance = percent / 100.0;
             }
+            ui.end_row();
             ui.label(tr("Key"));
             ComboBox::from_id_salt("suggest-key")
-                .width(100.0)
-                .selected_text(key_rule_name(c.key))
+                .width(120.0)
+                .selected_text(tr(key_rule_name(c.key)))
                 .show_ui(ui, |ui| {
                     for rule in [KeyRule::Compatible, KeyRule::Same, KeyRule::Any] {
-                        ui.selectable_value(&mut c.key, rule, key_rule_name(rule));
+                        ui.selectable_value(&mut c.key, rule, tr(key_rule_name(rule)));
                     }
                 });
+            ui.end_row();
+            ui.label(tr("Energy"));
+            ComboBox::from_id_salt("suggest-energy")
+                .width(120.0)
+                .selected_text(tr(energy_rule_name(c.energy)))
+                .show_ui(ui, |ui| {
+                    for rule in [
+                        EnergyRule::Similar,
+                        EnergyRule::Up,
+                        EnergyRule::Down,
+                        EnergyRule::Any,
+                    ] {
+                        ui.selectable_value(&mut c.energy, rule, tr(energy_rule_name(rule)));
+                    }
+                });
+            ui.end_row();
+            ui.label(tr("Energy range"));
+            ui.add_enabled(
+                c.energy != EnergyRule::Any,
+                DragValue::new(&mut c.energy_range)
+                    .range(0.5..=9.0)
+                    .speed(0.05)
+                    .fixed_decimals(1)
+                    .prefix("± "),
+            )
+            .on_hover_text(tr(
+                "Largest energy change allowed, on a scale of 1 to 10. A comment such as \"Energy 7\" sets a track's energy.",
+            ));
+            ui.end_row();
+            ui.label(tr("Results"));
+            ui.add(DragValue::new(&mut c.count).range(5..=200));
+            ui.end_row();
         });
-        ui.horizontal(|ui| {
-            crate::widgets::check(ui, &mut c.same_genre, "Same genre");
-            crate::widgets::check(ui, &mut c.skip_played, "Hide played");
-        });
+    crate::widgets::check(ui, &mut c.same_genre, "Same genre");
+    crate::widgets::check(ui, &mut c.skip_played, "Hide played");
+    ui.separator();
+    if ui.button(tr("Reset to Defaults")).clicked() {
+        *c = Criteria::default();
+    }
+}
+
+fn summary(c: &Criteria) -> String {
+    let mut parts = vec![
+        format!("BPM ±{:.1}%", c.bpm_tolerance * 100.0),
+        format!("{} {}", tr("Key"), tr(key_rule_name(c.key))),
+    ];
+    if c.energy != EnergyRule::Any {
+        parts.push(format!(
+            "{} {} ±{:.1}",
+            tr("Energy"),
+            tr(energy_rule_name(c.energy)),
+            c.energy_range
+        ));
+    }
+    if c.same_genre {
+        parts.push(tr("Same genre").to_owned());
+    }
+    parts.join(" · ")
+}
+
+fn energy_rule_name(rule: EnergyRule) -> &'static str {
+    match rule {
+        EnergyRule::Similar => "Similar",
+        EnergyRule::Up => "Up",
+        EnergyRule::Down => "Down",
+        EnergyRule::Any => "Any",
     }
 }
 
@@ -181,6 +274,15 @@ fn key_rule_name(rule: KeyRule) -> &'static str {
         KeyRule::Same => "Same",
         KeyRule::Any => "Any",
     }
+}
+
+fn energy_text(energy: f64, delta: Option<f64>) -> String {
+    let change = match delta {
+        Some(d) if d >= 0.5 => format!(" ↑{d:.0}"),
+        Some(d) if d <= -0.5 => format!(" ↓{:.0}", -d),
+        _ => String::new(),
+    };
+    format!("E{energy:.0}{change}")
 }
 
 fn title(row: &TrackRow) -> String {
@@ -247,6 +349,16 @@ fn suggestion_row(
                     .size(11.0)
                     .color(key_colour),
             );
+            if let Some(e) = s.energy {
+                ui.label(
+                    RichText::new(energy_text(e, s.energy_delta))
+                        .monospace()
+                        .size(11.0),
+                )
+                .on_hover_text(tr(
+                    "Estimated energy (1–10) and change from the master track",
+                ));
+            }
             if !row.genre.is_empty() {
                 ui.add(
                     egui::Label::new(RichText::new(&row.genre).size(10.5).color(t.text_dim))
