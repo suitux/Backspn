@@ -336,7 +336,7 @@ fn a_new_session_starts_as_the_last_one_ended() {
     let state = h.app.engine_state();
     let status = h.app.current_status(&state);
     assert!((status.decks[0].tempo - 1.05).abs() < 1e-9);
-    assert!(status.decks[1].slip && status.decks[1].sync);
+    assert!(status.decks[1].slip);
     assert!((status.clock_bpm - 128.0).abs() < 1e-9);
 
     let mut next = Harness::new("session-next");
@@ -347,9 +347,18 @@ fn a_new_session_starts_as_the_last_one_ended() {
     let state = next.app.engine_state();
     assert_eq!(next.app.current_status(&state), status);
     assert!((state.mixer.channels[1].fader - 0.3).abs() < 1e-6);
+    assert!(!state.sync.synced[1], "sync starts off");
     for d in &state.decks {
         assert!(!d.loaded, "no track comes back");
     }
+}
+
+#[test]
+fn keylock_is_on_by_default() {
+    let mut h = Harness::new("keylock");
+    h.frame();
+    h.frame();
+    assert!(h.app.engine_state().decks.iter().all(|d| d.keylock));
 }
 
 #[test]

@@ -23,7 +23,6 @@ pub struct DeckStatus {
     pub keylock: bool,
     pub key_adjust: f32,
     pub tempo: f64,
-    pub sync: bool,
     #[serde(alias = "flux")]
     pub slip: bool,
     #[serde(alias = "flavor")]
@@ -37,10 +36,9 @@ impl Default for DeckStatus {
             loop_beats: 4.0,
             move_mode: MoveMode::BeatJump,
             move_size: MoveSize::of_loop(4.0),
-            keylock: false,
+            keylock: true,
             key_adjust: 0.0,
             tempo: 1.0,
-            sync: false,
             slip: false,
             deck_kind: DeckKind::default(),
             live: false,
@@ -114,7 +112,6 @@ impl App {
                 Command::Deck(d, DeckCommand::SetKeyAdjust(deck.key_adjust)),
                 Command::Deck(d, DeckCommand::SetTempo(deck.tempo)),
                 Command::Deck(d, DeckCommand::SetSlip(deck.slip)),
-                Command::Sync(SyncCommand::SetSync(d, deck.sync)),
             ]);
             self.set_deck_kind(d, deck.deck_kind);
             if deck.live {
@@ -144,7 +141,6 @@ impl App {
                 keylock: state.decks[d].keylock,
                 key_adjust: state.decks[d].key_adjust,
                 tempo: state.decks[d].tempo,
-                sync: state.sync.synced[d],
                 slip: state.decks[d].slip,
                 deck_kind: self.deck_kind(d),
                 live: self.decks[d].live,

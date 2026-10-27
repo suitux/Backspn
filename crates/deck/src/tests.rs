@@ -523,6 +523,20 @@ fn moving_the_loop_folds_the_playhead_into_it() {
 }
 
 #[test]
+fn shrinking_the_loop_folds_the_playhead_into_it() {
+    let mut deck = with_grid(120.0, 0.0);
+    deck.handle(Command::Seek { seconds: 4.0 });
+    deck.handle(Command::AutoLoop { beats: 4.0 });
+    deck.handle(Command::Seek { seconds: 5.25 });
+    deck.handle(Command::LoopScale(0.5));
+    let s = deck.state();
+    assert_eq!((s.loop_start_s, s.loop_end_s), (Some(4.0), Some(5.0)));
+    assert_near(s.position_s, 4.25);
+    deck.handle(Command::LoopScale(4.0));
+    assert_near(deck.state().position_s, 4.25);
+}
+
+#[test]
 fn shift_beats_aligns_phase() {
     let mut deck = with_grid(120.0, 0.0);
     deck.handle(Command::Seek { seconds: 2.0 });
@@ -1051,4 +1065,38 @@ fn seeking_and_jumping_back_go_before_the_start() {
     deck.handle(Command::Play);
     run(&mut deck, 2_000);
     assert!(deck.state().position_s > 0.0);
+}
+
+#[test]
+fn a_keylocked_jump_while_playing_has_no_gap() {
+    let rate = 44_100;
+    let frames = rate as usize * 20;
+    let samples = (0..frames)
+        .flat_map(|i| {
+            let v = (i as f32 * 440.0 * std::f32::consts::TAU / rate as f32).sin() * 0.5;
+            [v, v]
+        })
+        .collect();
+    let mut deck = Deck::new(rate);
+    deck.handle(Command::Load(Arc::new(Track::from_stereo(rate, samples))));
+    deck.handle(Command::SetTempo(1.05));
+    deck.handle(Command::SetKeylock(true));
+    deck.handle(Command::Play);
+    run(&mut deck, rate as usize);
+    deck.handle(Command::Seek {
+        seconds: deck.state().position_s + 0.5,
+    });
+    let left: Vec<f32> = run(&mut deck, rate as usize / 4)
+        .chunks(2)
+        .map(|c| c[0])
+        .collect();
+    let quiet = left
+        .windows(100)
+        .map(|w| w.iter().fold(0.0f32, |a, b| a.max(b.abs())))
+        .fold((0, 0), |(run, longest), peak| {
+            let run = if peak < 0.25 { run + 1 } else { 0 };
+            (run, longest.max(run))
+        })
+        .1;
+    assert!(quiet < rate as usize / 100, "{quiet} quiet frames");
 }

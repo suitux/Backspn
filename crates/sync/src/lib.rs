@@ -52,6 +52,7 @@ pub struct Sync {
     state: SyncState,
     was_playing: [bool; MAX_DECKS],
     needs_alignment: [bool; MAX_DECKS],
+    loaded: [(u64, bool); MAX_DECKS],
     on_air_only: bool,
     sample_decks_lead: bool,
     pending_tempo: [bool; MAX_DECKS],
@@ -109,6 +110,7 @@ impl Default for Sync {
             },
             was_playing: [false; MAX_DECKS],
             needs_alignment: [false; MAX_DECKS],
+            loaded: [(0, false); MAX_DECKS],
             on_air_only: false,
             sample_decks_lead: true,
             pending_tempo: [false; MAX_DECKS],
@@ -230,6 +232,7 @@ impl Sync {
         for (i, deck) in decks[..n].iter_mut().enumerate() {
             let tempo_sync = std::mem::take(&mut self.pending_tempo[i]);
             let phase_sync = std::mem::take(&mut self.pending_phase[i]);
+            self.notice_new_track(i, deck);
             if Some(i) != self.state.master {
                 self.sync_once(deck, tempo_sync, phase_sync && reference);
             }
@@ -245,6 +248,19 @@ impl Sync {
             };
             self.was_playing[i] = candidates[i].playing;
         }
+    }
+
+    fn notice_new_track(&mut self, i: usize, deck: &Deck) {
+        let state = deck.state();
+        let loaded = (state.generation, state.grid.is_some());
+        let before = std::mem::replace(&mut self.loaded[i], loaded);
+        if before == loaded {
+            return;
+        }
+        if before.0 != loaded.0 {
+            self.state.phase_locked[i] = self.state.synced[i];
+        }
+        self.needs_alignment[i] = self.state.synced[i];
     }
 
     fn phase_reference(&self, candidates: &[Candidate]) -> bool {

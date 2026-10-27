@@ -244,6 +244,59 @@ fn bending_a_synced_deck_keeps_tempo_sync_and_drops_phase_lock() {
 }
 
 #[test]
+fn a_new_track_on_a_synced_deck_locks_phase_again() {
+    let mut decks = [deck(128.0, 0.0), deck(126.0, 0.0)];
+    let mut sync = Sync::default();
+    sync.handle(Command::SetMaster(Some(0)));
+    sync.handle(Command::SetSync(1, true));
+    decks[0].handle(DeckCommand::Play);
+    run(&mut sync, &mut decks, 10);
+    sync.handle(Command::ReleasePhase(1));
+    run(&mut sync, &mut decks, 10);
+    assert!(!sync.state().phase_locked[1]);
+    let samples = vec![0.25f32; 2 * RATE as usize * 600];
+    decks[1].handle(DeckCommand::Load(Arc::new(Track::from_stereo(
+        RATE, samples,
+    ))));
+    decks[1].handle(DeckCommand::SetGrid(Some(Grid {
+        bpm: 124.0,
+        anchor_s: 0.21,
+        ..Grid::FIXED
+    })));
+    decks[1].handle(DeckCommand::Play);
+    run(&mut sync, &mut decks, 2);
+    assert!(sync.state().phase_locked[1]);
+    assert!(phase_gap(&decks[0], &decks[1]) < 0.01);
+}
+
+#[test]
+fn a_grid_that_arrives_while_playing_is_aligned_at_once() {
+    let mut decks = [deck(128.0, 0.0), deck(126.0, 0.0)];
+    let mut sync = Sync::default();
+    sync.handle(Command::SetMaster(Some(0)));
+    sync.handle(Command::SetSync(1, true));
+    decks[0].handle(DeckCommand::Play);
+    decks[1].handle(DeckCommand::Play);
+    run(&mut sync, &mut decks, 10);
+    let samples = vec![0.25f32; 2 * RATE as usize * 600];
+    decks[1].handle(DeckCommand::Load(Arc::new(Track::from_stereo(
+        RATE, samples,
+    ))));
+    decks[1].handle(DeckCommand::Play);
+    run(&mut sync, &mut decks, 10);
+    let period = 60.0 / 126.0;
+    let behind = (decks[0].beat_position().unwrap() - 0.15).rem_euclid(1.0);
+    let anchor_s = (decks[1].state().position_s - behind * period).rem_euclid(period);
+    decks[1].handle(DeckCommand::SetGrid(Some(Grid {
+        bpm: 126.0,
+        anchor_s,
+        ..Grid::FIXED
+    })));
+    run(&mut sync, &mut decks, 2);
+    assert!(phase_gap(&decks[0], &decks[1]) < 0.01);
+}
+
+#[test]
 fn reverse_on_a_synced_deck_plays_back_without_phase_jumps() {
     let mut decks = [deck(128.0, 0.0), deck(128.0, 0.0)];
     let mut sync = Sync::default();

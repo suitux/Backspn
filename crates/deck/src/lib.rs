@@ -631,6 +631,7 @@ impl Deck {
             *shadow = (*shadow + step).min(frames as f64);
         }
         if let Some(target) = self.scratch {
+            self.stretching = false;
             self.render_scratch(layers, target, out, n);
             return;
         }
@@ -639,6 +640,7 @@ impl Deck {
             if self.transport == Transport::Stopped && self.gain == 0.0 {
                 self.apply_pending();
                 if self.transport == Transport::Stopped {
+                    self.stretching = false;
                     for o in out.iter_mut() {
                         o[done..n].fill([0.0; 2]);
                     }
@@ -829,7 +831,9 @@ impl Deck {
         let frames = self.stretchers[0].input_latency();
         let mut pos = processing;
         for (l, track) in material.layers().iter().enumerate() {
-            self.stretchers[l].reset();
+            if !self.stretching {
+                self.stretchers[l].reset();
+            }
             let (buf, _) = self.prime_buf[l].as_chunks_mut::<2>();
             pos = processing;
             for frame in &mut buf[..frames] {
@@ -1131,11 +1135,29 @@ impl Deck {
 
     fn loop_scale(&mut self, factor: f64) {
         let min = MIN_LOOP_BEATS * self.beat_frames();
-        if let Some(l) = &mut self.looping
-            && let Some(len) = l.len()
-            && factor > 0.0
+        let Some(l) = self.looping else { return };
+        let Some(old_end) = l.end else { return };
+        if factor <= 0.0 {
+            return;
+        }
+        let end = l.start + ((old_end - l.start) * factor).max(min);
+        self.looping = Some(Loop {
+            end: Some(end),
+            ..l
+        });
+        self.fold_into_loop(l, l.start, end);
+    }
+
+    fn fold_into_loop(&mut self, old: Loop, start: f64, end: f64) {
+        let pos = self.position;
+        if old.active
+            && old
+                .end
+                .is_some_and(|old_end| (old.start..=old_end).contains(&pos))
+            && !(start..=end).contains(&pos)
         {
-            l.end = Some(l.start + (len * factor).max(min));
+            let folded = start + (pos - start).rem_euclid(end - start);
+            self.jump(folded, self.target_transport());
         }
     }
 
@@ -1161,11 +1183,7 @@ impl Deck {
             end: Some(end),
             ..l
         });
-        let pos = self.position;
-        if l.active && (l.start..=old_end).contains(&pos) && !(start..=end).contains(&pos) {
-            let folded = start + (pos - start).rem_euclid(end - start);
-            self.jump(folded, self.target_transport());
-        }
+        self.fold_into_loop(l, start, end);
     }
 
     fn beats_of(&self, seconds: f64) -> f64 {
