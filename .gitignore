@@ -11,3 +11,5 @@ __pycache__/
 /.claude/worktrees/
 /.claude/skills/
 /.agents/skills/
+/scripts/kill-ni.sh
+/docs/test-plan.md
