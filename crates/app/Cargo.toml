@@ -28,6 +28,7 @@ backspn-encode = { path = "../encode" }
 backspn-engine = { path = "../engine" }
 backspn-formats = { path = "../formats" }
 backspn-library = { path = "../library" }
+backspn-remote = { path = "../remote" }
 backspn-link = { path = "../link" }
 backspn-separate = { path = "../separate" }
 

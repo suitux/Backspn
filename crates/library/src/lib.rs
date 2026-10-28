@@ -12,6 +12,7 @@ pub mod paths;
 pub mod playlists;
 pub mod sample_deck;
 pub mod scan;
+pub mod set_plan;
 pub mod smart;
 pub mod storage;
 pub mod suggest;

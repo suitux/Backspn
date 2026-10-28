@@ -246,6 +246,8 @@ pub struct Settings {
     pub layouts: Vec<crate::layouts::SavedLayout>,
     pub browser_columns: ColumnLayout,
     pub suggest_criteria: backspn_library::suggest::Criteria,
+    /// Lets an AI plan and play sets through the local socket.
+    pub remote_control: bool,
     pub snap: bool,
     pub quantize: bool,
     pub load_only_stopped: bool,
@@ -374,6 +376,7 @@ impl Default for Settings {
             layouts: Vec::new(),
             browser_columns: ColumnLayout::default(),
             suggest_criteria: backspn_library::suggest::Criteria::default(),
+            remote_control: false,
             snap: true,
             quantize: true,
             load_only_stopped: true,
@@ -548,9 +551,33 @@ impl Settings {
     }
 }
 
+/// Whether going from `before` to `after` needs the audio device opened
+/// again.
+pub fn needs_audio_restart(before: &Settings, after: &Settings) -> bool {
+    before.device != after.device
+        || before.buffer_frames != after.buffer_frames
+        || before.sample_rate != after.sample_rate
+        || before.monitor != after.monitor
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_audio_device_changes_restart_the_audio() {
+        let before = Settings::default();
+        let deck_count = Settings {
+            deck_count: 4,
+            ..before.clone()
+        };
+        assert!(!needs_audio_restart(&before, &deck_count));
+        let buffer = Settings {
+            buffer_frames: Some(128),
+            ..before.clone()
+        };
+        assert!(needs_audio_restart(&before, &buffer));
+    }
 
     #[test]
     fn each_mixing_mode_keeps_its_headroom_and_auto_gain() {

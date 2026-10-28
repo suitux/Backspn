@@ -12,6 +12,8 @@ use crate::modal;
 use crate::search_combo::{self, Entry};
 
 mod commands;
+
+pub(crate) use commands::all as all_commands;
 mod editors;
 
 use editors::Mode;

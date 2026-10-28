@@ -84,6 +84,10 @@ impl App {
             );
         }
         let mut restart = false;
+        if let Some(asked) = self.remote.take_settings() {
+            restart = crate::prefs::needs_audio_restart(&before, &asked);
+            self.settings = asked;
+        }
         if self.prefs.open {
             self.prefs.deck_setup = self.deck_setup();
         }
@@ -104,7 +108,7 @@ impl App {
                 controls,
                 &mut self.fx.kits,
             );
-            restart = changes.restart_audio;
+            restart |= changes.restart_audio;
             self.apply_deck_types(changes.deck_types);
             if let Some(i) = changes.load_layout {
                 self.apply_layout(i);

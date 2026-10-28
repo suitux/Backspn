@@ -628,7 +628,7 @@ pub fn parse_duration(text: &str) -> Option<f64> {
     (s < 60).then(|| f64::from(h * 3600 + m * 60 + s))
 }
 
-fn parse_stored_date(text: &str) -> Option<i64> {
+pub fn parse_stored_date(text: &str) -> Option<i64> {
     let mut parts = text.trim().split('/').map(str::parse::<u32>);
     let y = parts.next()?.ok()?;
     let m = parts.next().and_then(Result::ok).unwrap_or(1);

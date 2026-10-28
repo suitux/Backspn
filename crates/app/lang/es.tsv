@@ -887,3 +887,11 @@ Similar	Similar
 Up	Subir
 Down	Bajar
 Estimated energy (1–10) and change from the master track	Energía estimada (1–10) y cambio respecto a la pista master
+AI Control	Control por IA
+Allow AI control	Permitir el control por IA
+An AI assistant on this computer can plan a set from your description and play it, mixing track to track on its own.	Un asistente de IA en este ordenador puede planificar una sesión a partir de tu descripción y pincharla, mezclando de una pista a otra por su cuenta.
+Track titles, artists and tags from your library are shared with the assistant you connect. Taking over a deck or a fader pauses the set.	Los títulos, artistas y etiquetas de tu biblioteca se comparten con el asistente que conectes. Si tocas un deck o un fader, la sesión se pausa.
+To connect an assistant, add the backspn-mcp program to it as an MCP server.	Para conectar un asistente, añádele el programa backspn-mcp como servidor MCP.
+AI set	Sesión IA
+paused	en pausa
+Stop	Parar

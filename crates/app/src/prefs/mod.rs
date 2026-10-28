@@ -18,7 +18,7 @@ mod search;
 mod settings;
 
 use pages::{
-    analyze_options, auto_fade, auto_gain, channel_filter, crossfader_curve, eq_model,
+    ai_control, analyze_options, auto_fade, auto_gain, channel_filter, crossfader_curve, eq_model,
     external_mixing_mode, external_sync, file_management_page, global_settings, headroom,
     input_routing, limiter, loading, loop_recorder, mix_recorder, mixer_fx_slots, output_routing,
     sample_decks, transport, waveform_settings,
@@ -27,7 +27,7 @@ pub use pages::{device_combo, monitor_combo, tags_serialization, theme_combo};
 pub(crate) use settings::settings_path;
 pub use settings::{
     DeviceAudio, DeviceRouting, InputRouting, Monitor, RecordingSource, Settings, keep_backup,
-    stem_model_path, ui_state_path,
+    needs_audio_restart, stem_model_path, ui_state_path,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,6 +46,7 @@ pub enum Page {
     Effects,
     DrumMachine,
     GlobalSettings,
+    AiControl,
     MixRecorder,
     LoopRecorder,
     Streaming,
@@ -58,7 +59,7 @@ pub enum Page {
 }
 
 impl Page {
-    const ALL: [Self; 23] = [
+    const ALL: [Self; 24] = [
         Self::AudioSetup,
         Self::OutputRouting,
         Self::InputRouting,
@@ -73,6 +74,7 @@ impl Page {
         Self::Effects,
         Self::DrumMachine,
         Self::GlobalSettings,
+        Self::AiControl,
         Self::MixRecorder,
         Self::LoopRecorder,
         Self::Streaming,
@@ -106,6 +108,7 @@ impl Page {
             Self::Effects => "Effects",
             Self::DrumMachine => "Drum Machine",
             Self::GlobalSettings => "Global Settings",
+            Self::AiControl => "AI Control",
             Self::MixRecorder => "Mix Recorder",
             Self::LoopRecorder => "Loop Recorder",
             Self::Streaming => "Streaming",
@@ -325,6 +328,8 @@ impl Prefs {
     }
 
     #[allow(clippy::too_many_arguments)]
+    // One arm per page.
+    #[allow(clippy::too_many_lines)]
     fn page_ui(
         &mut self,
         page: Page,
@@ -417,6 +422,7 @@ impl Prefs {
             Page::MixRecorder => mix_recorder(ui, s),
             Page::LoopRecorder => loop_recorder(ui, s),
             Page::ExternalSync => external_sync(ui, s),
+            Page::AiControl => ai_control(ui, s),
             Page::DrumMachine => self.drum_machine(ui, kits),
             Page::GlobalSettings => {
                 global = global_settings(ui, s, self.insights_status.as_ref());

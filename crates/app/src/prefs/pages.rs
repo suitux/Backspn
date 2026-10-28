@@ -1496,6 +1496,29 @@ pub(super) fn external_sync(ui: &mut Ui, s: &mut Settings) {
     );
 }
 
+pub(super) fn ai_control(ui: &mut Ui, s: &mut Settings) {
+    search::heading(ui, "AI Control");
+    search::check(ui, &mut s.remote_control, "Allow AI control").on_hover_text(tr(
+        "An AI assistant on this computer can plan a set from your description and play it, \
+         mixing track to track on its own.",
+    ));
+    ui.add_space(8.0);
+    ui.label(
+        RichText::new(tr(
+            "Track titles, artists and tags from your library are shared with the assistant \
+             you connect. Taking over a deck or a fader pauses the set.",
+        ))
+        .weak(),
+    );
+    ui.add_space(8.0);
+    ui.label(
+        RichText::new(tr(
+            "To connect an assistant, add the backspn-mcp program to it as an MCP server.",
+        ))
+        .weak(),
+    );
+}
+
 fn auto_cue(ui: &mut Ui, s: &mut Settings) {
     ui.horizontal(|ui| {
         search::title(ui, "Auto Cue:");

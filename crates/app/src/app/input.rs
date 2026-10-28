@@ -721,6 +721,7 @@ impl App {
         self.motor_decks = controls.motor_decks();
         self.count(|u| u.inputs.merge(&inputs));
         for (action, trigger) in triggers {
+            self.remote.hand_moved(action);
             self.execute(action, trigger, state);
         }
         let now = Instant::now();

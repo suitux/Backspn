@@ -638,6 +638,136 @@ impl FxView {
     }
 }
 
+/// Control of the pattern player by name, for AI control.
+impl FxView {
+    /// Kit names with their sound names.
+    pub fn kit_list(&self) -> Vec<(String, Vec<String>)> {
+        self.kits
+            .kits()
+            .iter()
+            .map(|k| {
+                let sounds = k.kit.sounds.iter().map(|s| s.name.clone()).collect();
+                (k.kit.name.clone(), sounds)
+            })
+            .collect()
+    }
+
+    /// Puts a unit in pattern mode, with the kit called `kit` if given.
+    pub fn drum_unit(
+        &mut self,
+        u: usize,
+        kit: Option<&str>,
+        out: &mut Vec<Command>,
+    ) -> Result<(), String> {
+        if u >= FX_UNITS {
+            return Err(format!("effect unit {u} does not exist"));
+        }
+        let id = kit
+            .map(|name| {
+                let name = name.trim();
+                self.kits
+                    .kits()
+                    .iter()
+                    .find(|k| k.kit.name.eq_ignore_ascii_case(name) || k.id == name)
+                    .map(|k| k.id.clone())
+                    .ok_or_else(|| format!("no kit called \"{name}\""))
+            })
+            .transpose()?;
+        self.set_mode(u, FxMode::DrumMachine, out);
+        if let Some(id) = id
+            && self.patterns[u]
+                .kit
+                .as_ref()
+                .is_none_or(|(loaded, _)| *loaded != id)
+        {
+            self.load_kit(u, &id, out);
+        }
+        Ok(())
+    }
+
+    /// Plays one of the kit's stored patterns, counted from 0.
+    pub fn drum_pattern(&mut self, u: usize, n: usize, out: &mut Vec<Command>) {
+        let knob = (n.min(PATTERNS - 1) as f32 + 0.5) / PATTERNS as f32;
+        self.set_pattern_knob(u, 2, knob, out);
+    }
+
+    fn sound_index(&self, u: usize, sound: &str) -> Result<usize, String> {
+        let (_, kit) = self.patterns[u]
+            .kit
+            .as_ref()
+            .ok_or_else(|| format!("unit {u} has no kit"))?;
+        kit.sounds
+            .iter()
+            .position(|s| s.name.eq_ignore_ascii_case(sound.trim()))
+            .ok_or_else(|| {
+                let names: Vec<&str> = kit.sounds.iter().map(|s| s.name.as_str()).collect();
+                format!("no sound called \"{sound}\" in the kit; it has {names:?}")
+            })
+    }
+
+    /// Writes a sound's steps into the pattern playing, at its resolution.
+    pub fn drum_steps(
+        &mut self,
+        u: usize,
+        sound: &str,
+        steps: &str,
+        out: &mut Vec<Command>,
+    ) -> Result<(), String> {
+        let wanted = Steps::parse(steps)
+            .ok_or_else(|| format!("steps for {sound} must be 16, 32 or 64 cells of x and ."))?;
+        let index = self.sound_index(u, sound)?;
+        self.write_steps(u, index, wanted, out);
+        Ok(())
+    }
+
+    /// Silences every sound of the kit but those named.
+    pub fn drum_only(&mut self, u: usize, keep: &[String], out: &mut Vec<Command>) {
+        let keep: Vec<usize> = keep
+            .iter()
+            .filter_map(|name| self.sound_index(u, name).ok())
+            .collect();
+        let shown = self.patterns[u].sound;
+        for index in (0..self.patterns[u].live.len()).filter(|i| !keep.contains(i)) {
+            self.write_steps(u, index, Steps::default(), out);
+        }
+        self.select_sound(u, shown, out);
+    }
+
+    fn write_steps(&mut self, u: usize, sound: usize, wanted: Steps, out: &mut Vec<Command>) {
+        self.select_sound(u, sound, out);
+        let p = &mut self.patterns[u];
+        let n = p.pattern();
+        let Some(live) = p.live.get_mut(sound) else {
+            return;
+        };
+        let target = wanted.rescaled(live[n].per_beat);
+        for cell in 0..live[n].cells() {
+            let on = target.on(cell);
+            if live[n].on(cell) != on {
+                live[n].set(cell, on);
+                out.push(Command::Fx(FxCommand::PatternStep(u, cell, on)));
+            }
+        }
+    }
+
+    /// Decay (0) or pitch (1) of a pattern unit, 0–1.
+    pub fn drum_knob(&mut self, u: usize, knob: usize, v: f32, out: &mut Vec<Command>) {
+        if knob < 2 {
+            self.set_pattern_knob(u, knob, v, out);
+        }
+    }
+
+    pub fn drum_duck(&mut self, u: usize, on: bool, out: &mut Vec<Command>) {
+        if self.patterns[u].duck != on {
+            self.toggle_duck(u, out);
+        }
+    }
+
+    pub fn drum_roll(&mut self, u: usize, on: bool, out: &mut Vec<Command>) {
+        self.set_roll(u, on, out);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

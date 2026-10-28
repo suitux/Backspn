@@ -341,6 +341,13 @@ layout, coding practices, tests and release process are described in
 [CONTRIBUTING.md](CONTRIBUTING.md), and the visual rules of the interface in
 [docs/design.md](docs/design.md).
 
+## Related projects
+
+- **[Tagr](https://github.com/suitux/Tagr)** — a self-hosted music metadata editor with a web UI, by the same
+  author. Fix titles, artists, genres, BPM, keys, ratings and covers from any browser; Backspn reads those tags
+  from the files, so a library cleaned up in Tagr arrives in Backspn as it is.
+- **[audiotagr](https://github.com/suitux/audiotagr)** — the tag read/write library behind Tagr (LGPL-3.0-only).
+
 ## License
 
 Copyright (C) 2026 Xavier Rincón.

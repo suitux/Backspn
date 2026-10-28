@@ -385,8 +385,8 @@ fn categories() -> Vec<Category> {
     ]
 }
 
-#[cfg(test)]
-pub(super) fn all() -> Vec<Action> {
+/// Every command a mapping can take, on deck A, channel 1 and unit 1.
+pub(crate) fn all() -> Vec<Action> {
     categories().into_iter().flat_map(|c| c.actions).collect()
 }
 

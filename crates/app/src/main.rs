@@ -6,6 +6,7 @@ mod app;
 mod auto_cue;
 mod auto_fade;
 mod auto_gain;
+mod autopilot;
 mod browser;
 mod columns;
 mod controls;
@@ -143,6 +144,7 @@ struct App {
     tap: tap_tempo::TapTempo,
     beat_taps: [tap_tempo::BeatTapIn; DECKS],
     epoch: Instant,
+    remote: app::Remote,
     outbox: Vec<Command>,
     browser: Browser,
     set_import: Option<app::SetImport>,
@@ -277,6 +279,7 @@ impl App {
             tap: tap_tempo::TapTempo::default(),
             beat_taps: std::array::from_fn(|_| tap_tempo::BeatTapIn::default()),
             epoch: Instant::now(),
+            remote: app::Remote::default(),
             browser: {
                 browser.columns.clone_from(&settings.browser_columns);
                 browser.favorites.clone_from(&settings.favorites);
@@ -400,6 +403,10 @@ impl Drop for App {
 }
 
 impl eframe::App for App {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.background(ctx);
+    }
+
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         self.frame(ui);
     }
@@ -417,10 +424,10 @@ impl App {
         });
     }
 
-    #[allow(clippy::too_many_lines)]
-    fn frame(&mut self, ui: &mut Ui) {
-        let ctx = ui.ctx().clone();
-        self.settings.wave_style(&theme::get(&ctx)).set(&ctx);
+    /// Work that goes on before each frame and also while the window is
+    /// hidden: tracks that finish loading reach their decks and an AI set
+    /// keeps playing.
+    fn background(&mut self, ctx: &egui::Context) {
         let mut events = Vec::new();
         for deck in 0..DECKS {
             events.extend(self.decks[deck].poll(&mut self.outbox));
@@ -436,6 +443,15 @@ impl App {
         }
         self.poll_sample_deck();
         self.handle_deck_events(events);
+        self.flush();
+        let state = self.engine_state();
+        self.drive_remote(ctx, &state);
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn frame(&mut self, ui: &mut Ui) {
+        let ctx = ui.ctx().clone();
+        self.settings.wave_style(&theme::get(&ctx)).set(&ctx);
         self.handle_input(&ctx);
         self.flush();
         let mut loop_copy = None;

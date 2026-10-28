@@ -13,6 +13,8 @@
 | `crates/fx`, `crates/dsp` | Beat-synced effects and DSP building blocks |
 | `crates/library` | SQLite library: import, own export format (`.backspn`), search, playlists, smartlists |
 | `crates/control` | MIDI and keyboard mappings, MIDI learn, native HID drivers behind a trait (`control::controller`) |
+| `crates/remote` | AI control: transition recipes, the tool catalog, the request protocol and the local socket (see `docs/ai-control.md`) |
+| `crates/mcp` | `backspn-mcp`, an MCP server over stdio that passes an AI client's tool calls to the running app |
 | `crates/app` | The egui application |
 | `insights/` | Cloudflare Worker that collects the anonymous usage reports and serves the public statistics (TypeScript, own workflow `.github/workflows/insights.yml`) |
 

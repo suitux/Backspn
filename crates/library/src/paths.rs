@@ -17,6 +17,28 @@ const SYSTEM: System = if cfg!(target_os = "macos") {
     System::Linux
 };
 
+const APP: &str = "Backspn";
+
+/// Where Backspn keeps its settings, library and other data.
+pub fn data_dir() -> PathBuf {
+    let home = std::env::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    data_dir_in(SYSTEM, &home, &|name| std::env::var_os(name))
+}
+
+fn data_dir_in(
+    system: System,
+    home: &Path,
+    var: &dyn Fn(&str) -> Option<std::ffi::OsString>,
+) -> PathBuf {
+    let absolute = |name: &str| var(name).map(PathBuf::from).filter(|p| p.is_absolute());
+    match system {
+        System::Mac => home.join("Library/Application Support"),
+        System::Windows => absolute("APPDATA").unwrap_or_else(|| home.join("AppData/Roaming")),
+        System::Linux => absolute("XDG_DATA_HOME").unwrap_or_else(|| home.join(".local/share")),
+    }
+    .join(APP)
+}
+
 pub fn local_path(location: &Location) -> PathBuf {
     let user = std::env::var("USER").unwrap_or_default();
     PathBuf::from(local_path_on(
@@ -154,6 +176,53 @@ fn location_on(system: System, path: &str, startup: &str) -> Location {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn vars(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<std::ffi::OsString> + use<> {
+        let pairs: Vec<(String, String)> = pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect();
+        move |name| {
+            pairs
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| std::ffi::OsString::from(v))
+        }
+    }
+
+    #[test]
+    fn data_goes_where_each_system_keeps_it() {
+        let home = std::env::temp_dir().join("u");
+        let appdata = std::env::temp_dir().join("Roaming");
+        let xdg = std::env::temp_dir().join("xdg");
+        let set = vars(&[
+            ("APPDATA", appdata.to_str().unwrap()),
+            ("XDG_DATA_HOME", xdg.to_str().unwrap()),
+        ]);
+        assert_eq!(
+            data_dir_in(System::Mac, &home, &set),
+            home.join("Library/Application Support/Backspn")
+        );
+        assert_eq!(
+            data_dir_in(System::Windows, &home, &set),
+            appdata.join("Backspn")
+        );
+        assert_eq!(data_dir_in(System::Linux, &home, &set), xdg.join("Backspn"));
+    }
+
+    #[test]
+    fn without_the_variables_data_is_under_home() {
+        let home = std::env::temp_dir().join("u");
+        let none = vars(&[("XDG_DATA_HOME", ""), ("APPDATA", "relative")]);
+        assert_eq!(
+            data_dir_in(System::Windows, &home, &none),
+            home.join("AppData/Roaming/Backspn")
+        );
+        assert_eq!(
+            data_dir_in(System::Linux, &home, &none),
+            home.join(".local/share/Backspn")
+        );
+    }
 
     fn none(_: &str) -> bool {
         false

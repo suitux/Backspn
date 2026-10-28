@@ -26,6 +26,7 @@ pub use external::{Outside, default_music_xml, music_source};
 mod files;
 pub(crate) use files::reveal;
 mod inline;
+mod remote_api;
 mod rescan;
 mod stems;
 mod table;
@@ -297,6 +298,33 @@ impl Browser {
         self.lib.as_mut().ok()
     }
 
+    pub fn rows(&self) -> &[TrackRow] {
+        &self.rows
+    }
+
+    /// Tracks played in this session.
+    pub fn played(&self) -> &HashSet<i64> {
+        &self.played
+    }
+
+    /// Names of the visible playlists or smartlists.
+    pub fn list_names(&self, kind: NodeKind) -> Vec<String> {
+        backspn_library::playlists::visible(&self.nodes)
+            .into_iter()
+            .filter(|n| n.kind == kind)
+            .map(|n| n.name)
+            .collect()
+    }
+
+    /// Track ids of the playlist or smartlist with this name.
+    pub fn named_list_tracks(&self, kind: NodeKind, name: &str) -> Option<Vec<i64>> {
+        let node = self
+            .nodes
+            .iter()
+            .find(|n| n.kind == kind && n.name.eq_ignore_ascii_case(name.trim()))?;
+        self.lib.as_ref().ok()?.node_tracks(node.id).ok()
+    }
+
     pub fn refresh(&mut self) {
         self.cue_marks.borrow_mut().clear();
         let Ok(lib) = &mut self.lib else { return };
@@ -479,7 +507,7 @@ impl Browser {
             .unwrap_or_default()
     }
 
-    fn row(&self, id: i64) -> Option<&TrackRow> {
+    pub fn row(&self, id: i64) -> Option<&TrackRow> {
         if id < 0 {
             return self.external.get(usize::try_from(-id - 1).ok()?);
         }

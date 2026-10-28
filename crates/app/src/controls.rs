@@ -16,6 +16,8 @@ use crate::keys;
 mod calibrate;
 mod leds;
 mod manager;
+
+pub(crate) use manager::all_commands;
 mod profiles;
 mod tables;
 

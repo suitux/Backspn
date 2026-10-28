@@ -42,6 +42,7 @@ impl Harness {
             ..egui::RawInput::default()
         };
         let app = &mut self.app;
+        app.background(&self.ctx);
         let mut output = self.ctx.run_ui(input, |ui| app.frame(ui));
         output.textures_delta.clear();
     }
@@ -920,4 +921,371 @@ fn background_analysis_writes_the_activity_diary() {
         .collect();
     assert_eq!(texts[0], "Analysis queued: 1 track");
     assert!(texts[1].starts_with("Analysed: "), "{texts:?}");
+}
+
+#[test]
+fn an_ai_set_plays_the_first_track_and_mixes_into_the_next() {
+    use backspn_library::set_plan::{Transition, TransitionStyle};
+    use backspn_remote::protocol::{Request, SetTrack};
+
+    let mut h = Harness::new("ai-set");
+    let ids = h.tracks(&["A", "B", "C"]);
+    h.frame();
+    let cut = Transition {
+        style: TransitionStyle::Cut,
+        bars: 1,
+    };
+    let tracks = ids
+        .iter()
+        .map(|&id| SetTrack {
+            id,
+            play_minutes: None,
+            start_at_pct: None,
+            transition: None,
+            recipe: None,
+        })
+        .collect();
+    let state = h.app.engine_state();
+    let unknown = h.app.answer(
+        Request::StartSet {
+            tracks: vec![SetTrack {
+                id: 9_999,
+                play_minutes: None,
+                start_at_pct: None,
+                transition: None,
+                recipe: None,
+            }],
+            transition: None,
+            keylock: None,
+        },
+        &state,
+    );
+    assert!(unknown.is_err(), "{unknown:?}");
+    h.app
+        .answer(
+            Request::StartSet {
+                tracks,
+                transition: Some(cut),
+                keylock: Some(true),
+            },
+            &state,
+        )
+        .unwrap();
+    h.until("deck A plays the first track", |app| {
+        app.decks[0].track_id() == Some(ids[0]) && app.playing[0]
+    });
+    h.until("deck B gets the second track", |app| {
+        app.decks[1].track_id() == Some(ids[1])
+    });
+    h.until("the set moves on past the first track", |app| {
+        app.remote
+            .progress()
+            .is_some_and(|(at, of, _)| at >= 2 && of == 3)
+    });
+    let state = h.app.engine_state();
+    let status = h.app.answer(Request::GetSetStatus, &state).unwrap();
+    assert_eq!(status["tracks"][0]["played"], true, "{status}");
+    assert_eq!(status["tracks"][1]["track"]["id"], ids[1]);
+    h.app.answer(Request::StopSet, &state).unwrap();
+    assert_eq!(h.app.remote.progress(), None);
+}
+
+#[test]
+fn moving_a_set_deck_by_hand_pauses_the_set() {
+    use backspn_remote::protocol::{Request, SetTrack};
+
+    let mut h = Harness::new("ai-pause");
+    let ids = h.tracks(&["A", "B"]);
+    h.frame();
+    let tracks = ids
+        .iter()
+        .map(|&id| SetTrack {
+            id,
+            play_minutes: None,
+            start_at_pct: None,
+            transition: None,
+            recipe: None,
+        })
+        .collect();
+    let state = h.app.engine_state();
+    h.app
+        .answer(
+            Request::StartSet {
+                tracks,
+                transition: None,
+                keylock: None,
+            },
+            &state,
+        )
+        .unwrap();
+    h.until("deck A plays", |app| app.playing[0]);
+    h.app.remote.hand_moved(Action::Volume { channel: 0 });
+    assert_eq!(h.app.remote.progress().map(|p| p.2), Some(true));
+    let state = h.app.engine_state();
+    h.app.answer(Request::ResumeSet, &state).unwrap();
+    assert_eq!(h.app.remote.progress().map(|p| p.2), Some(false));
+}
+
+#[test]
+fn an_ai_set_reports_the_tempo_even_without_a_beat_grid() {
+    use backspn_remote::protocol::{Request, SetTrack};
+
+    let mut h = Harness::new("ai-tempo");
+    let id = h.tracks(&["A"])[0];
+    let update = backspn_library::AnalysisUpdate {
+        bpm: Some(127.0),
+        ..backspn_library::AnalysisUpdate::default()
+    };
+    h.app
+        .browser
+        .library()
+        .unwrap()
+        .save_analysis(id, &update)
+        .unwrap();
+    h.app.browser.refresh();
+    let state = h.app.engine_state();
+    h.app
+        .answer(
+            Request::StartSet {
+                tracks: vec![SetTrack {
+                    id,
+                    play_minutes: None,
+                    start_at_pct: None,
+                    transition: None,
+                    recipe: None,
+                }],
+                transition: None,
+                keylock: None,
+            },
+            &state,
+        )
+        .unwrap();
+    h.until("deck A plays", |app| app.playing[0]);
+    let state = h.app.engine_state();
+    assert!(state.decks[0].grid.is_none(), "no anchor, no grid");
+    let status = h.app.answer(Request::GetSetStatus, &state).unwrap();
+    assert_eq!(status["bpm_now"], 127.0, "{status}");
+    let deck = &h.app.answer(Request::GetState, &state).unwrap()["decks"][0];
+    assert_eq!(
+        (deck["bpm"].as_f64(), deck["grid"].as_bool()),
+        (Some(127.0), Some(false))
+    );
+}
+
+#[test]
+fn the_ai_programs_the_pattern_player_by_kit_and_sound_names() {
+    use backspn_remote::protocol::Request;
+    use backspn_remote::transition::PatternSpec;
+
+    let mut h = Harness::new("ai-pattern");
+    let mut kits = crate::kits::KitLibrary::open(h.dir.join("Kits"));
+    assert_eq!(kits.install_factory(false), 2);
+    h.app.fx = crate::fx_view::FxView::new(44_100, kits);
+    let state = h.app.engine_state();
+    let overview = h.app.answer(Request::LibraryOverview, &state).unwrap();
+    assert_eq!(overview["kits"][0]["name"], "Analog Kit", "{overview}");
+    assert!(
+        overview["kits"][0]["sounds"]
+            .as_array()
+            .unwrap()
+            .contains(&"Kick".into())
+    );
+    let spec = PatternSpec {
+        unit: 1,
+        kit: Some("club kit".into()),
+        steps: [
+            ("Kick".to_owned(), "x...x...x...x...".to_owned()),
+            ("closed hat".to_owned(), "..x...x...x...x.".to_owned()),
+        ]
+        .into(),
+        only_these: true,
+        on: Some(true),
+        volume: Some(0.6),
+        ..PatternSpec::default()
+    };
+    h.app
+        .answer(
+            Request::SetPattern {
+                pattern: spec.clone(),
+                decks: Some(vec![0]),
+            },
+            &state,
+        )
+        .unwrap();
+    h.until_engine("the unit plays the pattern", |s| {
+        let unit = &s.fx.units[1];
+        unit.on && unit.mode == backspn_engine::FxMode::DrumMachine
+    });
+    assert_eq!(h.app.fx.kit_ids()[1], "club-kit");
+    let hats = (0..16).filter(|i| i % 4 == 2).fold(0u16, |b, i| b | 1 << i);
+    assert_eq!(
+        h.app.fx.mapped_steps(1).0,
+        hats,
+        "the hat shows, as written last"
+    );
+    let wrong = PatternSpec {
+        steps: [("Cowbell".to_owned(), "x...............".to_owned())].into(),
+        ..spec
+    };
+    let error = h
+        .app
+        .answer(
+            Request::SetPattern {
+                pattern: wrong,
+                decks: None,
+            },
+            &state,
+        )
+        .unwrap_err();
+    assert!(
+        error.contains("Cowbell") && error.contains("Kick"),
+        "{error}"
+    );
+}
+
+#[test]
+fn the_ai_manages_lists_tracks_and_searches_the_library() {
+    use backspn_remote::catalog::request;
+    use serde_json::json;
+
+    let mut h = Harness::new("ai-library");
+    let ids = h.tracks(&["Alpha", "Beta", "Gamma"]);
+    h.frame();
+    let ask = |h: &mut Harness, tool: &str, args: serde_json::Value| {
+        let state = h.app.engine_state();
+        h.app.answer(request(tool, args).unwrap(), &state)
+    };
+
+    let folder = ask(
+        &mut h,
+        "create_list",
+        json!({"kind": "folder", "name": "Gigs"}),
+    )
+    .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    let list = ask(
+        &mut h,
+        "create_list",
+        json!({"kind": "playlist", "name": "Friday", "parent": folder, "tracks": [ids[0], ids[1], ids[2]]}),
+    )
+    .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    let got = ask(&mut h, "get_list", json!({"id": list})).unwrap();
+    assert_eq!(got["total"], 3);
+    ask(
+        &mut h,
+        "edit_list",
+        json!({"id": list, "remove": [ids[1]], "name": "Saturday", "to_top": true}),
+    )
+    .unwrap();
+    let lists = ask(&mut h, "list_lists", json!({})).unwrap();
+    let saturday = lists["lists"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|l| l["id"] == list)
+        .unwrap()
+        .clone();
+    assert_eq!(
+        (saturday["name"].as_str(), saturday["tracks"].as_u64()),
+        (Some("Saturday"), Some(2))
+    );
+    assert!(saturday["parent"].is_null(), "moved to the top");
+
+    ask(
+        &mut h,
+        "edit_tracks",
+        json!({"ids": [ids[2]], "changes": {"rating": 5, "genre": "Techno"}}),
+    )
+    .unwrap();
+    let found = ask(&mut h, "search_library", json!({"query": "$RATING == 5"})).unwrap();
+    assert_eq!(found["total"], 1);
+    assert_eq!(found["tracks"][0]["id"], ids[2]);
+    assert_eq!(
+        ask(&mut h, "get_track", json!({"id": ids[2]})).unwrap()["genre"],
+        "Techno"
+    );
+
+    let smart = ask(
+        &mut h,
+        "create_list",
+        json!({"kind": "smartlist", "name": "Top", "query": "$GENRE % techno"}),
+    )
+    .unwrap()["id"]
+        .as_i64()
+        .unwrap();
+    assert_eq!(
+        ask(&mut h, "get_list", json!({"id": smart})).unwrap()["total"],
+        1
+    );
+    assert!(
+        ask(
+            &mut h,
+            "create_list",
+            json!({"kind": "smartlist", "name": "Bad", "query": "$NOPE == 1"})
+        )
+        .is_err()
+    );
+    assert!(
+        ask(&mut h, "edit_list", json!({"id": smart, "add": [ids[0]]})).is_err(),
+        "not a playlist"
+    );
+
+    ask(&mut h, "delete_list", json!({"id": folder})).unwrap();
+    assert!(ask(&mut h, "get_list", json!({"id": folder})).is_err());
+    assert_eq!(
+        ask(&mut h, "search_library", json!({"query": ""})).unwrap()["total"],
+        3,
+        "tracks stay"
+    );
+}
+
+#[test]
+fn the_ai_moves_controls_and_changes_settings() {
+    use backspn_remote::catalog::request;
+    use serde_json::json;
+
+    let mut h = Harness::new("ai-app");
+    let id = h.tracks(&["A"])[0];
+    h.app.load_from_library(0, id);
+    h.until_engine("the engine has the track", |s| s.decks[0].loaded);
+    let ask = |h: &mut Harness, tool: &str, args: serde_json::Value| {
+        let state = h.app.engine_state();
+        h.app.answer(request(tool, args).unwrap(), &state)
+    };
+    let found = ask(&mut h, "list_controls", json!({"filter": "deck a play"})).unwrap();
+    let play = found["controls"][0]["action"].clone();
+    ask(&mut h, "control", json!({"action": play})).unwrap();
+    h.until_engine("deck A plays", |s| s.decks[0].playing);
+    ask(
+        &mut h,
+        "control",
+        json!({"action": {"action": "Volume", "channel": 0}, "value": 0.25}),
+    )
+    .unwrap();
+    h.until_engine("the fader moved", |s| {
+        (s.mixer.channels[0].fader - 0.25).abs() < 1e-3
+    });
+    assert!(ask(&mut h, "control", json!({"action": {"action": "Nope"}})).is_err());
+
+    let all = ask(&mut h, "get_settings", json!({})).unwrap();
+    assert!(all["deck_count"].is_number());
+    ask(
+        &mut h,
+        "set_settings",
+        json!({"changes": {"deck_count": 4, "suggest_criteria": {"count": 7}}}),
+    )
+    .unwrap();
+    h.frame();
+    assert_eq!(h.app.settings.deck_count, 4);
+    assert_eq!(h.app.settings.suggest_criteria.count, 7);
+    let error = ask(
+        &mut h,
+        "set_settings",
+        json!({"changes": {"deck_cuont": 2}}),
+    )
+    .unwrap_err();
+    assert!(error.contains("deck_cuont"), "{error}");
 }

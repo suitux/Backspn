@@ -561,6 +561,7 @@ dependencies = [
  "backspn-formats",
  "backspn-library",
  "backspn-link",
+ "backspn-remote",
  "backspn-separate",
  "eframe",
  "egui_extras",
@@ -685,11 +686,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "backspn-mcp"
+version = "0.0.10"
+dependencies = [
+ "backspn-library",
+ "backspn-remote",
+ "serde_json",
+]
+
+[[package]]
 name = "backspn-mixer"
 version = "0.0.10"
 dependencies = [
  "backspn-dsp",
  "serde",
+]
+
+[[package]]
+name = "backspn-remote"
+version = "0.0.10"
+dependencies = [
+ "backspn-formats",
+ "backspn-library",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

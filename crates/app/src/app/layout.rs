@@ -411,8 +411,24 @@ impl App {
             self.status_bar(ui);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 self.browser.progress(ui);
+                self.ai_set_status(ui);
             });
         });
+    }
+
+    fn ai_set_status(&mut self, ui: &mut Ui) {
+        let Some((at, of, paused)) = self.remote.progress() else {
+            return;
+        };
+        if ui.small_button(tr("Stop")).clicked() {
+            self.remote.stop();
+        }
+        let text = if paused {
+            format!("{} {at}/{of} · {}", tr("AI set"), tr("paused"))
+        } else {
+            format!("{} {at}/{of}", tr("AI set"))
+        };
+        ui.label(RichText::new(text).size(11.0));
     }
 
     fn middle_width(&self) -> f32 {

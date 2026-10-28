@@ -493,6 +493,12 @@ impl DeckView {
         self.move_tempo_fader(trigger, out, |f| 1.0 + f64::from(f * range));
     }
 
+    /// The tempo fader value (0–1) that plays at `ratio`, within the range.
+    pub fn tempo_fader_for(&self, ratio: f64) -> f32 {
+        let fader = ((ratio - 1.0) as f32 / self.tempo_range.max(f32::EPSILON)).clamp(-1.0, 1.0);
+        f32::midpoint(fader, 1.0)
+    }
+
     pub fn apply_platter_tempo(
         &mut self,
         trigger: backspn_control::Trigger,
