@@ -331,6 +331,85 @@ mod tests {
         assert_eq!(send(&set, &mut other, &[0x91, 0x0B, 0x7F]), Vec::new());
     }
 
+    #[test]
+    fn flx4_beat_fx_reaches_both_units_and_their_knobs() {
+        let (set, mut src) = flx4();
+        let knob = |unit, knob| Action::FxKnob { unit, knob };
+        let assign = |channel, unit| Action::FxAssign { channel, unit };
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x4B, 0x7F]),
+            [(knob(0, 0), Trigger::Delta(8.0))],
+            "BEAT ▶ moves the first knob by 1/8"
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x6B, 0x7F]),
+            Vec::new(),
+            "SHIFT + BEAT ▶ picks the next knob"
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x4A, 0x7F]),
+            [(knob(0, 1), Trigger::Delta(-8.0))]
+        );
+        send(&set, &mut src, &[0x94, 0x6B, 0x7F]);
+        send(&set, &mut src, &[0x94, 0x6B, 0x7F]);
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x4A, 0x7F]),
+            [(knob(0, 2), Trigger::Delta(-8.0))],
+            "the last knob is as far as it goes"
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x11, 0x7F]),
+            [
+                (assign(0, 0), Trigger::Set(0.0)),
+                (assign(1, 0), Trigger::Set(1.0))
+            ],
+            "channel switch on 2"
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x14, 0x7F]),
+            [
+                (assign(0, 0), Trigger::Set(1.0)),
+                (assign(1, 0), Trigger::Set(1.0))
+            ],
+            "channel switch on 1&2"
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x47, 0x7F]),
+            [(Action::FxOn { unit: 0 }, Trigger::Press)]
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x43, 0x7F]),
+            Vec::new(),
+            "SHIFT + ON/OFF switches to FX2"
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x4B, 0x7F]),
+            [(knob(1, 2), Trigger::Delta(8.0))]
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x10, 0x7F]),
+            [
+                (assign(0, 1), Trigger::Set(1.0)),
+                (assign(1, 1), Trigger::Set(0.0))
+            ],
+            "the switch assigns the unit in control"
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x47, 0x7F]),
+            [(Action::FxOn { unit: 1 }, Trigger::Press)]
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x63, 0x7F]),
+            [(Action::FxSelect { unit: 1, slot: 0 }, Trigger::Delta(1.0))]
+        );
+        send(&set, &mut src, &[0x94, 0x43, 0x7F]);
+        assert_eq!(
+            send(&set, &mut src, &[0x94, 0x47, 0x7F]),
+            [(Action::FxOn { unit: 0 }, Trigger::Press)],
+            "and back to FX1"
+        );
+    }
+
     fn model(port: &str) -> (MappingSet, crate::relative::Source) {
         let mut set = MappingSet::default();
         set.add_profile(&for_port(port).unwrap(), port, port);
