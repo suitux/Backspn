@@ -235,11 +235,21 @@ Settings.
 
 ## Controllers
 
-| Kind | Models |
-|---|---|
-| Native drivers (HID) | Kontrol S4 MK3 (tested on hardware); Kontrol S4 MK2, S2 MK3, S2 MK2, S3, MX2 and Z1 (untested) |
-| MIDI profiles | DDJ series (Pioneer DJ), Denon DJ MC7000, Hercules DJControl Inpulse 200/300/500, Numark Mixtrack Pro FX and Platinum FX, Reloop READY and Buddy |
-| Anything else | MIDI learn and keyboard mappings |
+| Kind | Brand | Models |
+|---|---|---|
+| Native drivers (HID) | Native Instruments | Kontrol S4 MK3\*, S4 MK2, S2 MK3, S2 MK2, S3, MX2, Z1 |
+| MIDI profiles | AlphaTheta | DDJ-FLX2, DDJ-FLX4, DDJ-GRV6 |
+| | Pioneer DJ | DDJ-200, DDJ-400, DDJ-800, DDJ-1000, DDJ-ERGO, DDJ-FLX6, DDJ-RB, DDJ-REV5, DDJ-RR, DDJ-RX, DDJ-RZ, DDJ-RZX, DDJ-SB, DDJ-SB2, DDJ-SP1, DDJ-SR, DDJ-SX, DDJ-SX2, DDJ-SZ, DDJ-WeGO, DDJ-WeGO2, DDJ-WeGO3, DDJ-WeGO4, DDJ-XP1, DDJ-XP2 |
+| | Denon DJ | MC7000 |
+| | Hercules | DJControl Inpulse 200, 300, 500 |
+| | Numark | Mixtrack Pro FX, Mixtrack Platinum FX |
+| | Reloop | Buddy, Ready |
+| Anything else | | MIDI learn and keyboard mappings |
+
+<sub>\* Only the Kontrol S4 MK3 is tested on hardware so far. The others should
+work, but they have not been tried on the real device yet and may have bugs.
+If you own one, please [report](https://github.com/suitux/Backspn/issues) what
+works and what doesn't.</sub>
 
 The S4 MK3 driver draws its own screens, with four layouts to pick from:
 

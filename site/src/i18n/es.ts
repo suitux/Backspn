@@ -62,6 +62,12 @@ const es: typeof en = {
         points: ['Drivers HID nativos', 'Mapeos de teclado', 'MIDI learn para cualquier aparato'],
       },
     },
+    supported: {
+      title: 'Controladoras compatibles',
+      native: 'Drivers nativos',
+      midi: 'Perfiles MIDI',
+      note: 'Por ahora solo la Kontrol S4 MK3 está probada con el aparato. Las demás deberían funcionar, pero nadie las ha probado todavía con la controladora real, así que puede haber algún fallo. Si tienes una, cuéntanos cómo va en GitHub.',
+    },
     pending: 'Clip próximamente',
   },
   gallery: {

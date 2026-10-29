@@ -8,6 +8,7 @@ import Media from './Media.astro';
 import Ui from './Ui.astro';
 import { bmc, dictionaries, github, releases, type Lang } from '../i18n';
 import { features, gallery, videos, hero, ready, anyReady, asset, url } from '../media';
+import { midi, native, tested } from '../controllers';
 
 interface Props {
   lang: Lang;
@@ -180,6 +181,23 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
             </article>
           );
         })}
+        <div class="grid gap-8" id="controllers">
+          <h3 class="text-[clamp(1.625rem,1.2rem+1.2vw,2.25rem)] leading-[1.1] font-[650] tracking-[-0.025em]">{t.features.supported.title}</h3>
+          <div class="grid gap-px overflow-hidden rounded-[14px] bg-line md:grid-cols-[1fr_2fr]">
+            {([[t.features.supported.native, native, deck[0]], [t.features.supported.midi, midi, deck[1]]] as const).map(([title, brands, border]) => (
+              <div class={`grid content-start gap-4 border-t-[3px] bg-ground px-6 py-[22px] ${border}`}>
+                <h4 class="font-semibold">{title}</h4>
+                {brands.map((b) => (
+                  <div class="grid gap-1">
+                    <span class="text-sm text-soft">{b.brand}</span>
+                    <span>{b.models.map((m) => (m === tested ? `${m}*` : m)).join(' · ')}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+          <p class="-mt-4 max-w-[80ch] text-sm text-soft">* {t.features.supported.note}</p>
+        </div>
       </section>
 
       <section class={`${page} grid gap-10 pt-[100px] md:pt-40`} id="gallery" aria-labelledby="gallery-title">

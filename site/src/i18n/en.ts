@@ -60,6 +60,12 @@ export default {
         points: ['Native HID drivers', 'Keyboard mappings', 'MIDI learn for any device'],
       },
     },
+    supported: {
+      title: 'Supported controllers',
+      native: 'Native drivers',
+      midi: 'MIDI profiles',
+      note: 'Only the Kontrol S4 MK3 is tested on hardware so far. The rest should work, but nobody has tried them on the real device yet, so expect the odd bug. If you own one, tell us how it goes on GitHub.',
+    },
     pending: 'Clip coming soon',
   },
   gallery: {
