@@ -45,6 +45,13 @@ pub fn loop_size_digits(index: u8) -> [u8; 2] {
     }
 }
 
+/// Tens and units of a number from 0 to 99, the tens blank below 10.
+pub fn number_digits(n: u8) -> [u8; 2] {
+    let n = u32::from(n.min(99));
+    let tens = if n >= 10 { digit(n / 10) } else { 0 };
+    [tens, digit(n % 10)]
+}
+
 pub fn loop_display(index: u8, loop_active: bool, live: bool, phase_ms: u128) -> [u8; 2] {
     if live || (loop_active && phase_ms % BLINK_PERIOD_MS > BLINK_SHOWN_MS) {
         return [0, 0];
@@ -65,6 +72,13 @@ pub fn write_digits(bytes: &mut [u8], first: usize, digits: [u8; 2], on: u8) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn numbers_blank_the_leading_zero() {
+        assert_eq!(number_digits(7), [0, digit(7)]);
+        assert_eq!(number_digits(42), [digit(4), digit(2)]);
+        assert_eq!(number_digits(250), [digit(9), digit(9)]);
+    }
 
     #[test]
     fn whole_sizes_show_their_number() {

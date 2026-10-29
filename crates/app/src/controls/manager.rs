@@ -356,8 +356,7 @@ impl Controls {
             let chosen = self.manager.selected == Some(Selected::Native(d.name()));
             let tested = backspn_control::profile::native_tested(d.name());
             entries.push(
-                Entry::item(Pick::Native(d.name()), listed(d.name(), tested), chosen)
-                    .with_hint(hint("", tested)),
+                Entry::item(Pick::Native(d.name()), d.name(), chosen).with_hint(hint("", tested)),
             );
         }
         for (i, d) in self.set.devices.iter().enumerate() {
@@ -373,8 +372,7 @@ impl Controls {
                 continue;
             }
             entries.push(
-                Entry::item(Pick::Profile(i), listed(&p.name(), p.tested), false)
-                    .with_hint(hint(&p.notes, p.tested)),
+                Entry::item(Pick::Profile(i), p.name(), false).with_hint(hint(&p.notes, p.tested)),
             );
         }
         ui.horizontal(|ui| {
@@ -1177,14 +1175,6 @@ pub(super) fn midi_input(channel: u8, kind: MidiKind, number: u8) -> Input {
     .input()
 }
 
-fn listed(name: &str, tested: bool) -> String {
-    if tested {
-        name.to_owned()
-    } else {
-        format!("{name} {}", tr("(untested)"))
-    }
-}
-
 fn hint(notes: &str, tested: bool) -> String {
     let untested =
         tr("Not tried with the real device yet: tell us how it goes with Report a Problem…");
@@ -1200,12 +1190,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn untested_models_are_marked() {
-        assert_eq!(listed("Kontrol S4 MK3", true), "Kontrol S4 MK3");
-        assert_eq!(
-            listed("Pioneer DJ DDJ-SX", false),
-            "Pioneer DJ DDJ-SX (untested)"
-        );
+    fn untested_models_get_a_hint() {
         assert_eq!(hint("", true), "");
         assert_eq!(hint("No jogs.", true), "No jogs.");
         assert!(hint("", false).starts_with("Not tried with the real device yet"));

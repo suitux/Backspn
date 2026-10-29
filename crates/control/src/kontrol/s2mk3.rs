@@ -213,6 +213,8 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     samples_button_toggles: false,
     fx_select_toggles: true,
     mx2_transport: false,
+    shared_shift: false,
+    connect_reports: &[],
 });
 
 pub fn start(

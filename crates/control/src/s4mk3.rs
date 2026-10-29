@@ -372,6 +372,10 @@ pub struct Layout {
     pub samples_button_toggles: bool,
     pub fx_select_toggles: bool,
     pub mx2_transport: bool,
+    /// One SHIFT button acts on both sides.
+    pub shared_shift: bool,
+    /// Output reports written once on connect, before anything else.
+    pub connect_reports: &'static [&'static [u8]],
 }
 
 pub type DeckLeds = fn(&Feedback, &Decoder, [usize; 2], &mut Leds);
@@ -440,6 +444,8 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
         samples_button_toggles: false,
         fx_select_toggles: false,
         mx2_transport: false,
+        shared_shift: false,
+        connect_reports: &[],
     }
 });
 
@@ -979,6 +985,9 @@ fn run(
     let mut motors = motor::Motors::default();
     if let Some(settings) = last.motors {
         motors.set(settings);
+    }
+    for report in layout.connect_reports {
+        drop(device.write(report));
     }
     let mut buf = [0u8; 512];
     for &(id, len) in layout.initial_reports {

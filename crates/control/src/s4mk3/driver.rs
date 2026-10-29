@@ -558,6 +558,7 @@ struct S4State {
     fx_selected: Option<usize>,
     mixer_fx_on: [bool; DECKS],
     mx2: bool,
+    shared_shift: bool,
     mode_held: bool,
     keylock_held: [bool; 2],
     keylock_engaged: [bool; 2],
@@ -597,6 +598,7 @@ impl Default for S4State {
             fx_selected: None,
             mixer_fx_on: [false; DECKS],
             mx2: false,
+            shared_shift: false,
             mode_held: false,
             keylock_held: [false; 2],
             keylock_engaged: [false; 2],
@@ -618,6 +620,7 @@ impl S4State {
             samples_toggles: layout.samples_button_toggles,
             fx_select_toggle: layout.fx_select_toggles,
             mx2: layout.mx2_transport,
+            shared_shift: layout.shared_shift,
             ..Self::default()
         }
     }
@@ -1338,7 +1341,12 @@ fn translate(state: &mut S4State, set: &MappingSet, event: &InputEvent) -> Vec<(
         let control = &name[name.find('.').map_or(0, |i| i + 1)..];
         match control {
             "Shift" => {
-                state.shift[side] = event.pressed == Some(true);
+                let held = event.pressed == Some(true);
+                if state.shared_shift {
+                    state.shift = [held; 2];
+                } else {
+                    state.shift[side] = held;
+                }
                 return Vec::new();
             }
             "Jog Mode.Grid" => {
@@ -2468,6 +2476,25 @@ mod tests {
             go(&mut st, "Left.Master", false),
             [(Action::Master { deck: 0 }, Trigger::Press)]
         );
+    }
+
+    #[test]
+    fn a_shared_shift_reaches_both_sides() {
+        let layout = &crate::kontrol::x1mk2::LAYOUT;
+        let set = MappingSet {
+            mappings: (layout.default_mappings)(),
+            ..MappingSet::default()
+        };
+        let mut st = S4State::for_layout(layout);
+        let go = |st: &mut S4State, name, down| translate(st, &set, &hid(name, Some(down)));
+        go(&mut st, "Left.Shift", true);
+        assert_eq!(
+            go(&mut st, "Right.Cue", true),
+            [(Action::ReturnToStart { deck: 1 }, Trigger::Press)]
+        );
+        go(&mut st, "Right.Cue", false);
+        go(&mut st, "Left.Shift", false);
+        assert!(st.shift.iter().all(|&held| !held));
     }
 
     #[test]

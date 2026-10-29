@@ -104,5 +104,21 @@ pub fn models() -> &'static [Model] {
             name: crate::kontrol::s2mk2::NAME,
             start: crate::kontrol::s2mk2::start,
         },
+        Model {
+            name: crate::kontrol::x1mk2::NAME,
+            start: crate::kontrol::x1mk2::start,
+        },
+        Model {
+            name: crate::kontrol::x1mk3::NAME,
+            start: crate::kontrol::x1mk3::start,
+        },
+        Model {
+            name: crate::kontrol::f1::NAME,
+            start: crate::kontrol::f1::start,
+        },
+        Model {
+            name: crate::kontrol::z2::NAME,
+            start: crate::kontrol::z2::start,
+        },
     ]
 }

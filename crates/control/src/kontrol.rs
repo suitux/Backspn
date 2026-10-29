@@ -1,13 +1,17 @@
 use crate::s4mk3::{Analog, Button, Encoder, Jog, Layout, Shifted};
 use crate::{Action, Input, Interaction, Mapping};
 
+pub mod f1;
 pub mod loop_display;
 pub mod mx2;
 pub mod s2mk2;
 pub mod s2mk3;
 pub mod s3;
 pub mod s4mk2;
+pub mod x1mk2;
+pub mod x1mk3;
 pub mod z1;
+pub mod z2;
 
 fn button(
     name: impl Into<String>,
@@ -147,7 +151,7 @@ fn common_shifted(name: &str) -> Shifted {
     }))
 }
 
-pub fn layouts() -> [&'static Layout; 6] {
+pub fn layouts() -> [&'static Layout; 10] {
     [
         &s2mk3::LAYOUT,
         &s3::LAYOUT,
@@ -155,6 +159,10 @@ pub fn layouts() -> [&'static Layout; 6] {
         &z1::LAYOUT,
         &s4mk2::LAYOUT,
         &s2mk2::LAYOUT,
+        &x1mk2::LAYOUT,
+        &x1mk3::LAYOUT,
+        &f1::LAYOUT,
+        &z2::LAYOUT,
     ]
 }
 
@@ -167,11 +175,9 @@ mod tests {
     fn layouts_are_consistent() {
         for l in layouts() {
             crate::s4mk3::tests::check_layout(l);
-            assert!(
-                l.has("Mixer.A.Volume") && l.has("Mixer.Xfader"),
-                "{}",
-                l.name
-            );
+            if l.has("Mixer.A.Volume") {
+                assert!(l.has("Mixer.Xfader"), "{}", l.name);
+            }
             if !l.jogs.is_empty() {
                 assert!(l.has("Left.Play") && l.has("Right.Play"), "{}", l.name);
                 assert!(l.jogs.len() == 2 && l.encoders.len() >= 6, "{}", l.name);
@@ -183,12 +189,8 @@ mod tests {
     fn reports_decode_to_named_controls() {
         for l in layouts() {
             let mut d = Decoder::new(l);
-            let name = if l.has("Left.Play") {
-                "Left.Play"
-            } else {
-                "Mixer.A.Cue"
-            };
-            let play = l.buttons.iter().find(|b| b.name == name).expect(name);
+            let play = &l.buttons[0];
+            let name = play.name.as_str();
             let mut r = vec![0u8; 64];
             r[0] = 0x01;
             assert!(d.decode(&r).iter().all(|e| e.pressed.is_none()));
@@ -201,20 +203,16 @@ mod tests {
             assert_eq!(events.len(), 1, "{}: {events:?}", l.name);
             assert_eq!(events[0].input, Input::Hid(name.into()));
             assert_eq!(events[0].pressed, Some(true));
-            let volume = l
-                .analogs
-                .iter()
-                .find(|a| a.name == "Mixer.A.Volume")
-                .expect("volume");
+            let analog = &l.analogs[0];
             let mut r = vec![0u8; 80];
             r[0] = l.analog_report;
-            r[volume.byte] = 0xFF;
-            r[volume.byte + 1] = 0x0F;
+            r[analog.byte] = 0xFF;
+            r[analog.byte + 1] = 0x0F;
             let events = d.decode(&r);
             let v = events
                 .iter()
-                .find(|e| e.input == Input::Hid("Mixer.A.Volume".into()))
-                .expect("volume event");
+                .find(|e| e.input == Input::Hid(analog.name.into()))
+                .expect("analog event");
             assert!((v.value - 1.0).abs() < 1e-6);
         }
     }
