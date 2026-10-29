@@ -106,10 +106,15 @@ const crosshair: Plugin<'line' | 'bar'> = {
   },
 };
 
+/** Numeric per part, so "0.0.10" follows "0.0.9"; a missing part counts as 0. */
 function compareVersions(a: string, b: string): number {
-  const [aMajor, aMinor] = a.split('.').map(Number);
-  const [bMajor, bMinor] = b.split('.').map(Number);
-  return aMajor - bMajor || aMinor - bMinor;
+  const aParts = a.split('.').map(Number);
+  const bParts = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    const diff = (aParts[i] ?? 0) - (bParts[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
 }
 
 /**
