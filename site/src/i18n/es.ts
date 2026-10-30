@@ -132,6 +132,7 @@ const es: typeof en = {
     text: 'Descárgalo, pincha una sesión y cuéntanos qué falla. Si tienes una controladora, tus pruebas ayudan mucho.',
     action: 'Descargar la beta',
     report: 'Avisar de un fallo',
+    discord: 'Únete al Discord',
   },
   footer: {
     product: 'Producto',

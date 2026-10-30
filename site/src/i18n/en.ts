@@ -130,6 +130,7 @@ export default {
     text: 'Download it, play a set and tell us what breaks. Testers with a controller are especially welcome.',
     action: 'Download the beta',
     report: 'Report a bug',
+    discord: 'Join the Discord',
   },
   footer: {
     product: 'Product',

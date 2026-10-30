@@ -6,7 +6,7 @@ import { getRelativeLocaleUrl } from 'astro:i18n';
 import AppWindow from './AppWindow.astro';
 import Media from './Media.astro';
 import Ui from './Ui.astro';
-import { bmc, dictionaries, github, releases, type Lang } from '../i18n';
+import { bmc, dictionaries, discord, github, releases, type Lang } from '../i18n';
 import { features, gallery, videos, hero, ready, anyReady, asset, url } from '../media';
 import { midi, native, tested } from '../controllers';
 
@@ -64,7 +64,7 @@ const jsonLd = {
   image: ogImage,
   screenshot: [hero, ...Object.values(features)].map((c) => abs(url(c.file))),
   author: { '@type': 'Person', name: 'Xavier Rincón' },
-  sameAs: [github, bmc],
+  sameAs: [github, bmc, discord],
 };
 const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fill-current"><path d="M4 2.5v11l9-5.5z" /></svg>';
 ---
@@ -132,6 +132,10 @@ const playIcon = '<svg viewBox="0 0 16 16" aria-hidden="true" class="size-3.5 fi
             {hasVideos
               ? <a class={ghost} href="#videos"><Fragment set:html={playIcon} />{t.hero.secondary}</a>
               : <a class={ghost} href="#gallery">{t.hero.screens}</a>}
+            <a class={ghost} href={discord}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
+              {t.cta.discord}
+            </a>
           </div>
           <p class="text-sm text-soft">{t.hero.platforms}</p>
         </div>
@@ -291,6 +295,7 @@ cargo run --release -p backspn-app</code></pre>
         <div class="flex flex-wrap justify-center gap-3">
           <a class={primary} href={releases}>{t.cta.action}</a>
           <a class={ghost} href={`${github}/issues`}>{t.cta.report}</a>
+          <a class={ghost} href={discord}>{t.cta.discord}</a>
         </div>
       </section>
     </main>
@@ -307,7 +312,7 @@ cargo run --release -p backspn-app</code></pre>
       </div>
       {[
         [t.footer.product, [[releases, t.footer.download], ...sections, [getRelativeLocaleUrl(lang, 'insights'), t.footer.stats]]],
-        [t.footer.source, [[github, 'GitHub'], [`${github}/issues`, t.footer.issues], ['https://www.gnu.org/licenses/gpl-3.0.html', t.footer.licence]]],
+        [t.footer.source, [[github, 'GitHub'], [`${github}/issues`, t.footer.issues], [discord, 'Discord'], ['https://www.gnu.org/licenses/gpl-3.0.html', t.footer.licence]]],
       ].map(([title, links]) => (
         <div>
           <h2 class="mb-2.5 text-[15px] font-medium text-soft">{title}</h2>
