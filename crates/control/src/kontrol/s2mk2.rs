@@ -337,6 +337,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     deck_leds: None,
     default_mappings,
     shifted,
+    modifier_hooks: None,
     upgrade: None,
     jog_button_toggles_touch: false,
     samples_button_stems: false,
@@ -345,6 +346,8 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     mx2_transport: false,
     shared_shift: false,
     connect_reports: &[],
+    touch_strip: None,
+    displays: None,
 });
 
 pub fn start(

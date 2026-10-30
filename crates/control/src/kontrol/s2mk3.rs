@@ -10,7 +10,7 @@ pub const SOURCE: &str = "S2 MK3";
 pub const VENDOR_ID: u16 = 0x17CC;
 pub const PRODUCT_ID: u16 = 0x1710;
 
-const LED_LEN: usize = 0x3E;
+const LED_LEN: usize = 0x3D;
 const SINGLE: Option<(u8, u8)> = Some((0x7E, 0x7C));
 const METER_ON: u8 = 0x7E;
 const JOG_STEPS: f64 = 600.0;
@@ -29,42 +29,42 @@ fn pad(name: impl Into<String>, byte: usize, mask: u8, led: usize) -> Button {
 
 fn buttons() -> Vec<Button> {
     let mut v = vec![
-        b("Left.Play", 0x02, 0x08, 0x0C),
-        b("Left.Cue", 0x02, 0x04, 0x0B),
-        b("Left.Shift", 0x01, 0x20, 0x06),
-        b("Left.Sync", 0x02, 0x01, 0x09),
-        b("Left.Keylock", 0x02, 0x02, 0x0A),
-        b("Left.Pad Mode.Hotcues", 0x01, 0x40, 0x07),
-        b("Left.Pad Mode.Samples", 0x01, 0x80, 0x08),
+        b("Left.Play", 0x02, 0x08, 0x0B),
+        b("Left.Cue", 0x02, 0x04, 0x0A),
+        b("Left.Shift", 0x01, 0x20, 0x05),
+        b("Left.Sync", 0x02, 0x01, 0x08),
+        b("Left.Keylock", 0x02, 0x02, 0x09),
+        b("Left.Pad Mode.Hotcues", 0x01, 0x40, 0x06),
+        b("Left.Pad Mode.Samples", 0x01, 0x80, 0x07),
         plain("Left.Browse.Load", 0x07, 0x01),
-        b("Left.Browse.View", 0x01, 0x08, 0x04),
-        b("Left.Browse.Add To Playlist", 0x01, 0x04, 0x03),
+        b("Left.Browse.View", 0x01, 0x08, 0x03),
+        b("Left.Browse.Add To Playlist", 0x01, 0x04, 0x02),
         plain("Left.Loop.Push", 0x07, 0x04),
         plain("Left.Move.Push", 0x07, 0x02),
         plain("Left.Jog.Touch", 0x08, 0x40),
-        b("Left.Transport Mode.Reverse", 0x01, 0x01, 0x01),
-        b("Left.Transport Mode.Flux", 0x01, 0x02, 0x02),
-        b("Left.Jog Mode.Grid", 0x01, 0x10, 0x05),
-        b("Right.Play", 0x05, 0x20, 0x33),
-        b("Right.Cue", 0x05, 0x10, 0x32),
-        b("Right.Shift", 0x04, 0x80, 0x2D),
-        b("Right.Sync", 0x05, 0x04, 0x30),
-        b("Right.Keylock", 0x05, 0x08, 0x31),
-        b("Right.Pad Mode.Hotcues", 0x05, 0x01, 0x2E),
-        b("Right.Pad Mode.Samples", 0x05, 0x02, 0x2F),
+        b("Left.Transport Mode.Reverse", 0x01, 0x01, 0x00),
+        b("Left.Transport Mode.Flux", 0x01, 0x02, 0x01),
+        b("Left.Jog Mode.Grid", 0x01, 0x10, 0x04),
+        b("Right.Play", 0x05, 0x20, 0x32),
+        b("Right.Cue", 0x05, 0x10, 0x31),
+        b("Right.Shift", 0x04, 0x80, 0x2C),
+        b("Right.Sync", 0x05, 0x04, 0x2F),
+        b("Right.Keylock", 0x05, 0x08, 0x30),
+        b("Right.Pad Mode.Hotcues", 0x05, 0x01, 0x2D),
+        b("Right.Pad Mode.Samples", 0x05, 0x02, 0x2E),
         plain("Right.Browse.Load", 0x07, 0x08),
-        b("Right.Browse.View", 0x04, 0x20, 0x2B),
-        b("Right.Browse.Add To Playlist", 0x04, 0x10, 0x2A),
+        b("Right.Browse.View", 0x04, 0x20, 0x2A),
+        b("Right.Browse.Add To Playlist", 0x04, 0x10, 0x29),
         plain("Right.Loop.Push", 0x07, 0x20),
         plain("Right.Move.Push", 0x07, 0x10),
         plain("Right.Jog.Touch", 0x08, 0x80),
-        b("Right.Transport Mode.Reverse", 0x04, 0x04, 0x28),
-        b("Right.Transport Mode.Flux", 0x04, 0x08, 0x29),
-        b("Right.Jog Mode.Grid", 0x04, 0x40, 0x2C),
-        b("Mixer.A.Cue", 0x04, 0x01, 0x1A),
-        b("Mixer.B.Cue", 0x04, 0x02, 0x1B),
-        b("Mixer.Quant", 0x06, 0x40, 0x3C),
-        b("Mixer.Mic", 0x06, 0x80, 0x3D),
+        b("Right.Transport Mode.Reverse", 0x04, 0x04, 0x27),
+        b("Right.Transport Mode.Flux", 0x04, 0x08, 0x28),
+        b("Right.Jog Mode.Grid", 0x04, 0x40, 0x2B),
+        b("Mixer.A.Cue", 0x04, 0x01, 0x19),
+        b("Mixer.B.Cue", 0x04, 0x02, 0x1A),
+        b("Mixer.Quant", 0x06, 0x40, 0x3B),
+        b("Mixer.Mic", 0x06, 0x80, 0x3C),
     ];
     let left: [(usize, u8); 8] = [
         (0x02, 0x10),
@@ -87,17 +87,17 @@ fn buttons() -> Vec<Button> {
         (0x06, 0x20),
     ];
     for (i, (byte, mask)) in left.into_iter().enumerate() {
-        v.push(pad(format!("Left.Pads.{}", i + 1), byte, mask, 0x0D + i));
+        v.push(pad(format!("Left.Pads.{}", i + 1), byte, mask, 0x0C + i));
     }
     for (i, (byte, mask)) in right.into_iter().enumerate() {
-        v.push(pad(format!("Right.Pads.{}", i + 1), byte, mask, 0x34 + i));
+        v.push(pad(format!("Right.Pads.{}", i + 1), byte, mask, 0x33 + i));
     }
     for (i, mask) in [0x10u8, 0x20, 0x40, 0x80].into_iter().enumerate() {
         v.push(pad(
             format!("Mixer.Mixer FX Select.{}", i + 1),
             0x03,
             mask,
-            0x16 + i,
+            0x15 + i,
         ));
     }
     v
@@ -142,7 +142,7 @@ const JOGS: &[Jog] = &[
 const INITIAL_REPORTS: &[(u8, usize)] = &[(0x01, 64), (0x02, 64)];
 
 const METER_DB: [f32; 5] = [-30.0, -24.0, -18.0, -12.0, -6.0];
-const METER_FIRST: [usize; 2] = [0x1C, 0x22];
+const METER_FIRST: [usize; 2] = [0x1B, 0x21];
 
 fn meter_leds(feedback: &Feedback, _decoder: &Decoder, leds: &mut Leds) {
     for (ch, &first) in METER_FIRST.iter().enumerate() {
@@ -207,6 +207,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     deck_leds: None,
     default_mappings,
     shifted,
+    modifier_hooks: None,
     upgrade: None,
     jog_button_toggles_touch: false,
     samples_button_stems: true,
@@ -215,6 +216,8 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     mx2_transport: false,
     shared_shift: false,
     connect_reports: &[],
+    touch_strip: None,
+    displays: None,
 });
 
 pub fn start(
@@ -269,8 +272,8 @@ mod tests {
         f.channels[0].level = 0.6;
         let mut leds = Leds::for_layout(&LAYOUT);
         meter_leds(&f, &Decoder::new(&LAYOUT), &mut leds);
-        assert_eq!(&leds.0[0x1C..0x21], &[METER_ON; 5]);
-        assert_eq!(leds.0[0x21], 0);
-        assert!(leds.0[0x22..0x28].iter().all(|&b| b == 0));
+        assert_eq!(&leds.0[0x1B..0x20], &[METER_ON; 5]);
+        assert_eq!(leds.0[0x20], 0);
+        assert!(leds.0[0x21..0x27].iter().all(|&b| b == 0));
     }
 }

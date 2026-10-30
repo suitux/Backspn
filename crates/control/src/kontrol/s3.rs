@@ -38,62 +38,62 @@ fn rgb(name: impl Into<String>, byte: usize, mask: u8, led: usize) -> Button {
 #[allow(clippy::too_many_lines)]
 fn buttons() -> Vec<Button> {
     let mut v = vec![
-        b("Left.Play", 0x03, 0x01, 0x11),
-        b("Left.Cue", 0x02, 0x80, 0x10),
-        b("Left.Shift", 0x01, 0x01, 0x01),
-        b("Left.Sync", 0x02, 0x08, 0x0C),
-        b("Left.Keylock", 0x02, 0x10, 0x0D),
-        b("Left.Pad Mode.Hotcues", 0x02, 0x20, 0x0E),
-        b("Left.Pad Mode.Samples", 0x02, 0x40, 0x0F),
+        b("Left.Play", 0x03, 0x01, 0x10),
+        b("Left.Cue", 0x02, 0x80, 0x0F),
+        b("Left.Shift", 0x01, 0x01, 0x00),
+        b("Left.Sync", 0x02, 0x08, 0x0B),
+        b("Left.Keylock", 0x02, 0x10, 0x0C),
+        b("Left.Pad Mode.Hotcues", 0x02, 0x20, 0x0D),
+        b("Left.Pad Mode.Samples", 0x02, 0x40, 0x0E),
         plain("Left.Browse.Encoder.Push", 0x09, 0x01),
-        b("Left.Browse.Preview", 0x01, 0x08, 0x04),
-        b("Left.Browse.Favorite", 0x01, 0x10, 0x05),
-        b("Left.Browse.Add To Playlist", 0x01, 0x20, 0x06),
-        b("Left.Browse.View", 0x01, 0x40, 0x07),
+        b("Left.Browse.Preview", 0x01, 0x08, 0x03),
+        b("Left.Browse.Favorite", 0x01, 0x10, 0x04),
+        b("Left.Browse.Add To Playlist", 0x01, 0x20, 0x05),
+        b("Left.Browse.View", 0x01, 0x40, 0x06),
         plain("Left.Loop.Push", 0x09, 0x04),
         plain("Left.Move.Push", 0x09, 0x02),
-        b("Left.Transport Mode.Reverse", 0x01, 0x04, 0x03),
-        b("Left.Transport Mode.Flux", 0x01, 0x02, 0x02),
-        b("Left.Quant", 0x01, 0x80, 0x08),
-        b("Left.Jog Mode.Jog", 0x02, 0x01, 0x09),
+        b("Left.Transport Mode.Reverse", 0x01, 0x04, 0x02),
+        b("Left.Transport Mode.Flux", 0x01, 0x02, 0x01),
+        b("Left.Quant", 0x01, 0x80, 0x07),
+        b("Left.Jog Mode.Jog", 0x02, 0x01, 0x08),
         plain("Left.Jog.Touch", 0x0A, 0x10),
-        rgb("Left.Deck.A", 0x02, 0x02, 0x0A),
-        rgb("Left.Deck.C", 0x02, 0x04, 0x0B),
-        b("Right.Play", 0x06, 0x02, 0x2A),
-        b("Right.Cue", 0x06, 0x01, 0x29),
-        b("Right.Shift", 0x04, 0x02, 0x1A),
-        b("Right.Sync", 0x05, 0x10, 0x25),
-        b("Right.Keylock", 0x05, 0x20, 0x26),
-        b("Right.Pad Mode.Hotcues", 0x05, 0x40, 0x27),
-        b("Right.Pad Mode.Samples", 0x05, 0x80, 0x28),
+        rgb("Left.Deck.A", 0x02, 0x02, 0x09),
+        rgb("Left.Deck.C", 0x02, 0x04, 0x0A),
+        b("Right.Play", 0x06, 0x02, 0x29),
+        b("Right.Cue", 0x06, 0x01, 0x28),
+        b("Right.Shift", 0x04, 0x02, 0x19),
+        b("Right.Sync", 0x05, 0x10, 0x24),
+        b("Right.Keylock", 0x05, 0x20, 0x25),
+        b("Right.Pad Mode.Hotcues", 0x05, 0x40, 0x26),
+        b("Right.Pad Mode.Samples", 0x05, 0x80, 0x27),
         plain("Right.Browse.Encoder.Push", 0x09, 0x08),
-        b("Right.Browse.Preview", 0x04, 0x10, 0x1D),
-        b("Right.Browse.Favorite", 0x04, 0x20, 0x1E),
-        b("Right.Browse.Add To Playlist", 0x04, 0x40, 0x1F),
-        b("Right.Browse.View", 0x04, 0x80, 0x20),
+        b("Right.Browse.Preview", 0x04, 0x10, 0x1C),
+        b("Right.Browse.Favorite", 0x04, 0x20, 0x1D),
+        b("Right.Browse.Add To Playlist", 0x04, 0x40, 0x1E),
+        b("Right.Browse.View", 0x04, 0x80, 0x1F),
         plain("Right.Loop.Push", 0x09, 0x20),
         plain("Right.Move.Push", 0x09, 0x10),
-        b("Right.Transport Mode.Reverse", 0x04, 0x08, 0x1C),
-        b("Right.Transport Mode.Flux", 0x04, 0x04, 0x1B),
-        b("Right.Quant", 0x05, 0x01, 0x21),
-        b("Right.Jog Mode.Jog", 0x05, 0x02, 0x22),
+        b("Right.Transport Mode.Reverse", 0x04, 0x08, 0x1B),
+        b("Right.Transport Mode.Flux", 0x04, 0x04, 0x1A),
+        b("Right.Quant", 0x05, 0x01, 0x20),
+        b("Right.Jog Mode.Jog", 0x05, 0x02, 0x21),
         plain("Right.Jog.Touch", 0x0A, 0x20),
-        rgb("Right.Deck.B", 0x05, 0x04, 0x23),
-        rgb("Right.Deck.D", 0x05, 0x08, 0x24),
-        m("Mixer.A.Cue", 0x08, 0x01, 0x39),
-        m("Mixer.B.Cue", 0x08, 0x02, 0x3A),
-        m("Mixer.C.Cue", 0x07, 0x80, 0x38),
-        m("Mixer.D.Cue", 0x08, 0x04, 0x3B),
-        m("Mixer.D.Ext", 0x07, 0x04, 0x33),
-        rgb("Mixer.Mixer FX Select.Filter", 0x08, 0x80, 0x40),
-        rgb("Mixer.Mixer FX Select.1", 0x08, 0x08, 0x3C),
-        rgb("Mixer.Mixer FX Select.2", 0x08, 0x10, 0x3D),
-        rgb("Mixer.Mixer FX Select.3", 0x08, 0x20, 0x3E),
-        rgb("Mixer.Mixer FX Select.4", 0x08, 0x40, 0x3F),
-        rgb("Mixer.A.Mixer FX.On", 0x07, 0x10, 0x35),
-        rgb("Mixer.B.Mixer FX.On", 0x07, 0x20, 0x36),
-        rgb("Mixer.C.Mixer FX.On", 0x07, 0x08, 0x34),
-        rgb("Mixer.D.Mixer FX.On", 0x07, 0x40, 0x37),
+        rgb("Right.Deck.B", 0x05, 0x04, 0x22),
+        rgb("Right.Deck.D", 0x05, 0x08, 0x23),
+        m("Mixer.A.Cue", 0x08, 0x01, 0x38),
+        m("Mixer.B.Cue", 0x08, 0x02, 0x39),
+        m("Mixer.C.Cue", 0x07, 0x80, 0x37),
+        m("Mixer.D.Cue", 0x08, 0x04, 0x3A),
+        m("Mixer.D.Ext", 0x07, 0x04, 0x32),
+        rgb("Mixer.Mixer FX Select.Filter", 0x08, 0x80, 0x3F),
+        rgb("Mixer.Mixer FX Select.1", 0x08, 0x08, 0x3B),
+        rgb("Mixer.Mixer FX Select.2", 0x08, 0x10, 0x3C),
+        rgb("Mixer.Mixer FX Select.3", 0x08, 0x20, 0x3D),
+        rgb("Mixer.Mixer FX Select.4", 0x08, 0x40, 0x3E),
+        rgb("Mixer.A.Mixer FX.On", 0x07, 0x10, 0x34),
+        rgb("Mixer.B.Mixer FX.On", 0x07, 0x20, 0x35),
+        rgb("Mixer.C.Mixer FX.On", 0x07, 0x08, 0x33),
+        rgb("Mixer.D.Mixer FX.On", 0x07, 0x40, 0x36),
     ];
     let left: [(usize, u8); 8] = [
         (0x03, 0x02),
@@ -116,10 +116,10 @@ fn buttons() -> Vec<Button> {
         (0x07, 0x02),
     ];
     for (i, (byte, mask)) in left.into_iter().enumerate() {
-        v.push(rgb(format!("Left.Pads.{}", i + 1), byte, mask, 0x12 + i));
+        v.push(rgb(format!("Left.Pads.{}", i + 1), byte, mask, 0x11 + i));
     }
     for (i, (byte, mask)) in right.into_iter().enumerate() {
-        v.push(rgb(format!("Right.Pads.{}", i + 1), byte, mask, 0x2B + i));
+        v.push(rgb(format!("Right.Pads.{}", i + 1), byte, mask, 0x2A + i));
     }
     v
 }
@@ -174,13 +174,13 @@ const JOGS: &[Jog] = &[
 const INITIAL_REPORTS: &[(u8, usize)] = &[(0x01, 64), (0x02, 80)];
 
 const WHEELS: [[usize; 8]; 2] = [
-    [0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A],
-    [0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51, 0x52],
+    [0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49],
+    [0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51],
 ];
 
-const CHANNEL_FIRST: [usize; 4] = [0x10, 0x1F, 0x01, 0x2E];
+const CHANNEL_FIRST: [usize; 4] = [0x0F, 0x1E, 0x00, 0x2D];
 const CHANNEL_SEGMENTS: usize = 14;
-const MASTER_FIRST: [usize; 2] = [0x3D, 0x46];
+const MASTER_FIRST: [usize; 2] = [0x3C, 0x45];
 const MASTER_DB: [f32; 8] = [-15.0, -10.0, -7.0, -5.0, -3.0, -2.0, -1.0, 0.0];
 
 fn meters(feedback: &Feedback) -> Meters {
@@ -275,6 +275,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     deck_leds: None,
     default_mappings,
     shifted,
+    modifier_hooks: None,
     upgrade: None,
     jog_button_toggles_touch: true,
     samples_button_stems: true,
@@ -283,6 +284,8 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     mx2_transport: false,
     shared_shift: false,
     connect_reports: &[],
+    touch_strip: None,
+    displays: None,
 });
 
 pub fn start(
@@ -334,13 +337,13 @@ mod tests {
         f.channels[2].level = 1.0;
         f.master_level = [1.2, 0.0];
         let m = meters(&f).0;
-        assert!(m[0x01..0x0F].iter().all(|&b| b == SEGMENT_ON), "channel C");
-        assert_eq!(m[0x0F], 0, "no clip at full scale");
+        assert!(m[0x00..0x0E].iter().all(|&b| b == SEGMENT_ON), "channel C");
+        assert_eq!(m[0x0E], 0, "no clip at full scale");
         assert!(
-            m[0x3D..0x45].iter().all(|&b| b == SEGMENT_ON),
+            m[0x3C..0x44].iter().all(|&b| b == SEGMENT_ON),
             "master left"
         );
-        assert_eq!(m[0x45], CLIP_ON);
-        assert!(m[0x46..0x4F].iter().all(|&b| b == 0), "master right silent");
+        assert_eq!(m[0x44], CLIP_ON);
+        assert!(m[0x45..0x4E].iter().all(|&b| b == 0), "master right silent");
     }
 }

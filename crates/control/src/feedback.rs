@@ -49,6 +49,8 @@ pub struct SampleSlotFeedback {
     pub selected_colour: Option<[u8; 3]>,
     pub muted: bool,
     pub filter_on: bool,
+    /// One bit per cell: the [`SampleFeedback::cell_property`] is on.
+    pub property_cells: u16,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -60,6 +62,8 @@ pub struct SampleFeedback {
     pub page: u8,
     pub sequencer_on: bool,
     pub recording: bool,
+    pub cell_mode: crate::sample_deck::CellMode,
+    pub cell_property: crate::sample_deck::CellProperty,
     pub slots: [SampleSlotFeedback; 4],
 }
 
@@ -68,6 +72,36 @@ pub fn loop_size_index(beats: f64) -> u8 {
         return 5;
     }
     (beats.log2().round() + 5.0).clamp(0.0, 10.0) as u8
+}
+
+/// Load, in thousandths of the callback's time budget, from which a
+/// controller warns that audio may drop out.
+const AUDIO_OVERLOAD_PERMILLE: u64 = 800;
+
+pub fn audio_overloaded(load_permille: u64) -> bool {
+    load_permille >= AUDIO_OVERLOAD_PERMILLE
+}
+
+/// How long a controller keeps warning after the audio dropped out.
+pub const DROPOUT_WARNING: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Follows the engine's dropout count and tells whether one happened
+/// recently. Dropouts counted before the first reading are not reported.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DropoutWatch {
+    seen: Option<u64>,
+    last: Option<std::time::Instant>,
+}
+
+impl DropoutWatch {
+    pub fn update(&mut self, dropouts: u64, now: std::time::Instant) -> bool {
+        if self.seen.is_some_and(|seen| dropouts > seen) {
+            self.last = Some(now);
+        }
+        self.seen = Some(dropouts);
+        self.last
+            .is_some_and(|at| now.saturating_duration_since(at) < DROPOUT_WARNING)
+    }
 }
 
 impl FxFeedback {
@@ -138,6 +172,8 @@ pub struct MixerKnobs {
     pub fader: [f32; DECKS],
     pub gain: [f32; DECKS],
     pub eq: [[f32; 4]; DECKS],
+    /// EQ bands cut to silence, in the same band order as `eq`.
+    pub kill: [[bool; 4]; DECKS],
     pub filter: [f32; DECKS],
     pub crossfader: f32,
     pub master: f32,
@@ -179,6 +215,12 @@ pub struct Feedback {
     pub tempo_fader_relative: bool,
     pub loop_recorder: LoopRecorderFeedback,
     pub microphone: bool,
+    /// The audio callback is using most of its time budget.
+    pub audio_overloaded: bool,
+    /// FX units shown in the app (2 or 4).
+    pub fx_units: u8,
+    /// The audio dropped out a moment ago.
+    pub audio_dropout: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -194,6 +236,25 @@ pub struct LoopRecorderFeedback {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_dropout_warns_for_a_while() {
+        let start = std::time::Instant::now();
+        let mut w = DropoutWatch::default();
+        assert!(!w.update(5, start), "earlier dropouts are not news");
+        assert!(!w.update(5, start + std::time::Duration::from_secs(1)));
+        let at = start + std::time::Duration::from_secs(2);
+        assert!(w.update(6, at));
+        assert!(w.update(6, at + DROPOUT_WARNING / 2));
+        assert!(!w.update(6, at + DROPOUT_WARNING));
+    }
+
+    #[test]
+    fn audio_overloads_from_four_fifths_of_the_budget() {
+        assert!(!audio_overloaded(799));
+        assert!(audio_overloaded(800));
+        assert!(audio_overloaded(1200));
+    }
 
     #[test]
     fn loop_sizes_index_by_powers_of_two() {

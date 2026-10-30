@@ -38,6 +38,30 @@ pub struct Audio {
     pub monitor: (u16, u16),
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub buffer_frames: Option<u32>,
+    #[serde(default, skip_serializing_if = "Inputs::is_empty")]
+    pub inputs: Inputs,
+}
+
+/// The device's own inputs: a stereo pair per deck, the microphone and the
+/// return of an external effect.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Inputs {
+    pub decks: [Option<(u16, u16)>; 4],
+    pub microphone: Option<(u16, u16)>,
+    pub send: Option<(u16, u16)>,
+}
+
+impl Inputs {
+    pub const NONE: Self = Self {
+        decks: [None; 4],
+        microphone: None,
+        send: None,
+    };
+
+    pub fn is_empty(&self) -> bool {
+        *self == Self::NONE
+    }
 }
 
 pub fn card_named(name: &str, devices: &[String]) -> Option<String> {

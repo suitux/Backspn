@@ -39,6 +39,7 @@ fn deck_common(d: usize) -> Vec<Action> {
         Action::DeckType { deck: d },
         Action::JogTouch { deck: d },
         Action::JogTurn { deck: d },
+        Action::Seek { deck: d },
         Action::JogMode {
             deck: d,
             turntable: true,
@@ -235,6 +236,22 @@ fn mixer(c: usize) -> Vec<Action> {
             band: 0,
         },
         Action::Eq {
+            channel: c,
+            band: 3,
+        },
+        Action::EqKill {
+            channel: c,
+            band: 2,
+        },
+        Action::EqKill {
+            channel: c,
+            band: 1,
+        },
+        Action::EqKill {
+            channel: c,
+            band: 0,
+        },
+        Action::EqKill {
             channel: c,
             band: 3,
         },

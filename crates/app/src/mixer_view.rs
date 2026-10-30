@@ -193,7 +193,7 @@ impl MixerLock {
     pub fn locks(self, action: Action) -> bool {
         match action {
             Action::Volume { .. } | Action::Balance { .. } | Action::Crossfader => self.channel,
-            Action::Gain { .. } | Action::Eq { .. } => self.eq_gain,
+            Action::Gain { .. } | Action::Eq { .. } | Action::EqKill { .. } => self.eq_gain,
             Action::MasterVolume => self.master,
             Action::Filter { .. } | Action::MixerFxOn { .. } | Action::MixerFxSelect { .. } => {
                 self.fx
@@ -306,6 +306,7 @@ impl MixerView {
             fader: self.channels.map(|c| c.fader),
             gain: self.channels.map(|c| c.gain),
             eq: self.channels.map(|c| c.eq),
+            kill: self.channels.map(|c| c.kill),
             filter: self.channels.map(|c| f32::midpoint(c.filter, 1.0)),
             crossfader: self.crossfader,
             master: self.master,
@@ -891,8 +892,32 @@ impl MixerView {
         true
     }
 
+    /// A press flips the band's cut; a switch sets it.
+    fn apply_kill(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
+        let Action::EqKill { channel, band } = action else {
+            return false;
+        };
+        let Some(c) = self.channels.get_mut(channel).filter(|_| band < 4) else {
+            return false;
+        };
+        let kill = match trigger {
+            Trigger::Press => !c.kill[band],
+            Trigger::Set(v) => v > 0.5,
+            _ => return true,
+        };
+        c.kill[band] = kill;
+        out.push(Command::Mixer(MixerCommand::Eq(
+            channel,
+            BANDS[band],
+            c.eq_sent(band),
+        )));
+        true
+    }
+
     pub fn apply(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
-        self.lock.locks(action) || self.apply_unlocked(action, trigger, out)
+        self.lock.locks(action)
+            || self.apply_kill(action, trigger, out)
+            || self.apply_unlocked(action, trigger, out)
     }
 
     fn apply_unlocked(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
@@ -1179,6 +1204,33 @@ mod tests {
                 MixerCommand::Assign(3, Assign::A),
                 MixerCommand::CrossfaderCurve(0.5),
             ]
+        );
+    }
+
+    #[test]
+    fn eq_kill_toggles_and_follows_a_switch() {
+        let mut m = MixerView::new();
+        let mut out = Vec::new();
+        let kill = Action::EqKill {
+            channel: 0,
+            band: 0,
+        };
+        assert!(m.apply(kill, Trigger::Press, &mut out));
+        assert_eq!(mixer(&out), [MixerCommand::Eq(0, Band::Low, 0.0)]);
+        assert!(m.knobs().kill[0][0]);
+        out.clear();
+        m.apply(kill, Trigger::Set(0.0), &mut out);
+        assert_eq!(mixer(&out), [MixerCommand::Eq(0, Band::Low, 0.5)]);
+        assert!(!m.knobs().kill[0][0]);
+        out.clear();
+        m.apply(kill, Trigger::Release, &mut out);
+        assert!(out.is_empty());
+        assert!(
+            MixerLock {
+                eq_gain: true,
+                ..MixerLock::default()
+            }
+            .locks(kill)
         );
     }
 

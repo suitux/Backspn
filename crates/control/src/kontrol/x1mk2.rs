@@ -1,7 +1,8 @@
 use std::sync::LazyLock;
 
 use super::{analog, button, encoder, map};
-use crate::s4mk3::{Analog, Button, Encoder, Layout, Shifted};
+use crate::s4mk3::{Analog, Button, Encoder, Layout, Shifted, TouchStrip};
+use crate::strip::Bar;
 use crate::{Action, Interaction, Mapping};
 
 pub const NAME: &str = "Kontrol X1 MK2";
@@ -9,14 +10,34 @@ pub const SOURCE: &str = "X1 MK2";
 pub const VENDOR_ID: u16 = 0x17CC;
 pub const PRODUCT_ID: u16 = 0x1220;
 
-const LED_REPORTS: &[(u8, usize)] = &[(0x80, 52), (0x81, 91)];
+const LED_REPORTS: &[(u8, usize)] = &[(0x80, 51), (0x81, 90)];
 const R80: usize = 0;
-const R81: usize = 52;
+const R81: usize = 51;
 /// LEDs numbered across both reports: the first 51 go in 0x80, the rest in 0x81.
 const FIRST_IN_R81: usize = 51;
 const SINGLE: Option<(u8, u8)> = Some((0x7F, 0x0A));
 /// The buttons are a bit field: button `i` is bit `i % 8` of byte `BUTTONS + i / 8`.
 const BUTTONS: usize = 0x13;
+
+/// The bar under the strip: 21 positions with two LEDs each, orange then blue.
+const BAR_FIRST: usize = 99;
+const BAR_POSITIONS: usize = 21;
+/// Two fingers, positions about 15 to 1009 from left to right.
+const STRIP: TouchStrip = TouchStrip {
+    report: 0x01,
+    byte: 0x1B,
+    fingers: 2,
+    centre: 512,
+    gap: 50,
+    first: 15,
+    last: 1009,
+    bar: Some(Bar {
+        first: led(BAR_FIRST),
+        positions: BAR_POSITIONS,
+    }),
+};
+/// A slide across one half moves the deck about half a platter turn.
+const STRIP_STEPS_PER_TURN: f64 = 1000.0;
 
 const fn at(base: usize, offset: usize) -> usize {
     base + offset - 1
@@ -175,7 +196,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     analogs: ANALOGS,
     encoders: ENCODERS,
     jogs: &[],
-    jog_steps_per_turn: 1.0,
+    jog_steps_per_turn: STRIP_STEPS_PER_TURN,
     analog_report: 0x01,
     jog_report: 0x03,
     encoder_report: 0x01,
@@ -196,6 +217,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     deck_leds: None,
     default_mappings,
     shifted,
+    modifier_hooks: None,
     upgrade: None,
     jog_button_toggles_touch: false,
     samples_button_stems: false,
@@ -204,6 +226,8 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     mx2_transport: false,
     shared_shift: true,
     connect_reports: &[],
+    touch_strip: Some(STRIP),
+    displays: None,
 });
 
 pub fn start(
@@ -286,7 +310,7 @@ mod tests {
         let leds = Leds::for_layout(&LAYOUT);
         let reports: Vec<(u8, usize)> =
             leds.reports(&LAYOUT).map(|(id, b)| (id, b.len())).collect();
-        assert_eq!(reports, [(0x80, 52), (0x81, 91)]);
+        assert_eq!(reports, [(0x80, 51), (0x81, 90)]);
         assert_eq!(led(50), 50);
         assert_eq!(led(51), R81, "the first LED of the second report");
         let mut leds = Leds::for_layout(&LAYOUT);
@@ -343,6 +367,144 @@ mod tests {
             Some(Action::BrowserUpDown)
         );
         assert_eq!(find("Left.Loop.Touch"), None, "touch only");
+    }
+
+    fn strip(r: &mut [u8], fingers: [u16; 2]) {
+        for (f, at) in fingers.into_iter().enumerate() {
+            let byte = STRIP.byte + 2 * f;
+            r[byte..byte + 2].copy_from_slice(&at.to_le_bytes());
+        }
+    }
+
+    fn named(events: &[crate::InputEvent]) -> Vec<(String, f32, Option<bool>)> {
+        events
+            .iter()
+            .filter_map(|e| match &e.input {
+                Input::Hid(n) if n.contains(".Jog.") => Some((n.clone(), e.value, e.pressed)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_finger_drives_the_half_it_lands_on() {
+        let mut d = Decoder::new(&LAYOUT);
+        let mut r = report(&[]);
+        d.decode(&r);
+        strip(&mut r, [300, 0]);
+        assert_eq!(
+            named(&d.decode(&r)),
+            [("Left.Jog.Touch".into(), 1.0, Some(true))]
+        );
+        strip(&mut r, [340, 0]);
+        assert_eq!(named(&d.decode(&r)), [("Left.Jog.Turn".into(), 40.0, None)]);
+        strip(&mut r, [700, 0]);
+        assert_eq!(
+            named(&d.decode(&r)),
+            [("Left.Jog.Turn".into(), 360.0, None)],
+            "still the left deck across the middle"
+        );
+        strip(&mut r, [700, 900]);
+        assert_eq!(
+            named(&d.decode(&r)),
+            [("Right.Jog.Touch".into(), 1.0, Some(true))]
+        );
+        strip(&mut r, [0, 880]);
+        assert_eq!(
+            named(&d.decode(&r)),
+            [
+                ("Left.Jog.Touch".into(), 0.0, Some(false)),
+                ("Right.Jog.Turn".into(), -20.0, None),
+            ]
+        );
+        strip(&mut r, [0, 0]);
+        assert_eq!(
+            named(&d.decode(&r)),
+            [("Right.Jog.Touch".into(), 0.0, Some(false))]
+        );
+    }
+
+    #[test]
+    fn the_middle_and_missing_readings_are_ignored() {
+        let mut d = Decoder::new(&LAYOUT);
+        let mut r = report(&[]);
+        d.decode(&r);
+        strip(&mut r, [530, 0]);
+        assert_eq!(named(&d.decode(&r)), [], "landing in the gap");
+        strip(&mut r, [600, 0]);
+        assert_eq!(named(&d.decode(&r)), [], "it never landed on a half");
+        strip(&mut r, [0xFFFF, 0xFFFF]);
+        assert_eq!(named(&d.decode(&r)), []);
+    }
+
+    #[test]
+    fn the_strip_works_like_a_jog() {
+        assert_eq!(
+            find("Left.Jog.Touch").map(|m| m.0),
+            Some(Action::JogTouch { deck: 0 })
+        );
+        assert_eq!(
+            find("Right.Jog.Turn"),
+            Some((Action::JogTurn { deck: 1 }, Interaction::Relative))
+        );
+        assert_eq!(
+            shifted("Right.Jog.Turn"),
+            Some(Some((Action::JogSearch { deck: 1 }, Interaction::Relative)))
+        );
+    }
+
+    #[test]
+    fn the_bar_fits_the_second_report() {
+        let bar = STRIP.bar.expect("a bar");
+        assert_eq!(bar.first, R81 + BAR_FIRST - FIRST_IN_R81);
+        assert!(bar.first + 2 * bar.positions <= LAYOUT.led_len());
+    }
+
+    #[test]
+    fn the_strip_reports_where_the_finger_is() {
+        let mut d = Decoder::new(&LAYOUT);
+        let mut r = report(&[]);
+        d.decode(&r);
+        let along = |events: &[crate::InputEvent], name: &str| {
+            events
+                .iter()
+                .find(|e| e.input == Input::Hid(name.into()))
+                .map(|e| e.value)
+        };
+        strip(&mut r, [1009, 0]);
+        let events = d.decode(&r);
+        assert_eq!(
+            events[0].input,
+            Input::Hid(crate::s4mk3::STRIP_ANY_TOUCH.into())
+        );
+        assert_eq!(along(&events, crate::s4mk3::STRIP_ANY_POSITION), Some(1.0));
+        assert_eq!(along(&events, "Right.Strip.Position"), Some(1.0));
+        strip(&mut r, [15, 0]);
+        let events = d.decode(&r);
+        assert_eq!(along(&events, crate::s4mk3::STRIP_ANY_POSITION), Some(0.0));
+        assert_eq!(
+            along(&events, "Right.Strip.Position"),
+            Some(0.0),
+            "still the right half"
+        );
+        strip(&mut r, [520, 0]);
+        d.decode(&r);
+        strip(&mut r, [0, 0]);
+        let events = d.decode(&r);
+        assert_eq!(
+            events.last().map(|e| (&e.input, e.pressed)),
+            Some((
+                &Input::Hid(crate::s4mk3::STRIP_ANY_TOUCH.into()),
+                Some(false)
+            ))
+        );
+        strip(&mut r, [512, 0]);
+        let events = d.decode(&r);
+        assert!(
+            along(&events, crate::s4mk3::STRIP_ANY_POSITION).is_some(),
+            "the gap counts for the whole strip"
+        );
+        assert_eq!(along(&events, "Left.Strip.Position"), None);
     }
 
     #[test]

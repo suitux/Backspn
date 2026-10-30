@@ -196,6 +196,7 @@ pub fn value(action: Action, f: &Feedback, modifiers: &Modifiers) -> Option<OutV
         Action::Volume { channel: c } => unit(*k.fader.get(c)?),
         Action::Gain { channel: c } => unit(*k.gain.get(c)?),
         Action::Eq { channel: c, band } => unit(*k.eq.get(c)?.get(band)?),
+        Action::EqKill { channel: c, band } => on(*k.kill.get(c)?.get(band)?),
         Action::Filter { channel: c } => unit(*k.filter.get(c)?),
         Action::Crossfader => unit(k.crossfader),
         Action::MasterVolume => unit(k.master),
@@ -378,6 +379,19 @@ impl Sender {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn eq_kill_lights_while_the_band_is_cut() {
+        let mut f = Feedback::default();
+        let kill = Action::EqKill {
+            channel: 2,
+            band: 1,
+        };
+        let m = Modifiers::default();
+        assert_eq!(value(kill, &f, &m), Some(OutValue::OnOff(false)));
+        f.knobs.kill[2][1] = true;
+        assert_eq!(value(kill, &f, &m), Some(OutValue::OnOff(true)));
+    }
     use crate::feedback::HotcueKind;
 
     fn note(number: u8) -> Input {

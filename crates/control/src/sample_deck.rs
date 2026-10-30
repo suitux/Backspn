@@ -29,6 +29,7 @@ pub enum SampleSlotPart {
     SelectedCell,
     TriggerSelected,
     StopSelected,
+    StopActive,
     DeletePattern,
 }
 
@@ -78,7 +79,9 @@ impl SampleSlotPart {
             Self::CopyFromSlot => 264,
             Self::State => 247,
             Self::SelectedCell => 193,
-            Self::TriggerSelected | Self::StopSelected | Self::DeletePattern => 0,
+            Self::TriggerSelected | Self::StopSelected | Self::StopActive | Self::DeletePattern => {
+                0
+            }
         }
     }
 
@@ -110,6 +113,7 @@ impl SampleSlotPart {
             Self::SelectedCell => "Selected Cell",
             Self::TriggerSelected => "Trigger Selected Cell",
             Self::StopSelected => "Stop Selected Cell",
+            Self::StopActive => "Stop Active Cell",
             Self::DeletePattern => "Delete Pattern",
         }
     }
@@ -158,6 +162,10 @@ pub enum SamplePart {
     CellCaptureModifier,
     SequencerOn,
     SequencerRecord,
+    CellTypeModifier,
+    CellSizeModifier,
+    CellAdjust,
+    CellAdjustReset,
 }
 
 impl SamplePart {
@@ -194,7 +202,11 @@ impl SamplePart {
             Self::CellReverseModifier => 731,
             Self::CellCaptureModifier => 732,
             Self::SequencerOn => 734,
-            Self::SequencerRecord => 0,
+            Self::SequencerRecord
+            | Self::CellTypeModifier
+            | Self::CellSizeModifier
+            | Self::CellAdjust
+            | Self::CellAdjustReset => 0,
         }
     }
 
@@ -219,13 +231,21 @@ impl SamplePart {
             Self::CellCaptureModifier => "Cell Capture Modifier",
             Self::SequencerOn => "Sequencer On",
             Self::SequencerRecord => "Sequencer Recording On",
+            Self::CellTypeModifier => "Cell Type Modifier",
+            Self::CellSizeModifier => "Cell Size Modifier",
+            Self::CellAdjust => "Cell Adjust",
+            Self::CellAdjustReset => "Cell Adjust Reset",
         }
     }
 
     pub fn is_continuous(self) -> bool {
         matches!(
             self,
-            Self::QuantizeSelector | Self::Page | Self::CaptureSource | Self::PlayModeAll
+            Self::QuantizeSelector
+                | Self::Page
+                | Self::CaptureSource
+                | Self::PlayModeAll
+                | Self::CellAdjust
         )
     }
 
@@ -236,6 +256,8 @@ impl SamplePart {
                 | Self::CellDeleteModifier
                 | Self::CellReverseModifier
                 | Self::CellCaptureModifier
+                | Self::CellTypeModifier
+                | Self::CellSizeModifier
                 | Self::TriggerAll
         )
     }
@@ -265,6 +287,75 @@ pub enum CellMode {
     Delete,
     Reverse,
     Capture,
+    /// A cell pressed toggles the chosen [`CellProperty`] of that cell.
+    Type,
+    /// A cell held is the one whose length the adjust control changes.
+    Size,
+}
+
+/// The cell setting that [`CellMode::Type`] toggles.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CellProperty {
+    #[default]
+    PlayType,
+    TriggerType,
+    Sync,
+}
+
+impl CellProperty {
+    pub const ALL: [Self; 3] = [Self::PlayType, Self::TriggerType, Self::Sync];
+
+    pub fn index(self) -> usize {
+        Self::ALL.iter().position(|&p| p == self).unwrap_or(0)
+    }
+}
+
+/// How a mode button moved through its press: whether a cell was used
+/// while it was held, and whether it was pressed again to leave a latched
+/// mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ModeLatch {
+    pub used: bool,
+    pub leaving: bool,
+}
+
+/// The cell mode after a press or release of the button for `mode`.
+///
+/// TYPE latches: a short press with no cell used keeps the mode on until
+/// the button is pressed again; held while cells are used, it ends on
+/// release. SIZE toggles on each press. The other modes last while held.
+pub fn mode_button(
+    current: CellMode,
+    mode: CellMode,
+    latch: &mut ModeLatch,
+    pressed: bool,
+) -> CellMode {
+    match (mode, pressed) {
+        (CellMode::Type, true) if current == CellMode::Trigger => {
+            *latch = ModeLatch::default();
+            CellMode::Type
+        }
+        (CellMode::Type, true) if current == CellMode::Type => {
+            latch.leaving = true;
+            current
+        }
+        (CellMode::Type, false) if current == CellMode::Type => {
+            if latch.used || latch.leaving {
+                CellMode::Trigger
+            } else {
+                current
+            }
+        }
+        (CellMode::Size, true) => match current {
+            CellMode::Trigger => CellMode::Size,
+            CellMode::Size => CellMode::Trigger,
+            other => other,
+        },
+        (CellMode::Type | CellMode::Size, _) => current,
+        (_, true) if current == CellMode::Trigger => mode,
+        (_, false) if current == mode => CellMode::Trigger,
+        _ => current,
+    }
 }
 
 #[cfg(test)]
@@ -280,6 +371,47 @@ mod tests {
             assert_eq!(SamplePart::from_command(part.command()), Some(part));
         }
         assert_eq!(SampleSlotPart::from_command(999), None);
+    }
+
+    #[test]
+    fn type_latches_on_a_short_press_and_ends_after_use() {
+        let mut latch = ModeLatch::default();
+        let press = |m, l: &mut ModeLatch| mode_button(m, CellMode::Type, l, true);
+        let release = |m, l: &mut ModeLatch| mode_button(m, CellMode::Type, l, false);
+        let m = press(CellMode::Trigger, &mut latch);
+        assert_eq!(m, CellMode::Type);
+        let m = release(m, &mut latch);
+        assert_eq!(m, CellMode::Type, "a tap keeps it");
+        let m = press(m, &mut latch);
+        assert_eq!(m, CellMode::Type, "until pressed again");
+        assert_eq!(release(m, &mut latch), CellMode::Trigger);
+        let m = press(CellMode::Trigger, &mut latch);
+        latch.used = true;
+        assert_eq!(release(m, &mut latch), CellMode::Trigger, "held and used");
+        assert_eq!(
+            press(CellMode::Load, &mut latch),
+            CellMode::Load,
+            "another mode wins"
+        );
+    }
+
+    #[test]
+    fn size_toggles_and_the_others_last_while_held() {
+        let mut latch = ModeLatch::default();
+        let m = mode_button(CellMode::Trigger, CellMode::Size, &mut latch, true);
+        assert_eq!(m, CellMode::Size);
+        let m = mode_button(m, CellMode::Size, &mut latch, false);
+        assert_eq!(m, CellMode::Size);
+        assert_eq!(
+            mode_button(m, CellMode::Size, &mut latch, true),
+            CellMode::Trigger
+        );
+        let m = mode_button(CellMode::Trigger, CellMode::Load, &mut latch, true);
+        assert_eq!(m, CellMode::Load);
+        assert_eq!(
+            mode_button(m, CellMode::Load, &mut latch, false),
+            CellMode::Trigger
+        );
     }
 
     #[test]

@@ -34,6 +34,9 @@ fn activate(settings: &mut Settings, offer: &Offer) {
                 s.buffer_frames = audio.buffer_frames.or(s.buffer_frames);
                 s.monitor = Monitor::Channels(audio.monitor.0, audio.monitor.1);
                 s.external_mixer.on = false;
+                if !audio.inputs.is_empty() {
+                    s.input_routing = routing(&audio.inputs);
+                }
             });
         }
         Offer::Mixer(card, device) => {
@@ -41,6 +44,14 @@ fn activate(settings: &mut Settings, offer: &Offer) {
                 crate::mixer_cards::apply_card(s, card);
             });
         }
+    }
+}
+
+fn routing(inputs: &backspn_control::profile::Inputs) -> crate::prefs::InputRouting {
+    crate::prefs::InputRouting {
+        decks: std::array::from_fn(|d| inputs.decks.get(d).copied().flatten()),
+        microphone: inputs.microphone,
+        send: inputs.send,
     }
 }
 
@@ -233,7 +244,31 @@ mod tests {
             master: (0, 1),
             monitor: (2, 3),
             buffer_frames: Some(512),
+            inputs: backspn_control::profile::Inputs::NONE,
         }
+    }
+
+    #[test]
+    fn a_card_with_inputs_routes_them_the_first_time() {
+        let mut s = Settings::default();
+        let before = s.input_routing;
+        activate(&mut s, &Offer::Controller(flx4()));
+        assert_eq!(s.input_routing, before, "no inputs: routing untouched");
+        let inputs = backspn_control::profile::Inputs {
+            decks: [Some((2, 3)), Some((4, 5)), None, None],
+            microphone: Some((0, 1)),
+            send: Some((6, 7)),
+        };
+        let mixer = Audio {
+            device: "Mixer".into(),
+            inputs,
+            ..flx4()
+        };
+        activate(&mut s, &Offer::Controller(mixer));
+        assert_eq!(s.input_routing.decks[1], Some((4, 5)));
+        assert_eq!(s.input_routing.decks[2], None);
+        assert_eq!(s.input_routing.microphone, Some((0, 1)));
+        assert_eq!(s.input_routing.send, Some((6, 7)));
     }
 
     #[test]

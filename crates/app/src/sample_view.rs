@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver};
 
 use backspn_control::feedback::{SampleFeedback, SampleSlotFeedback};
+use backspn_control::sample_deck::{CellProperty, ModeLatch, mode_button};
 use backspn_control::{CellMode, SamplePart, SampleSlotPart, Trigger};
 use backspn_engine::{
     CellAudio, CellParams, CellState, Command, PlayType, PlayerState, QUANTIZE_BEATS, SAMPLE_CELLS,
@@ -119,6 +120,11 @@ pub struct SampleView {
     pub library_sets: Vec<(i64, String)>,
     pub confirm_overwrite: Option<i64>,
     pub cell_mode: CellMode,
+    pub cell_property: CellProperty,
+    mode_latch: ModeLatch,
+    /// The cell held in [`CellMode::Size`], whose length the adjust control
+    /// changes.
+    size_cell: Option<(usize, usize)>,
     pub capture_source: usize,
     pub can_lead: bool,
     pub is_master: bool,
@@ -154,6 +160,9 @@ impl SampleView {
             library_sets: Vec::new(),
             confirm_overwrite: None,
             cell_mode: CellMode::default(),
+            cell_property: CellProperty::default(),
+            mode_latch: ModeLatch::default(),
+            size_cell: None,
             capture_source: 0,
             can_lead: true,
             is_master: false,
@@ -431,6 +440,19 @@ impl SampleView {
     pub fn alter_size(&mut self, slot: usize, grow: Option<bool>, out: &mut Vec<Command>) {
         let cell = self.set.slots.get(slot).map(|s| s.active_cell as usize);
         let Some(cell) = cell else { return };
+        self.alter_cell_size(slot, cell, grow, out);
+    }
+
+    /// Doubles (`Some(true)`), halves (`Some(false)`) or resets (`None`) the
+    /// length of one cell.
+    fn alter_cell_size(
+        &mut self,
+        slot: usize,
+        cell: usize,
+        grow: Option<bool>,
+        out: &mut Vec<Command>,
+    ) {
+        let active = self.set.slots.get(slot).map(|s| s.active_cell as usize);
         let duration = self.durations[Self::at(slot, cell)];
         let Some(c) = self.cell_mut(slot, cell) else {
             return;
@@ -446,7 +468,9 @@ impl SampleView {
         } else {
             c.start_marker = 0.0;
             c.end_marker = 0.0;
-            self.size_steps[slot] = 11;
+            if active == Some(cell) {
+                self.size_steps[slot] = 11;
+            }
             true
         };
         if changed {
@@ -1226,6 +1250,8 @@ impl SampleView {
             page: self.page as u8,
             sequencer_on: state.sequencer_on,
             recording: state.recording,
+            cell_mode: self.cell_mode,
+            cell_property: self.cell_property,
             slots: std::array::from_fn(|slot| {
                 let s = &self.set.slots[slot];
                 let active = self.cell(slot, s.active_cell as usize);
@@ -1246,6 +1272,12 @@ impl SampleView {
                         .and_then(|c| cell_rgb(c.color)),
                     muted: controls[slot].mute,
                     filter_on: controls[slot].filter_on,
+                    property_cells: s
+                        .cells
+                        .iter()
+                        .filter(|c| (c.index as usize) < SAMPLE_CELLS)
+                        .filter(|c| property_of(c, self.cell_property))
+                        .fold(0, |bits, c| bits | 1 << c.index),
                 }
             }),
         }
@@ -1388,6 +1420,9 @@ impl SampleView {
                 }
             }
             SampleSlotPart::Unload if pressed => self.unload_cell(slot, active, out),
+            SampleSlotPart::StopActive if pressed => {
+                out.push(self.cmd(SampleCommand::Stop { slot, cell: active }));
+            }
             SampleSlotPart::LoadFromList
             | SampleSlotPart::Capture
             | SampleSlotPart::CopyFromSlot
@@ -1469,6 +1504,16 @@ impl SampleView {
                 }
             }
             CellMode::Capture if pressed => self.events.push(SampleEvent::Capture { slot, cell }),
+            CellMode::Type if pressed => {
+                self.mode_latch.used = true;
+                let property = self.cell_property;
+                if let Some(c) = self.cell_mut(slot, cell) {
+                    toggle_property(c, property);
+                    self.push_params(slot, cell, out);
+                }
+            }
+            CellMode::Size if pressed => self.size_cell = Some((slot, cell)),
+            CellMode::Size if self.size_cell == Some((slot, cell)) => self.size_cell = None,
             _ => {}
         }
     }
@@ -1492,12 +1537,11 @@ impl SampleView {
         controls: &mut [StemControls; SAMPLE_SLOTS],
         out: &mut Vec<Command>,
     ) {
+        if self.cell_setting_action(part, trigger, out) {
+            return;
+        }
         let pressed = trigger == Trigger::Press;
-        let modifier = |mode: CellMode, this: &mut Self| match trigger {
-            Trigger::Press if this.cell_mode == CellMode::Trigger => this.cell_mode = mode,
-            Trigger::Release if this.cell_mode == mode => this.cell_mode = CellMode::Trigger,
-            _ => {}
-        };
+        let modifier = |mode: CellMode, this: &mut Self| this.mode_button(mode, trigger);
         match part {
             SamplePart::QuantizeSelector => {
                 if let Some(i) =
@@ -1575,6 +1619,88 @@ impl SampleView {
             }
             _ => {}
         }
+    }
+}
+
+impl SampleView {
+    fn mode_button(&mut self, mode: CellMode, trigger: Trigger) {
+        let pressed = match trigger {
+            Trigger::Press => true,
+            Trigger::Release => false,
+            _ => return,
+        };
+        self.cell_mode = mode_button(self.cell_mode, mode, &mut self.mode_latch, pressed);
+        if self.cell_mode != CellMode::Size {
+            self.size_cell = None;
+        }
+    }
+
+    /// The parts that set cells up rather than play them. While a cell is
+    /// being set up the page and the play-all control are held back, as
+    /// the same encoder adjusts the cell. Returns whether `part` was one.
+    fn cell_setting_action(
+        &mut self,
+        part: SamplePart,
+        trigger: Trigger,
+        out: &mut Vec<Command>,
+    ) -> bool {
+        let setting = matches!(self.cell_mode, CellMode::Type | CellMode::Size);
+        match part {
+            SamplePart::Page | SamplePart::PlayAll if setting => {}
+            SamplePart::CellTypeModifier => self.mode_button(CellMode::Type, trigger),
+            SamplePart::CellSizeModifier => self.mode_button(CellMode::Size, trigger),
+            SamplePart::CellAdjust => self.cell_adjust(trigger, out),
+            SamplePart::CellAdjustReset => {
+                if trigger == Trigger::Press
+                    && self.cell_mode == CellMode::Size
+                    && let Some((slot, cell)) = self.size_cell
+                {
+                    self.mode_latch.used = true;
+                    self.alter_cell_size(slot, cell, None, out);
+                }
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    /// The adjust control: in [`CellMode::Type`] it picks the property the
+    /// cells toggle; in [`CellMode::Size`] it doubles or halves the held cell.
+    fn cell_adjust(&mut self, trigger: Trigger, out: &mut Vec<Command>) {
+        match self.cell_mode {
+            CellMode::Type => {
+                let all = CellProperty::ALL;
+                if let Some(i) = list_index(self.cell_property.index(), all.len(), trigger) {
+                    self.cell_property = all[i];
+                }
+            }
+            CellMode::Size => {
+                let (Some((slot, cell)), Trigger::Delta(d)) = (self.size_cell, trigger) else {
+                    return;
+                };
+                if d != 0.0 {
+                    self.mode_latch.used = true;
+                    self.alter_cell_size(slot, cell, Some(d > 0.0), out);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn property_of(cell: &SetCell, property: CellProperty) -> bool {
+    match property {
+        CellProperty::PlayType => cell.play_type == 1,
+        CellProperty::TriggerType => cell.trigger_type == 0,
+        CellProperty::Sync => cell.sync,
+    }
+}
+
+fn toggle_property(cell: &mut SetCell, property: CellProperty) {
+    match property {
+        CellProperty::PlayType => cell.play_type = u32::from(cell.play_type != 1),
+        CellProperty::TriggerType => cell.trigger_type = u32::from(cell.trigger_type == 0),
+        CellProperty::Sync => cell.sync = !cell.sync,
     }
 }
 
@@ -1928,5 +2054,196 @@ mod tests {
             v.take_events()[..],
             [SampleEvent::LoadSelected { slot: 1, cell: 5 }]
         ));
+    }
+
+    #[test]
+    fn stopping_the_active_cell_never_unloads_it() {
+        let mut v = SampleView::new(0);
+        v.set.slots[1].active_cell = 3;
+        let mut state = SampleState::default();
+        state.slots[1].cells[3] = CellState::Loaded;
+        let mut controls = StemControls::default();
+        let mut out = Vec::new();
+        v.slot_action(
+            1,
+            SampleSlotPart::StopActive,
+            Trigger::Press,
+            &state,
+            &mut controls,
+            &mut out,
+        );
+        assert!(matches!(
+            out[..],
+            [Command::SampleDeck(
+                0,
+                SampleDeckCommand::Deck(SampleCommand::Stop { slot: 1, cell: 3 })
+            )]
+        ));
+        out.clear();
+        v.slot_action(
+            1,
+            SampleSlotPart::StopActive,
+            Trigger::Release,
+            &state,
+            &mut controls,
+            &mut out,
+        );
+        assert!(out.is_empty());
+    }
+
+    fn deck(v: &mut SampleView, part: SamplePart, trigger: Trigger, out: &mut Vec<Command>) {
+        let mut controls = [StemControls::default(); SAMPLE_SLOTS];
+        v.deck_action(part, trigger, &SampleState::default(), &mut controls, out);
+    }
+
+    #[test]
+    fn type_mode_toggles_the_chosen_property_of_the_pressed_cell() {
+        let mut v = SampleView::new(0);
+        v.put_cell(2, SetCell::new(5, Location::default()));
+        v.put_cell(2, SetCell::new(6, Location::default()));
+        let mut out = Vec::new();
+        deck(
+            &mut v,
+            SamplePart::CellTypeModifier,
+            Trigger::Press,
+            &mut out,
+        );
+        assert_eq!(v.cell_mode, CellMode::Type);
+        deck(
+            &mut v,
+            SamplePart::CellAdjust,
+            Trigger::Delta(1.0),
+            &mut out,
+        );
+        assert_eq!(v.cell_property, CellProperty::TriggerType);
+        deck(&mut v, SamplePart::Page, Trigger::Delta(1.0), &mut out);
+        assert_eq!(v.page, 0, "the encoder does not turn the page");
+        v.cell_action(2, 5, true, &mut out);
+        v.cell_action(2, 5, false, &mut out);
+        assert_eq!(v.cell(2, 5).unwrap().trigger_type, 0, "latch → gate");
+        assert_eq!(
+            v.cell(2, 6).unwrap().trigger_type,
+            1,
+            "the other cell keeps latch"
+        );
+        assert!(matches!(
+            out[..],
+            [Command::SampleDeck(
+                0,
+                SampleDeckCommand::Deck(SampleCommand::SetCellParams {
+                    slot: 2,
+                    cell: 5,
+                    ..
+                })
+            )]
+        ));
+        let f = v.feedback(
+            &SampleState::default(),
+            &[StemControls::default(); SAMPLE_SLOTS],
+        );
+        assert_eq!(f.cell_mode, CellMode::Type);
+        assert_eq!(f.slots[2].property_cells, 1 << 5, "gate on cell 5 only");
+        deck(
+            &mut v,
+            SamplePart::CellTypeModifier,
+            Trigger::Release,
+            &mut out,
+        );
+        assert_eq!(
+            v.cell_mode,
+            CellMode::Trigger,
+            "used while held: ends on release"
+        );
+        deck(
+            &mut v,
+            SamplePart::CellTypeModifier,
+            Trigger::Press,
+            &mut out,
+        );
+        deck(
+            &mut v,
+            SamplePart::CellTypeModifier,
+            Trigger::Release,
+            &mut out,
+        );
+        assert_eq!(v.cell_mode, CellMode::Type, "a tap latches");
+        deck(
+            &mut v,
+            SamplePart::CellAdjust,
+            Trigger::Delta(1.0),
+            &mut out,
+        );
+        v.cell_action(2, 6, true, &mut out);
+        assert!(!v.cell(2, 6).unwrap().sync, "sync toggled off");
+    }
+
+    #[test]
+    fn size_mode_resizes_the_held_cell() {
+        let mut v = SampleView::new(0);
+        let mut cell = SetCell::new(3, Location::default());
+        cell.end_marker = 4.0;
+        v.put_cell(1, cell);
+        v.durations[SampleView::at(1, 3)] = 1000.0;
+        let mut out = Vec::new();
+        deck(
+            &mut v,
+            SamplePart::CellSizeModifier,
+            Trigger::Press,
+            &mut out,
+        );
+        deck(
+            &mut v,
+            SamplePart::CellSizeModifier,
+            Trigger::Release,
+            &mut out,
+        );
+        assert_eq!(
+            v.cell_mode,
+            CellMode::Size,
+            "size stays on until pressed again"
+        );
+        deck(
+            &mut v,
+            SamplePart::CellAdjust,
+            Trigger::Delta(1.0),
+            &mut out,
+        );
+        assert!(out.is_empty(), "no cell held");
+        v.cell_action(1, 3, true, &mut out);
+        assert!(out.is_empty(), "holding a cell does not play it");
+        let before = v.cell(1, 3).unwrap().end_marker;
+        deck(
+            &mut v,
+            SamplePart::CellAdjust,
+            Trigger::Delta(1.0),
+            &mut out,
+        );
+        assert!(v.cell(1, 3).unwrap().end_marker > before, "doubled");
+        deck(
+            &mut v,
+            SamplePart::CellAdjustReset,
+            Trigger::Press,
+            &mut out,
+        );
+        assert!(
+            v.cell(1, 3).unwrap().end_marker.abs() < f64::EPSILON,
+            "reset"
+        );
+        v.cell_action(1, 3, false, &mut out);
+        out.clear();
+        deck(
+            &mut v,
+            SamplePart::CellAdjust,
+            Trigger::Delta(1.0),
+            &mut out,
+        );
+        assert!(out.is_empty(), "released");
+        deck(
+            &mut v,
+            SamplePart::CellSizeModifier,
+            Trigger::Press,
+            &mut out,
+        );
+        assert_eq!(v.cell_mode, CellMode::Trigger);
     }
 }

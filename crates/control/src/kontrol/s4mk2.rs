@@ -216,7 +216,7 @@ const LOOP_DISPLAY: [usize; 2] = [0x1B, 0x2B];
 const SEGMENT_ON: u8 = 0x7F;
 
 fn deck_leds(feedback: &Feedback, decoder: &Decoder, layer: [usize; 2], leds: &mut Leds) {
-    let phase = phase_ms();
+    let phase = loop_display::phase_ms();
     for (i, side) in ["Left", "Right"].into_iter().enumerate() {
         let d = &feedback.decks[layer[i]];
         let digits = loop_display::loop_display(d.loop_size, d.loop_active, d.live, phase);
@@ -235,15 +235,6 @@ fn deck_leds(feedback: &Feedback, decoder: &Decoder, layer: [usize; 2], leds: &m
 
 fn remix_led(state: u8) -> u8 {
     u8::try_from(u32::from(state.min(4)) * u32::from(SEGMENT_ON) / 4).unwrap_or(SEGMENT_ON)
-}
-
-fn phase_ms() -> u128 {
-    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
-    START
-        .get_or_init(std::time::Instant::now)
-        .elapsed()
-        .as_millis()
-        % loop_display::BLINK_PERIOD_MS
 }
 
 fn meter_leds(feedback: &Feedback, _decoder: &Decoder, leds: &mut Leds) {
@@ -501,6 +492,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     deck_leds: Some(deck_leds),
     default_mappings,
     shifted,
+    modifier_hooks: None,
     upgrade: None,
     jog_button_toggles_touch: false,
     samples_button_stems: false,
@@ -509,6 +501,8 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     mx2_transport: false,
     shared_shift: false,
     connect_reports: &[],
+    touch_strip: None,
+    displays: None,
 });
 
 pub fn start(

@@ -11,7 +11,7 @@ pub const SOURCE: &str = "Z1";
 pub const VENDOR_ID: u16 = 0x17CC;
 pub const PRODUCT_ID: u16 = 0x1210;
 
-const LED_LEN: usize = 0x16;
+const LED_LEN: usize = 0x15;
 const SINGLE: Option<(u8, u8)> = Some((0x7F, 0x0A));
 const METER_ON: u8 = 0x7F;
 
@@ -21,11 +21,11 @@ fn b(name: &str, mask: u8, led: usize) -> Button {
 
 fn buttons() -> Vec<Button> {
     vec![
-        b("Mixer.Mode", 0x02, 0x13),
-        b("Mixer.A.Cue", 0x10, 0x0F),
-        b("Mixer.B.Cue", 0x01, 0x10),
-        b("Mixer.A.Mixer FX.On", 0x04, 0x12),
-        b("Mixer.B.Mixer FX.On", 0x08, 0x15),
+        b("Mixer.Mode", 0x02, 0x12),
+        b("Mixer.A.Cue", 0x10, 0x0E),
+        b("Mixer.B.Cue", 0x01, 0x0F),
+        b("Mixer.A.Mixer FX.On", 0x04, 0x11),
+        b("Mixer.B.Mixer FX.On", 0x08, 0x14),
     ]
 }
 
@@ -58,7 +58,7 @@ static CALIBRATION: StoredCalibration = StoredCalibration {
     first_analog: 0x01,
 };
 
-const METER_FIRST: [usize; 2] = [0x01, 0x08];
+const METER_FIRST: [usize; 2] = [0x00, 0x07];
 const METER_SEGMENTS: usize = 7;
 
 fn meter_leds(feedback: &Feedback, _decoder: &Decoder, leds: &mut Leds) {
@@ -114,6 +114,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     deck_leds: None,
     default_mappings,
     shifted,
+    modifier_hooks: None,
     upgrade: None,
     jog_button_toggles_touch: false,
     samples_button_stems: false,
@@ -122,6 +123,8 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     mx2_transport: false,
     shared_shift: false,
     connect_reports: &[],
+    touch_strip: None,
+    displays: None,
 });
 
 pub fn start(
@@ -203,9 +206,9 @@ mod tests {
         let mut leds = Leds::for_layout(&LAYOUT);
         meter_leds(&f, &Decoder::new(&LAYOUT), &mut leds);
         assert_eq!(
-            &leds.0[0x08..0x0F],
+            &leds.0[0x07..0x0E],
             &[METER_ON, METER_ON, METER_ON, METER_ON, 0, 0, 0]
         );
-        assert!(leds.0[0x01..0x08].iter().all(|&b| b == 0));
+        assert!(leds.0[0x00..0x07].iter().all(|&b| b == 0));
     }
 }

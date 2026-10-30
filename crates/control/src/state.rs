@@ -16,6 +16,8 @@ pub enum Control {
     },
     FxMode,
     PatternStep,
+    /// FX units in use: 2 or 4.
+    FxUnits,
 }
 
 impl Control {
@@ -43,7 +45,7 @@ impl Control {
         ]
         .into_iter()
         .chain((0..8).map(|slot| Self::HotcueType { slot }))
-        .chain([Self::FxMode, Self::PatternStep])
+        .chain([Self::FxMode, Self::PatternStep, Self::FxUnits])
     }
 
     pub fn range(self) -> (i32, i32) {
@@ -53,6 +55,7 @@ impl Control {
             Self::DeckType | Self::FxMode => (0, 2),
             Self::HotcueType { .. } => (-1, 5),
             Self::PatternStep => (-1, 15),
+            Self::FxUnits => (2, 4),
         }
     }
 
@@ -69,6 +72,7 @@ impl Control {
             Self::HotcueType { slot } => format!("Hotcue {} Type", slot + 1),
             Self::FxMode => "Mode".into(),
             Self::PatternStep => "Current Step".into(),
+            Self::FxUnits => "FX Units".into(),
         }
     }
 }
@@ -88,6 +92,9 @@ impl StateCondition {
     }
 
     pub fn current_on(&self, f: &Feedback, focus: usize) -> Option<i32> {
+        if self.control == Control::FxUnits {
+            return Some(if f.fx_units >= 4 { 4 } else { 2 });
+        }
         let channel = self.channel.unwrap_or(focus);
         if self.control.on_unit() {
             let fx = f.fx.get(channel)?;
@@ -111,11 +118,14 @@ impl StateCondition {
                 }
             }
             Control::HotcueType { slot } => d.hotcues.get(slot)?.type_code(),
-            Control::FxMode | Control::PatternStep => return None,
+            Control::FxMode | Control::PatternStep | Control::FxUnits => return None,
         })
     }
 
     pub fn label(&self) -> String {
+        if self.control == Control::FxUnits {
+            return format!("{} = {}", self.control.label(), self.value);
+        }
         let channel = match (self.channel, self.control.on_unit()) {
             (None, _) => "Focus".to_owned(),
             (Some(u), true) => format!("FX {}", u + 1),
@@ -139,6 +149,21 @@ pub fn hold_on(conditions: &[StateCondition], f: &Feedback, focus: usize) -> boo
 mod tests {
     use super::*;
     use crate::feedback::HotcueKind;
+
+    #[test]
+    fn fx_units_read_two_or_four() {
+        let c = StateCondition {
+            control: Control::FxUnits,
+            channel: None,
+            value: 4,
+        };
+        let mut f = Feedback::default();
+        assert_eq!(c.current(&f), Some(2), "unknown counts as two");
+        f.fx_units = 4;
+        assert_eq!(c.current(&f), Some(4));
+        assert!(hold(&[c], &f));
+        assert_eq!(c.label(), "FX Units = 4");
+    }
 
     #[test]
     fn conditions_read_decks_units_and_the_focus() {
@@ -174,7 +199,7 @@ mod tests {
         assert_eq!(Control::from_id(736), None, "sample decks");
         assert_eq!(c(Control::FxMode, Some(0), 1).label(), "FX 1 Mode = 1");
         assert_eq!(c(Control::Playing, None, 1).label(), "Focus Play = 1");
-        assert_eq!(Control::all().count(), 14);
+        assert_eq!(Control::all().count(), 15);
         assert!(Control::all().all(|c| c.range().0 < c.range().1));
     }
 }

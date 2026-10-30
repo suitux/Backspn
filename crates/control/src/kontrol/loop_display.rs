@@ -26,15 +26,23 @@ fn digit(d: u32) -> u8 {
     }
 }
 
-pub fn loop_size_digits(index: u8) -> [u8; 2] {
+/// The loop length of a size index: the number shown and whether it is a
+/// fraction of a beat (1/n).
+fn loop_size(index: u8) -> Option<(u32, bool)> {
     if index > 10 {
-        return [0, 0];
+        return None;
     }
     let exponent = i32::from(index) - 5;
-    let (n, fraction) = if exponent >= 0 {
+    Some(if exponent >= 0 {
         (1u32 << exponent, false)
     } else {
         (1u32 << -exponent, true)
+    })
+}
+
+pub fn loop_size_digits(index: u8) -> [u8; 2] {
+    let Some((n, fraction)) = loop_size(index) else {
+        return [0, 0];
     };
     let units = digit(n % 10);
     if n >= 10 {
@@ -52,17 +60,54 @@ pub fn number_digits(n: u8) -> [u8; 2] {
     [tens, digit(n % 10)]
 }
 
+/// Three digits without dots: whole sizes right-aligned, a fraction 1/n as a
+/// dash before n.
+pub fn loop_size_three_digits(index: u8) -> [u8; 3] {
+    let Some((n, fraction)) = loop_size(index) else {
+        return [0; 3];
+    };
+    let tens = if n >= 10 { digit(n / 10) } else { 0 };
+    [if fraction { MIDDLE } else { 0 }, tens, digit(n % 10)]
+}
+
+/// Whether the loop size is blanked right now: always with live input, and
+/// for part of each period while the loop plays.
+pub fn hidden(loop_active: bool, live: bool, phase_ms: u128) -> bool {
+    live || (loop_active && phase_ms % BLINK_PERIOD_MS > BLINK_SHOWN_MS)
+}
+
 pub fn loop_display(index: u8, loop_active: bool, live: bool, phase_ms: u128) -> [u8; 2] {
-    if live || (loop_active && phase_ms % BLINK_PERIOD_MS > BLINK_SHOWN_MS) {
+    if hidden(loop_active, live, phase_ms) {
         return [0, 0];
     }
     loop_size_digits(index)
+}
+
+/// Milliseconds into the current blink period, shared by every display.
+pub fn phase_ms() -> u128 {
+    static START: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    START
+        .get_or_init(std::time::Instant::now)
+        .elapsed()
+        .as_millis()
+        % BLINK_PERIOD_MS
 }
 
 pub fn write_digits(bytes: &mut [u8], first: usize, digits: [u8; 2], on: u8) {
     for (d, mask) in digits.into_iter().enumerate() {
         for bit in 0..8 {
             if let Some(b) = bytes.get_mut(first + 8 * d + bit) {
+                *b = if mask & (1 << bit) != 0 { on } else { 0 };
+            }
+        }
+    }
+}
+
+/// Digits of seven LEDs each (no dot): segment bit k lights LED k - 1.
+pub fn write_seven_segments(bytes: &mut [u8], first: usize, digits: &[u8], on: u8) {
+    for (d, mask) in digits.iter().enumerate() {
+        for bit in 1..8 {
+            if let Some(b) = bytes.get_mut(first + 7 * d + bit - 1) {
                 *b = if mask & (1 << bit) != 0 { on } else { 0 };
             }
         }
@@ -112,6 +157,27 @@ mod tests {
         assert_eq!(loop_display(7, true, false, 350), loop_size_digits(7));
         assert_eq!(loop_display(7, false, false, 200), loop_size_digits(7));
         assert_eq!(loop_display(7, false, true, 0), [0, 0], "live input");
+    }
+
+    #[test]
+    fn three_digits_dash_the_fractions() {
+        assert_eq!(loop_size_three_digits(7), [0, 0, digit(4)], "  4");
+        assert_eq!(loop_size_three_digits(10), [0, digit(3), digit(2)], " 32");
+        assert_eq!(loop_size_three_digits(4), [MIDDLE, 0, digit(2)], "- 2");
+        assert_eq!(
+            loop_size_three_digits(1),
+            [MIDDLE, digit(1), digit(6)],
+            "-16"
+        );
+        assert_eq!(loop_size_three_digits(11), [0; 3]);
+    }
+
+    #[test]
+    fn seven_segment_digits_skip_the_dot() {
+        let mut bytes = [0u8; 16];
+        write_seven_segments(&mut bytes, 1, &[digit(1) | DOT, MIDDLE], 0x7F);
+        assert_eq!(&bytes[1..8], &[0, 0x7F, 0x7F, 0, 0, 0, 0], "1, dot dropped");
+        assert_eq!(&bytes[8..15], &[0x7F, 0, 0, 0, 0, 0, 0], "dash");
     }
 
     #[test]

@@ -4,6 +4,7 @@ use super::{analog, button, encoder};
 use crate::feedback::{Feedback, SampleSlotFeedback};
 use crate::modifier::Condition;
 use crate::s4mk3::{Analog, Button, Decoder, Encoder, Layout, Leds, Shifted, colour};
+use crate::sample_deck::CellMode;
 use crate::{Action, Input, Interaction, Mapping, SamplePart, SampleSlotPart, StemPart};
 
 pub const NAME: &str = "Kontrol F1";
@@ -111,6 +112,8 @@ fn default_mappings() -> Vec<Mapping> {
     let mut v = vec![
         held("Shift", SHIFT),
         held("Browse", BROWSE),
+        on_focus("Type", sample(SamplePart::CellTypeModifier)),
+        on_focus("Size", sample(SamplePart::CellSizeModifier)),
         on_focus("Browse", sample(SamplePart::CellLoadModifier)),
         when(
             on_focus("Capture", sample(SamplePart::CellCaptureModifier)),
@@ -127,12 +130,22 @@ fn default_mappings() -> Vec<Mapping> {
         on_focus("Sync", Action::Sync { deck: 0 }),
         when(on_focus("Browse.Turn", sample(SamplePart::Page)), BROWSE, 0),
         when(
+            on_focus("Browse.Turn", sample(SamplePart::CellAdjust)),
+            BROWSE,
+            0,
+        ),
+        when(
             super::map("Browse.Turn", Action::BrowserUpDown, Interaction::Relative),
             BROWSE,
             1,
         ),
         when(
             on_focus("Browse.Push", sample(SamplePart::PlayAll)),
+            BROWSE,
+            0,
+        ),
+        when(
+            on_focus("Browse.Push", sample(SamplePart::CellAdjustReset)),
             BROWSE,
             0,
         ),
@@ -150,7 +163,7 @@ fn default_mappings() -> Vec<Mapping> {
         ));
         v.push(on_focus(
             &format!("Slot {n}.Filter"),
-            stem(slot, StemPart::Filter),
+            stem(slot, StemPart::FilterEngaged),
         ));
         let stop = format!("Slot {n}.Stop");
         v.push(when(on_focus(&stop, stem(slot, StemPart::Mute)), SHIFT, 0));
@@ -160,7 +173,7 @@ fn default_mappings() -> Vec<Mapping> {
                 Action::SampleSlot {
                     deck: 0,
                     slot,
-                    part: SampleSlotPart::Secondary,
+                    part: SampleSlotPart::StopActive,
                 },
             ),
             SHIFT,
@@ -168,12 +181,13 @@ fn default_mappings() -> Vec<Mapping> {
         ));
     }
     for pad in 0..SLOTS * ROWS {
+        let (slot, row) = (pad % SLOTS, pad / SLOTS);
         v.push(on_focus(
             &pad_name(pad),
             Action::SampleCell {
                 deck: 0,
-                slot: pad % SLOTS,
-                cell: pad / SLOTS,
+                slot,
+                cell: row,
             },
         ));
     }
@@ -198,6 +212,32 @@ fn pad_colour(slot: &SampleSlotFeedback, cell: usize, fallback: [u8; 3]) -> [u8;
     }
 }
 
+/// In TYPE mode a loaded cell shows whether the chosen property is on.
+fn property_colour(slot: &SampleSlotFeedback, cell: usize, fallback: [u8; 3]) -> [u8; 3] {
+    let loaded = slot.cells.get(cell).copied().unwrap_or(0) != 0;
+    let on = cell < 16 && slot.property_cells & (1 << cell) != 0;
+    match (loaded, on) {
+        (false, _) => [0; 3],
+        (true, true) => scaled(fallback, LIT),
+        (true, false) => scaled(fallback, DIM),
+    }
+}
+
+/// The level of each mode button: lit while its cell mode is on.
+fn mode_leds(mode: CellMode) -> [(&'static str, u8); 5] {
+    let lit = |on: bool| if on { LIT } else { DIM };
+    [
+        ("Browse", lit(mode == CellMode::Load)),
+        (
+            "Capture",
+            lit(matches!(mode, CellMode::Capture | CellMode::Delete)),
+        ),
+        ("Reverse", lit(mode == CellMode::Reverse)),
+        ("Type", lit(mode == CellMode::Type)),
+        ("Size", lit(mode == CellMode::Size)),
+    ]
+}
+
 fn write_pad(leds: &mut Leds, pad: usize, [r, g, b]: [u8; 3]) {
     let base = PAD_BASE + 3 * pad;
     if let Some(bytes) = leds.0.get_mut(base..base + 3) {
@@ -217,13 +257,18 @@ fn deck_leds(feedback: &Feedback, decoder: &Decoder, _layer: [usize; 2], leds: &
     let focus = feedback.focus.min(feedback.decks.len() - 1);
     let deck = &feedback.decks[focus];
     set(leds, decoder, "Sync", if deck.synced { LIT } else { DIM });
-    for name in ["Browse", "Capture", "Reverse", "Shift"] {
-        set(leds, decoder, name, DIM);
-    }
+    set(leds, decoder, "Shift", DIM);
     let Some(sample) = deck.sample_deck else {
+        for (name, _) in mode_leds(CellMode::Trigger) {
+            set(leds, decoder, name, DIM);
+        }
         set(leds, decoder, "Quant", 0);
         return;
     };
+    for (name, level) in mode_leds(sample.cell_mode) {
+        set(leds, decoder, name, level);
+    }
+    let typing = sample.cell_mode == CellMode::Type;
     set(
         leds,
         decoder,
@@ -235,16 +280,22 @@ fn deck_leds(feedback: &Feedback, decoder: &Decoder, _layer: [usize; 2], leds: &
     } else {
         colour::BLUE
     });
-    let [tens, units] = super::loop_display::number_digits(sample.page.saturating_add(1));
+    let shown = if typing {
+        u8::try_from(sample.cell_property.index()).unwrap_or(0)
+    } else {
+        sample.page
+    };
+    let [tens, units] = super::loop_display::number_digits(shown.saturating_add(1));
     super::loop_display::write_digits(&mut leds.0, DISPLAY, [units, tens], LIT);
     let first = usize::from(sample.page) * ROWS;
     for (slot, s) in sample.slots.iter().enumerate() {
         for row in 0..ROWS {
-            write_pad(
-                leds,
-                row * SLOTS + slot,
-                pad_colour(s, first + row, fallback),
-            );
+            let colour = if typing {
+                property_colour(s, first + row, fallback)
+            } else {
+                pad_colour(s, first + row, fallback)
+            };
+            write_pad(leds, row * SLOTS + slot, colour);
         }
         let level = match (s.state, s.muted) {
             (0, _) => 0,
@@ -289,6 +340,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     deck_leds: Some(deck_leds),
     default_mappings,
     shifted,
+    modifier_hooks: None,
     upgrade: None,
     jog_button_toggles_touch: false,
     samples_button_stems: false,
@@ -297,6 +349,8 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     mx2_transport: false,
     shared_shift: false,
     connect_reports: &[],
+    touch_strip: None,
+    displays: None,
 });
 
 pub fn start(
@@ -387,7 +441,7 @@ mod tests {
             Action::Stem {
                 deck: 0,
                 stem: 0,
-                part: StemPart::Filter
+                part: StemPart::FilterEngaged
             }
         );
         let mut d = Decoder::new(&LAYOUT);
@@ -439,15 +493,101 @@ mod tests {
             Action::SampleSlot {
                 deck: 0,
                 slot: 1,
-                part: SampleSlotPart::Secondary
+                part: SampleSlotPart::StopActive
             }
+        );
+    }
+
+    #[test]
+    fn type_and_size_set_the_cell_mode_and_the_encoder_adjusts() {
+        let sample = |part| Action::SampleDeck { deck: 0, part };
+        assert_eq!(find("Type")[0].action, sample(SamplePart::CellTypeModifier));
+        assert_eq!(find("Type")[0].interaction, Interaction::Hold);
+        assert_eq!(find("Size")[0].action, sample(SamplePart::CellSizeModifier));
+        let actions = |name: &str| -> Vec<Action> {
+            find(name)
+                .into_iter()
+                .filter(|m| {
+                    m.gate.conditions
+                        == [Condition {
+                            modifier: BROWSE,
+                            value: 0,
+                        }]
+                })
+                .map(|m| m.action)
+                .collect()
+        };
+        assert_eq!(
+            actions("Browse.Turn"),
+            [sample(SamplePart::Page), sample(SamplePart::CellAdjust)]
+        );
+        assert_eq!(
+            actions("Browse.Push"),
+            [
+                sample(SamplePart::PlayAll),
+                sample(SamplePart::CellAdjustReset)
+            ]
+        );
+        let pad = find(&pad_name(5));
+        assert_eq!(pad.len(), 1, "one mapping per pad, the mode is the app's");
+        assert_eq!(pad[0].gate.conditions, []);
+    }
+
+    #[test]
+    fn mode_buttons_light_with_their_mode() {
+        let mut f = Feedback::default();
+        f.decks[0].sample_deck = Some(SampleFeedback {
+            cell_mode: CellMode::Type,
+            ..SampleFeedback::default()
+        });
+        let d = Decoder::new(&LAYOUT);
+        let mut leds = Leds::for_layout(&LAYOUT);
+        deck_leds(&f, &d, [0, 1], &mut leds);
+        let at = |name: &str| leds.0[d.led(name).expect(name)];
+        assert_eq!(at("Type"), LIT);
+        assert_eq!(at("Size"), DIM);
+        assert_eq!(at("Browse"), DIM);
+        assert_eq!(mode_leds(CellMode::Delete)[1], ("Capture", LIT));
+        assert_eq!(mode_leds(CellMode::Load)[0], ("Browse", LIT));
+        assert_eq!(mode_leds(CellMode::Reverse)[2], ("Reverse", LIT));
+        assert_eq!(mode_leds(CellMode::Size)[4], ("Size", LIT));
+    }
+
+    #[test]
+    fn type_mode_shows_the_property_on_the_pads_and_display() {
+        let mut feedback = Feedback::default();
+        let mut sample = SampleFeedback {
+            cell_mode: CellMode::Type,
+            cell_property: crate::sample_deck::CellProperty::Sync,
+            ..SampleFeedback::default()
+        };
+        sample.slots[0].cells[0] = 1;
+        sample.slots[0].cells[1] = 1;
+        sample.slots[0].property_cells = 0b01;
+        feedback.decks[0].sample_deck = Some(sample);
+        let decoder = Decoder::new(&LAYOUT);
+        let mut leds = Leds::for_layout(&LAYOUT);
+        deck_leds(&feedback, &decoder, [0, 1], &mut leds);
+        let pad = |at: usize| &leds.0[PAD_BASE + 3 * at..PAD_BASE + 3 * at + 3];
+        let sent = |level| {
+            let [red, green, blue] = scaled(colour::rgb(colour::BLUE), level);
+            [blue, red, green]
+        };
+        assert_eq!(pad(0), &sent(LIT), "sync on: lit");
+        assert_eq!(pad(SLOTS), &sent(DIM), "sync off: dim");
+        assert_eq!(pad(2 * SLOTS), &[0; 3], "empty");
+        let [_, units] = super::super::loop_display::number_digits(3);
+        let lit: Vec<usize> = (0..8).filter(|bit| units & (1 << bit) != 0).collect();
+        assert!(
+            lit.iter().all(|&bit| leds.0[DISPLAY + bit] == LIT),
+            "third property"
         );
     }
 
     #[test]
     fn browse_held_turns_the_encoder_into_the_list() {
         let turn = find("Browse.Turn");
-        assert_eq!(turn.len(), 2);
+        assert_eq!(turn.len(), 3, "page, cell adjust and the list");
         let browsing = turn
             .iter()
             .find(|m| {

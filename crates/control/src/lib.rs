@@ -19,6 +19,7 @@ pub mod sample_deck;
 pub mod session;
 pub mod state;
 pub mod stem;
+pub mod strip;
 pub mod table;
 pub mod tsi_import;
 
@@ -283,6 +284,10 @@ pub enum Action {
         channel: usize,
         band: usize,
     },
+    EqKill {
+        channel: usize,
+        band: usize,
+    },
     Filter {
         channel: usize,
     },
@@ -430,6 +435,10 @@ pub enum Action {
     JogSearch {
         deck: usize,
     },
+    /// Moves the playhead to a share of the track, from 0 (start) to 1 (end).
+    Seek {
+        deck: usize,
+    },
     GridAdjust {
         deck: usize,
     },
@@ -536,7 +545,10 @@ impl Action {
             self,
             Self::Tempo { .. }
                 | Self::Stem {
-                    part: StemPart::Volume | StemPart::Filter | StemPart::FxAmount,
+                    part: StemPart::Volume
+                        | StemPart::Filter
+                        | StemPart::FxAmount
+                        | StemPart::FilterEngaged,
                     ..
                 }
                 | Self::DeckType { .. }
@@ -563,6 +575,7 @@ impl Action {
                 | Self::FxMode { .. }
                 | Self::JogTurn { .. }
                 | Self::JogSearch { .. }
+                | Self::Seek { .. }
                 | Self::GridAdjust { .. }
                 | Self::LoopSizeStep { .. }
                 | Self::TempoRange { .. }
@@ -656,6 +669,7 @@ impl Action {
             | Self::TempoLock { deck }
             | Self::LiveInput { deck }
             | Self::JogSearch { deck }
+            | Self::Seek { deck }
             | Self::GridAdjust { deck }
             | Self::LoopSizeStep { deck }
             | Self::TempoRange { deck }
@@ -688,6 +702,7 @@ impl Action {
             | Self::Volume { channel }
             | Self::Gain { channel }
             | Self::Eq { channel, .. }
+            | Self::EqKill { channel, .. }
             | Self::Filter { channel }
             | Self::MixerFxOn { channel }
             | Self::MonitorCue { channel }
@@ -778,6 +793,7 @@ impl Action {
             | Self::Sync { .. }
             | Self::Keylock { .. }
             | Self::MonitorCue { .. }
+            | Self::EqKill { .. }
             | Self::FxOn { .. }
             | Self::FxButton { .. }
             | Self::Snap
@@ -907,6 +923,11 @@ impl Action {
                 d(channel),
                 ["Low", "Mid", "High", "Mid Low"].get(band).unwrap_or(&"?")
             ),
+            Self::EqKill { channel, band } => format!(
+                "Ch {} EQ {} Kill",
+                d(channel),
+                ["Low", "Mid", "High", "Mid Low"].get(band).unwrap_or(&"?")
+            ),
             Self::Filter { channel } => format!("Ch {} Filter", d(channel)),
             Self::MixerFxOn { channel } => format!("Ch {} Mixer FX On", d(channel)),
             Self::MixerFxSelect { slot: 0 } => "Mixer FX Select Filter".to_owned(),
@@ -981,6 +1002,7 @@ impl Action {
             Self::TempoLock { deck } => format!("Deck {} Tempo Lock", d(deck)),
             Self::BrowserTree => "Browser Tree Up/Down".into(),
             Self::JogSearch { deck } => format!("Deck {} Jog Search", d(deck)),
+            Self::Seek { deck } => format!("Deck {} Seek Position", d(deck)),
             Self::GridAdjust { deck } => format!("Deck {} Grid Adjust", d(deck)),
             Self::PrepListToggle => "Preparation List Add/Remove".into(),
             Self::PrepListJump => "Jump to Preparation List".into(),

@@ -3,6 +3,7 @@ use crate::{Action, Input, Interaction, Mapping};
 
 pub mod f1;
 pub mod loop_display;
+pub mod mono;
 pub mod mx2;
 pub mod s2mk2;
 pub mod s2mk3;
@@ -214,6 +215,24 @@ mod tests {
                 .find(|e| e.input == Input::Hid(analog.name.into()))
                 .expect("analog event");
             assert!((v.value - 1.0).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn led_numbers_start_after_the_report_id() {
+        for (layout, name, byte, len) in [
+            (&*s2mk3::LAYOUT, "Left.Play", 0x0B, 0x3D),
+            (&*s3::LAYOUT, "Left.Play", 0x10, 267),
+            (&*mx2::LAYOUT, "Left.Play", 0x1D, 0x69),
+            (&*z1::LAYOUT, "Mixer.Mode", 0x12, 0x15),
+        ] {
+            let d = Decoder::new(layout);
+            let mut leds = crate::s4mk3::Leds::for_layout(layout);
+            leds.set(&d, name, crate::s4mk3::colour::WHITE, true);
+            let (_, bytes) = leds.reports(layout).next().expect("a report");
+            assert_eq!(bytes.len(), len, "{}", layout.name);
+            let lit: Vec<usize> = (0..bytes.len()).filter(|&i| bytes[i] != 0).collect();
+            assert_eq!(lit, [byte], "{}", layout.name);
         }
     }
 

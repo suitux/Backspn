@@ -47,6 +47,7 @@ pub struct Controls {
     repeat_at: std::time::Instant,
     ports_checked: std::time::Instant,
     audio_offer: Option<backspn_control::profile::Audio>,
+    dropouts: backspn_control::feedback::DropoutWatch,
     seen_inputs: Vec<String>,
     profiles: Vec<backspn_control::profile::Profile>,
     cards_offered: Vec<&'static str>,
@@ -99,6 +100,7 @@ impl Controls {
             repeat_at: std::time::Instant::now(),
             ports_checked: std::time::Instant::now(),
             audio_offer: None,
+            dropouts: backspn_control::feedback::DropoutWatch::default(),
             seen_inputs: Vec::new(),
             profiles: backspn_control::profile::all(),
             cards_offered: Vec::new(),
@@ -148,6 +150,7 @@ impl Controls {
             repeat_at: std::time::Instant::now(),
             ports_checked: std::time::Instant::now(),
             audio_offer: None,
+            dropouts: backspn_control::feedback::DropoutWatch::default(),
             seen_inputs: Vec::new(),
             profiles: backspn_control::profile::all(),
             cards_offered: Vec::new(),
@@ -282,6 +285,11 @@ impl Controls {
             deck.live = live;
         }
         feedback.microphone = app.microphone;
+        feedback.audio_overloaded = app.audio_overloaded;
+        feedback.fx_units = app.fx_units;
+        feedback.audio_dropout = self
+            .dropouts
+            .update(app.audio_dropouts, std::time::Instant::now());
         for (unit, (steps, cells)) in feedback.fx.iter_mut().zip(app.pattern_steps) {
             unit.pattern_steps = steps;
             unit.pattern_cells = cells;
@@ -589,6 +597,10 @@ pub struct AppFeedback {
     pub tempo_ranges: [u8; DECKS],
     pub loop_sizes: [u8; DECKS],
     pub microphone: bool,
+    pub audio_overloaded: bool,
+    pub fx_units: u8,
+    /// The engine's dropout count so far.
+    pub audio_dropouts: u64,
     pub pattern_steps: [(u16, u8); backspn_control::feedback::FX_UNITS],
     pub stems: [Option<[StemFeedback; STEMS]>; DECKS],
     pub sample_deck: [Option<backspn_control::feedback::SampleFeedback>; DECKS],

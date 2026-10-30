@@ -317,6 +317,21 @@ fn jogging_a_synced_deck_leaves_its_phase_lock() {
 }
 
 #[test]
+fn seek_moves_the_playhead_to_a_share_of_the_track() {
+    use backspn_engine::{Command, DeckCommand};
+    let mut h = Harness::new("seek");
+    let mut state = h.app.engine_state();
+    state.decks[1].duration_s = 120.0;
+    h.app.outbox.clear();
+    h.app
+        .execute(Action::Seek { deck: 1 }, Trigger::Set(0.25), &state);
+    assert!(h.app.outbox.iter().any(|c| matches!(
+        c,
+        Command::Deck(1, DeckCommand::Seek { seconds }) if (*seconds - 30.0).abs() < 1e-9
+    )));
+}
+
+#[test]
 fn a_new_session_starts_as_the_last_one_ended() {
     use backspn_engine::{Command, DeckCommand, SyncCommand};
 
@@ -371,6 +386,28 @@ fn the_auto_master_setting_reaches_the_engine() {
     h.frame();
     h.frame();
     assert!(!h.app.engine_state().sync.auto);
+}
+
+#[test]
+fn a_controller_cuts_an_eq_band_and_brings_it_back() {
+    let mut h = Harness::new("eq-kill");
+    let state = h.app.engine_state();
+    let kill = Action::EqKill {
+        channel: 1,
+        band: 2,
+    };
+    let level = state.mixer.channels[1].eq[2];
+    h.app.execute(kill, Trigger::Press, &state);
+    h.frame();
+    h.frame();
+    assert!(h.app.mixer.knobs().kill[1][2]);
+    assert_eq!(h.app.engine_state().mixer.channels[1].eq[2], 0.0);
+    let state = h.app.engine_state();
+    h.app.execute(kill, Trigger::Press, &state);
+    h.frame();
+    h.frame();
+    assert!(!h.app.mixer.knobs().kill[1][2]);
+    assert!((h.app.engine_state().mixer.channels[1].eq[2] - level).abs() < 1e-6);
 }
 
 #[test]
@@ -696,6 +733,39 @@ fn a_sample_deck_captures_a_loop_from_a_track_deck() {
             .cell(2, 1)
             .is_none()
     );
+}
+
+#[test]
+fn cell_modes_and_an_engaged_filter_reach_the_sample_deck() {
+    use backspn_control::{CellMode, SamplePart, StemPart};
+
+    let mut h = Harness::new("sample_deck-cell-modes");
+    let state = h.app.engine_state();
+    h.app
+        .execute(Action::DeckType { deck: 1 }, Trigger::Delta(1.0), &state);
+    h.app.flush();
+    h.until_engine("deck B becomes a sample deck", |s| {
+        s.sample_deck[1].is_some()
+    });
+    h.press(Action::SampleDeck {
+        deck: 1,
+        part: SamplePart::CellTypeModifier,
+    });
+    let view = h.app.decks[1].sample_deck.as_ref().unwrap();
+    assert_eq!(view.cell_mode, CellMode::Type);
+    let state = h.app.engine_state();
+    h.app.execute(
+        Action::Stem {
+            deck: 1,
+            stem: 2,
+            part: StemPart::FilterEngaged,
+        },
+        Trigger::Set(0.9),
+        &state,
+    );
+    h.app.flush();
+    let c = h.app.decks[1].stem_controls[2];
+    assert!(c.filter_on && (c.filter - 0.9).abs() < 1e-6);
 }
 
 #[test]

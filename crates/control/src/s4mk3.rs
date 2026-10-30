@@ -225,6 +225,81 @@ const JOGS: [Jog; 2] = [
 
 pub const JOG_STEPS_PER_TURN: f64 = 2880.0;
 
+/// A touch strip split in two halves, one per side. A finger drives the jog
+/// of the half it lands on until it lifts, even if it slides across.
+#[derive(Debug, Clone, Copy)]
+pub struct TouchStrip {
+    pub report: u8,
+    /// First byte of the finger positions: one little-endian u16 per finger,
+    /// 0 when that finger is off the strip.
+    pub byte: usize,
+    pub fingers: usize,
+    /// Where the halves meet, and how far either side of it a landing finger
+    /// is ignored.
+    pub centre: u16,
+    pub gap: u16,
+    /// The readings at the left and right ends.
+    pub first: u16,
+    pub last: u16,
+    pub bar: Option<crate::strip::Bar>,
+}
+
+pub const STRIP_TOUCH: [&str; 2] = ["Left.Jog.Touch", "Right.Jog.Touch"];
+pub const STRIP_TURN: [&str; 2] = ["Left.Jog.Turn", "Right.Jog.Turn"];
+/// Where a finger driving a half is along that half, 0 to 1.
+pub const STRIP_HALF_POSITION: [&str; 2] = ["Left.Strip.Position", "Right.Strip.Position"];
+/// Any finger on the strip, gap included, and where the first one is along
+/// the whole strip.
+pub const STRIP_ANY_TOUCH: &str = "Strip.Touch";
+pub const STRIP_ANY_POSITION: &str = "Strip.Position";
+
+pub fn strip_controls() -> impl Iterator<Item = &'static str> {
+    STRIP_TOUCH
+        .into_iter()
+        .chain(STRIP_TURN)
+        .chain(STRIP_HALF_POSITION)
+        .chain([STRIP_ANY_TOUCH, STRIP_ANY_POSITION])
+}
+/// Sent by the strip when it has no reading.
+const STRIP_INVALID: u16 = 0xFFFF;
+const STRIP_FINGERS: usize = 2;
+
+impl TouchStrip {
+    fn share(at: u16, from: u16, to: u16) -> f32 {
+        let span = f32::from(to.saturating_sub(from).max(1));
+        ((f32::from(at) - f32::from(from)) / span).clamp(0.0, 1.0)
+    }
+
+    fn along(&self, at: u16) -> f32 {
+        Self::share(at, self.first, self.last)
+    }
+
+    fn along_half(&self, side: usize, at: u16) -> f32 {
+        if side == 0 {
+            Self::share(at, self.first, self.centre)
+        } else {
+            Self::share(at, self.centre, self.last)
+        }
+    }
+
+    fn landing(&self, at: u16) -> Finger {
+        if at.abs_diff(self.centre) <= self.gap {
+            Finger::Gap
+        } else {
+            Finger::On(usize::from(at > self.centre))
+        }
+    }
+}
+
+/// A touch-strip finger: off the strip, landed in the gap (ignored until it
+/// lifts), or driving a side.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Finger {
+    Off,
+    Gap,
+    On(usize),
+}
+
 #[derive(Debug)]
 pub struct Analog {
     pub name: &'static str,
@@ -310,6 +385,15 @@ pub fn is_encoder(name: &str) -> bool {
 
 pub type Shifted = Option<Option<(Action, Interaction)>>;
 pub type ShiftFn = fn(&str) -> Shifted;
+/// For devices whose own buttons switch layers kept in the mapping
+/// modifiers: the SHIFT layer and the LEDs that depend on them.
+#[derive(Debug, Clone, Copy)]
+pub struct ModifierHooks {
+    /// Replaces `Layout::shifted`.
+    pub shifted: fn(&str, &crate::modifier::Modifiers) -> Shifted,
+    /// Runs after every other LED hook.
+    pub leds: fn(&Feedback, &Decoder, &crate::modifier::Modifiers, &mut Leds),
+}
 
 const CALIBRATION: [crate::calibration::Group; 2] = [
     crate::calibration::Group {
@@ -331,6 +415,7 @@ pub struct SoundCard {
     pub master: (u16, u16),
     pub monitor: (u16, u16),
     pub buffer_frames: u32,
+    pub inputs: crate::profile::Inputs,
 }
 
 #[derive(Debug)]
@@ -366,6 +451,7 @@ pub struct Layout {
     pub deck_leds: Option<DeckLeds>,
     pub default_mappings: fn() -> Vec<Mapping>,
     pub shifted: ShiftFn,
+    pub modifier_hooks: Option<ModifierHooks>,
     pub upgrade: Option<fn(&Mapping) -> Option<Mapping>>,
     pub jog_button_toggles_touch: bool,
     pub samples_button_stems: bool,
@@ -376,9 +462,13 @@ pub struct Layout {
     pub shared_shift: bool,
     /// Output reports written once on connect, before anything else.
     pub connect_reports: &'static [&'static [u8]],
+    pub touch_strip: Option<TouchStrip>,
+    /// Output reports that draw the device's displays.
+    pub displays: Option<DisplayFn>,
 }
 
 pub type DeckLeds = fn(&Feedback, &Decoder, [usize; 2], &mut Leds);
+pub type DisplayFn = fn(&Feedback, [usize; 2], &crate::modifier::Modifiers) -> Vec<Vec<u8>>;
 
 impl Layout {
     pub fn led_len(&self) -> usize {
@@ -391,6 +481,7 @@ impl Layout {
             || self.analogs.iter().any(|a| a.name == name)
             || self.encoders.iter().any(|e| e.name == name)
             || self.jogs.iter().any(|j| j.name == name)
+            || (self.touch_strip.is_some() && strip_controls().any(|n| n == name))
     }
 
     pub fn has_input(&self, mapping: &Mapping) -> bool {
@@ -427,6 +518,7 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
             master: (0, 1),
             monitor: (2, 3),
             buffer_frames: 256,
+            inputs: crate::profile::Inputs::NONE,
         }),
         rings: true,
         screens: true,
@@ -438,6 +530,7 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
         deck_leds: None,
         default_mappings,
         shifted,
+        modifier_hooks: None,
         upgrade: Some(driver::upgraded),
         jog_button_toggles_touch: false,
         samples_button_stems: false,
@@ -446,6 +539,8 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
         mx2_transport: false,
         shared_shift: false,
         connect_reports: &[],
+        touch_strip: None,
+        displays: None,
     }
 });
 
@@ -453,6 +548,7 @@ pub struct Decoder {
     layout: &'static Layout,
     previous: HashMap<u8, Vec<u8>>,
     potis: Vec<Option<crate::poti::Poti>>,
+    fingers: [Finger; STRIP_FINGERS],
 }
 
 impl Default for Decoder {
@@ -467,6 +563,7 @@ impl Decoder {
             layout,
             previous: HashMap::new(),
             potis: vec![None; layout.analogs.len()],
+            fingers: [Finger::Off; STRIP_FINGERS],
         };
         if let Some(stored) = layout.stored_calibration {
             decoder.set_potis(&stored.defaults());
@@ -530,7 +627,85 @@ impl Decoder {
         {
             self.decode_jogs(report, prev, &mut out);
         }
+        if let Some(strip) = self.layout.touch_strip
+            && id == strip.report
+        {
+            self.decode_strip(strip, report, previous.as_deref(), &mut out);
+        }
         out
+    }
+
+    fn decode_strip(
+        &mut self,
+        strip: TouchStrip,
+        report: &[u8],
+        prev: Option<&[u8]>,
+        out: &mut Vec<InputEvent>,
+    ) {
+        let read = |r: &[u8], finger: usize| {
+            let at = strip.byte + 2 * finger;
+            r.get(at..at + 2).map(|v| u16::from_le_bytes([v[0], v[1]]))
+        };
+        let fingers = strip.fingers.min(STRIP_FINGERS);
+        let now: Vec<u16> = (0..fingers).filter_map(|f| read(report, f)).collect();
+        if now.len() < fingers || now.iter().all(|&v| v == STRIP_INVALID) {
+            return;
+        }
+        let touched = |fingers: &[Finger]| [0, 1].map(|side| fingers.contains(&Finger::On(side)));
+        let anywhere = |fingers: &[Finger]| fingers.iter().any(|f| *f != Finger::Off);
+        let before_touch = touched(&self.fingers);
+        let before_anywhere = anywhere(&self.fingers);
+        let mut turns = [0i32; 2];
+        let mut half_at: [Option<u16>; 2] = [None; 2];
+        let mut first_at = None;
+        for (f, &at) in now.iter().enumerate() {
+            let at = if at == STRIP_INVALID { 0 } else { at };
+            let before = prev
+                .and_then(|p| read(p, f))
+                .filter(|&v| v != STRIP_INVALID)
+                .unwrap_or(0);
+            match (self.fingers[f], at) {
+                (_, 0) => self.fingers[f] = Finger::Off,
+                (Finger::Off, at) => self.fingers[f] = strip.landing(at),
+                (Finger::On(side), at) if before != 0 => {
+                    turns[side] += i32::from(at) - i32::from(before);
+                }
+                (Finger::On(_) | Finger::Gap, _) => {}
+            }
+            if at != 0 && at != before {
+                first_at = first_at.or(Some(at));
+                if let Finger::On(side) = self.fingers[f] {
+                    half_at[side] = half_at[side].or(Some(at));
+                }
+            }
+        }
+        let after_touch = touched(&self.fingers);
+        let after_anywhere = anywhere(&self.fingers);
+        if after_anywhere && !before_anywhere {
+            out.push(event(STRIP_ANY_TOUCH, 1.0, 0, Some(true)));
+        }
+        if let Some(at) = first_at {
+            out.push(event(STRIP_ANY_POSITION, strip.along(at), 0, None));
+        }
+        for side in 0..2 {
+            if after_touch[side] && !before_touch[side] {
+                out.push(event(STRIP_TOUCH[side], 1.0, 0, Some(true)));
+            }
+            if let Some(at) = half_at[side] {
+                let share = strip.along_half(side, at);
+                out.push(event(STRIP_HALF_POSITION[side], share, 0, None));
+            }
+            if turns[side] != 0 {
+                let raw = (turns[side].clamp(-64, 63) as i8 as u8) & 0x7F;
+                out.push(event(STRIP_TURN[side], turns[side] as f32, raw, None));
+            }
+            if before_touch[side] && !after_touch[side] {
+                out.push(event(STRIP_TOUCH[side], 0.0, 0, Some(false)));
+            }
+        }
+        if before_anywhere && !after_anywhere {
+            out.push(event(STRIP_ANY_TOUCH, 0.0, 0, Some(false)));
+        }
     }
 
     fn decode_buttons(&self, report: &[u8], previous: Option<&[u8]>, out: &mut Vec<InputEvent>) {
@@ -818,6 +993,7 @@ pub struct Device {
     rings: Sender<[JogRing; 2]>,
     motors: Sender<motor::Settings>,
     calibration: Sender<Vec<[u8; crate::calibration::REPORT_LEN + 1]>>,
+    reports: Sender<Vec<Vec<u8>>>,
     running: Arc<AtomicBool>,
     connected: Arc<AtomicBool>,
 }
@@ -847,6 +1023,7 @@ impl Device {
         let (ring_tx, ring_rx) = std::sync::mpsc::channel::<[JogRing; 2]>();
         let (motor_tx, motor_rx) = std::sync::mpsc::channel::<motor::Settings>();
         let (calibration_tx, calibration_rx) = std::sync::mpsc::channel();
+        let (reports_tx, reports_rx) = std::sync::mpsc::channel();
         let running = Arc::new(AtomicBool::new(true));
         let connected = Arc::new(AtomicBool::new(false));
         let (alive, online) = (Arc::clone(&running), Arc::clone(&connected));
@@ -859,6 +1036,7 @@ impl Device {
                     rings: ring_rx,
                     motors: motor_rx,
                     calibration: calibration_rx,
+                    reports: reports_rx,
                 };
                 supervise(layout, &events, &outputs, &alive, &online, &wake);
             })
@@ -870,6 +1048,7 @@ impl Device {
             rings: ring_tx,
             motors: motor_tx,
             calibration: calibration_tx,
+            reports: reports_tx,
             running,
             connected,
         })
@@ -899,6 +1078,10 @@ impl Device {
         let _ = self.motors.send(settings);
     }
 
+    pub fn send_reports(&self, reports: Vec<Vec<u8>>) {
+        drop(self.reports.send(reports));
+    }
+
     pub fn calibrate(
         &self,
         group: &crate::calibration::Group,
@@ -918,6 +1101,7 @@ struct Outputs {
     rings: Receiver<[JogRing; 2]>,
     motors: Receiver<motor::Settings>,
     calibration: Receiver<Vec<[u8; crate::calibration::REPORT_LEN + 1]>>,
+    reports: Receiver<Vec<Vec<u8>>>,
 }
 
 #[derive(Default)]
@@ -926,6 +1110,7 @@ struct Sent {
     meters: Option<Meters>,
     rings: Option<[JogRing; 2]>,
     motors: Option<motor::Settings>,
+    reports: Option<Vec<Vec<u8>>>,
 }
 
 const INITIAL_REPORTS: [(u8, usize); 2] = [(0x01, 26), (0x02, 79)];
@@ -1004,6 +1189,7 @@ fn run(
     wake();
     let (mut leds_dirty, mut rings_dirty) = (last.leds.is_some(), last.rings.is_some());
     let mut meters_dirty = last.meters.is_some();
+    let mut reports_dirty = last.reports.is_some();
     while running.load(Ordering::Relaxed) {
         if let Some(latest) = outputs.leds.try_iter().last() {
             last.leds = Some(latest);
@@ -1025,6 +1211,16 @@ fn run(
             for report in batch {
                 drop(device.write(&report));
             }
+        }
+        if let Some(latest) = outputs.reports.try_iter().last() {
+            last.reports = Some(latest);
+            reports_dirty = true;
+        }
+        if reports_dirty && let Some(reports) = &last.reports {
+            for report in reports {
+                drop(device.write(report));
+            }
+            reports_dirty = false;
         }
         if leds_dirty && let Some(state) = &last.leds {
             for (id, bytes) in state.reports(layout) {
@@ -1455,6 +1651,9 @@ pub(crate) mod tests {
         names.extend(l.encoders.iter().map(|e| e.name.to_owned()));
         names.extend(l.switches.iter().map(|s| s.name.to_owned()));
         names.extend(l.jogs.iter().map(|j| j.name.to_owned()));
+        if l.touch_strip.is_some() {
+            names.extend(strip_controls().map(str::to_owned));
+        }
         names
     }
 
