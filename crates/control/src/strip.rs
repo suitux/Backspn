@@ -260,7 +260,8 @@ impl Strip {
 }
 
 /// How many of `half` positions the deck's played share fills.
-fn played(deck: &DeckFeedback, half: usize) -> usize {
+/// How many of `half` positions the deck has played.
+pub fn played(deck: &DeckFeedback, half: usize) -> usize {
     if !deck.loaded || deck.duration_s <= 0.0 {
         return 0;
     }

@@ -860,10 +860,19 @@ impl App {
         let Some(controls) = &self.controls else {
             return;
         };
-        let decks = match controls.screens() {
-            Some((size, decks)) if size == (screen::WIDTH, screen::HEIGHT) => decks,
-            None if preview.is_some() => vec![0, 1],
+        let (size, decks) = match controls.screens() {
+            Some((size, decks))
+                if size == (screen::WIDTH, screen::HEIGHT) || size == screen::WIDE =>
+            {
+                (size, decks)
+            }
+            None if preview.is_some() => ((screen::WIDTH, screen::HEIGHT), vec![0, 1]),
             Some(_) | None => return,
+        };
+        let layout = if size == screen::WIDE {
+            self.settings.screen_layout_wide
+        } else {
+            self.settings.screen_layout
         };
         ctx.request_repaint_after(SCREEN_PERIOD);
         let now = Instant::now();
@@ -912,6 +921,8 @@ impl App {
                                 screen::deck_color(d, &theme),
                             )
                         }),
+                    stems: self.decks[d].stem_overlays(),
+                    partner: self.screen_partner(d, state),
                     clock_ms: std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(0)),
@@ -919,7 +930,7 @@ impl App {
                 if self.settings.screen_idle_logo && screen::idle(&deck) {
                     screen::render_logo(&theme, self.settings.screen_logo.as_deref())
                 } else {
-                    screen::render(&deck, &style, &theme, self.settings.screen_layout)
+                    screen::render_panel(&deck, &style, &theme, layout, size)
                 }
             })
             .collect();
@@ -933,6 +944,25 @@ impl App {
         controls.send_screens(frames);
     }
 
+    /// The deck a screen of deck `d` compares with, as the screen needs it.
+    fn screen_partner<'a>(
+        &'a self,
+        d: usize,
+        state: &'a EngineState,
+    ) -> Option<screen::Partner<'a>> {
+        let loaded: [bool; DECKS] = std::array::from_fn(|n| state.decks[n].loaded);
+        let playing: [bool; DECKS] = std::array::from_fn(|n| state.decks[n].playing);
+        let p = screen::partner_of(d, state.sync.master, &loaded, &playing)?;
+        Some(screen::Partner {
+            index: p,
+            state: &state.decks[p],
+            peaks: self.decks[p].screen_info().map(|i| i.1),
+            key: self.decks[p]
+                .key_label(&state.decks[p])
+                .and_then(|k| backspn_formats::nml::MusicalKey::parse(&k)),
+        })
+    }
+
     pub(crate) fn leave_screens(&self) {
         let Some(controls) = &self.controls else {
             return;
@@ -941,7 +971,7 @@ impl App {
             return;
         }
         if let Some((size, decks)) = controls.screens()
-            && size == (screen::WIDTH, screen::HEIGHT)
+            && (size == (screen::WIDTH, screen::HEIGHT) || size == screen::WIDE)
         {
             let logo = screen::render_logo(
                 &self.settings.theme.theme(),

@@ -54,7 +54,7 @@ pub enum Page {
     FileManagement,
     AnalyzeOptions,
     ControllerManager,
-    KontrolS4Mk3,
+    Native,
 }
 
 impl Page {
@@ -81,13 +81,22 @@ impl Page {
         Self::FileManagement,
         Self::AnalyzeOptions,
         Self::ControllerManager,
-        Self::KontrolS4Mk3,
+        Self::Native,
     ];
 
-    fn shown(s4_page: bool) -> impl Iterator<Item = Self> {
+    /// The pages in the tree: the native controller's only while one is chosen.
+    fn shown(native: Option<&'static str>) -> impl Iterator<Item = Self> {
         Self::ALL
             .into_iter()
-            .filter(move |p| s4_page || *p != Self::KontrolS4Mk3)
+            .filter(move |p| native.is_some() || *p != Self::Native)
+    }
+
+    /// The page's title; the native controller's page is named after the model.
+    fn title_for(self, native: Option<&'static str>) -> &'static str {
+        match (self, native) {
+            (Self::Native, Some(name)) => name,
+            _ => self.title(),
+        }
     }
 
     fn title(self) -> &'static str {
@@ -114,7 +123,7 @@ impl Page {
             Self::FileManagement => "File Management",
             Self::AnalyzeOptions => "Analyze Options",
             Self::ControllerManager => "Controller Manager",
-            Self::KontrolS4Mk3 => "Kontrol S4 MK3",
+            Self::Native => "Controller",
         })
     }
 
@@ -154,7 +163,7 @@ pub struct Prefs {
     fx_marks: (Option<EffectKind>, Option<usize>),
     search: search::Search,
     search_box: egui::Id,
-    s4_page: bool,
+    native: Option<&'static str>,
     screen_previews: screens::Previews,
     kit: kits::KitEditor,
     layouts: layouts::LayoutEditor,
@@ -174,7 +183,7 @@ impl Prefs {
             fx_marks: (None, None),
             search: search::Search::default(),
             search_box: egui::Id::NULL,
-            s4_page: false,
+            native: None,
             screen_previews: screens::Previews::default(),
             kit: kits::KitEditor::default(),
             layouts: layouts::LayoutEditor::default(),
@@ -212,11 +221,11 @@ impl Prefs {
     ) -> Changes {
         let mut changes = Changes::default();
         let mut open = self.open;
-        let s4_page = controls.selected_native() == Some(backspn_control::s4mk3::NAME);
-        if s4_page != self.s4_page {
-            self.s4_page = s4_page;
+        let native = controls.selected_native();
+        if native != self.native {
+            self.native = native;
             self.search.index = None;
-            if !s4_page && self.page == Page::KontrolS4Mk3 {
+            if native.is_none() && self.page == Page::Native {
                 self.page = Page::ControllerManager;
             }
         }
@@ -250,7 +259,7 @@ impl Prefs {
                     });
                     ui.separator();
                     ui.vertical(|ui| {
-                        ui.heading(self.page.title());
+                        ui.heading(self.page.title_for(self.native));
                         ui.add_space(6.0);
                         self.search.begin(ui);
                         ScrollArea::vertical()
@@ -270,26 +279,28 @@ impl Prefs {
     }
 
     fn page_list(&mut self, ui: &mut Ui) {
-        for page in Page::shown(self.s4_page) {
+        for page in Page::shown(self.native) {
+            let title = page.title_for(self.native);
             let text = if page.pending().is_some() {
-                RichText::new(page.title()).weak()
+                RichText::new(title).weak()
             } else {
-                RichText::new(page.title())
+                RichText::new(title)
             };
             ui.selectable_value(&mut self.page, page, text);
         }
     }
 
     fn results(&mut self, ui: &mut Ui) {
-        let results = self.search.results(self.s4_page);
+        let results = self.search.results(self.native);
         if results.is_empty() {
             ui.label(RichText::new(tr("No setting found.")).weak());
         }
         for (page, title) in results {
-            let text = if title == page.title() {
+            let page_title = page.title_for(self.native);
+            let text = if title == page_title {
                 RichText::new(&title).strong()
             } else {
-                RichText::new(format!("{title}\n{}", page.title()))
+                RichText::new(format!("{title}\n{page_title}"))
             };
             if ui.selectable_label(self.page == page, text).clicked() {
                 self.page = page;
@@ -309,13 +320,13 @@ impl Prefs {
     ) -> Vec<(Page, String)> {
         let mut hidden = ui.new_child(egui::UiBuilder::new().id_salt("prefs-index").invisible());
         let mut index = Vec::new();
-        for page in Page::shown(self.s4_page) {
+        for page in Page::shown(self.native) {
             if page.pending().is_some() || page == Page::ControllerManager {
                 continue;
             }
             let mut copy = settings.clone();
             let titles = search::Search::collect(&mut hidden, |ui| {
-                ui.push_id(page.title(), |ui| {
+                ui.push_id(page.title_for(self.native), |ui| {
                     self.page_ui(page, ui, ctx, &mut copy, audio, controls, kits);
                 });
             });
@@ -425,7 +436,7 @@ impl Prefs {
             Page::FileManagement => file_management_page(ui, s),
             Page::AnalyzeOptions => analyze_options(ui, s),
             Page::ControllerManager => controls.contents(ui, ctx),
-            Page::KontrolS4Mk3 => kontrol_s4mk3(ui, s, controls, &mut self.screen_previews),
+            Page::Native => native_page(ui, s, controls, self.native, &mut self.screen_previews),
             _ => {}
         }
         Changes {
@@ -546,52 +557,97 @@ fn latency_readout(buffer: u32, measured: Duration, rate: u32) -> [f64; 3] {
     [processing, output, processing + output]
 }
 
-fn kontrol_s4mk3(
+/// The chosen native controller's page: the sections its hardware has.
+fn native_page(
     ui: &mut Ui,
     s: &mut Settings,
     controls: &mut Controls,
+    native: Option<&'static str>,
     previews: &mut screens::Previews,
 ) {
-    controls.device_section(ui, backspn_control::s4mk3::NAME);
+    let Some(name) = native else {
+        return;
+    };
+    controls.device_section(ui, name);
+    let Some(has) = backspn_control::kontrol::features(name) else {
+        return;
+    };
     ui.add_space(6.0);
-    ui.horizontal(|ui| {
-        search::title(ui, "Jog mode at start-up:");
-        search::radio(ui, &mut s.jog_turntable, false, "Jog");
-        search::radio(ui, &mut s.jog_turntable, true, "TT (turntable)");
-    });
-    ui.horizontal(|ui| {
-        search::title(ui, "Tempo fader:");
-        search::radio(ui, &mut s.tempo_fader_relative, true, "Relative");
-        search::radio(ui, &mut s.tempo_fader_relative, false, "Absolute");
-    })
-    .response
-    .on_hover_text(crate::i18n::tr(
-        "Relative: moving the fader changes the tempo by that much, wherever it is. \
-         Absolute: the fader position is the tempo. SHIFT + SYNC locks the tempo at 0 %.",
-    ));
-    ui.horizontal(|ui| {
-        search::title(ui, "Turntable base speed:");
-        search::radio(ui, &mut s.platter_45, false, "33.3 RPM");
-        search::radio(ui, &mut s.platter_45, true, "45 RPM");
-    })
-    .response
-    .on_hover_text(tr(
-        "How fast the platter turns in TT mode while the deck plays",
-    ));
-    ui.label(
-        RichText::new(crate::i18n::tr(
-            "In TT mode the motor turns the platter and the track follows it: touch to \
-             scratch, SHIFT + PLAY lets it run down. The tempo fader moves platter and track \
-             ±8 %; SYNC does not apply.",
-        ))
-        .weak(),
-    );
-    ui.label(RichText::new(tr("Jog sensitivity: Transport page.")).weak());
-    ui.add_space(6.0);
-    search::heading(ui, "Calibration");
-    controls.calibration_section(ui);
-    ui.add_space(6.0);
-    screens::screens(ui, s, previews);
+    if has.jogs {
+        ui.horizontal(|ui| {
+            search::title(ui, "Jog mode at start-up:");
+            search::radio(ui, &mut s.jog_turntable, false, "Jog");
+            if has.motors {
+                search::radio(ui, &mut s.jog_turntable, true, "TT (turntable)");
+            } else {
+                search::radio(ui, &mut s.jog_turntable, true, "Vinyl (touch to scratch)");
+            }
+        });
+    }
+    if has.tempo_fader {
+        ui.horizontal(|ui| {
+            search::title(ui, "Tempo fader:");
+            search::radio(ui, &mut s.tempo_fader_relative, true, "Relative");
+            search::radio(ui, &mut s.tempo_fader_relative, false, "Absolute");
+        })
+        .response
+        .on_hover_text(tr(
+            "Relative: moving the fader changes the tempo by that much, wherever it is. \
+             Absolute: the fader position is the tempo. SHIFT + SYNC locks the tempo at 0 %.",
+        ));
+    }
+    if has.motors {
+        ui.horizontal(|ui| {
+            search::title(ui, "Turntable base speed:");
+            search::radio(ui, &mut s.platter_45, false, "33.3 RPM");
+            search::radio(ui, &mut s.platter_45, true, "45 RPM");
+        })
+        .response
+        .on_hover_text(tr(
+            "How fast the platter turns in TT mode while the deck plays",
+        ));
+        ui.label(
+            RichText::new(tr(
+                "In TT mode the motor turns the platter and the track follows it: touch to \
+                 scratch, SHIFT + PLAY lets it run down. The tempo fader moves platter and track \
+                 ±8 %; SYNC does not apply.",
+            ))
+            .weak(),
+        );
+    }
+    if has.jogs {
+        ui.label(RichText::new(tr("Jog sensitivity: Transport page.")).weak());
+    }
+    if has.touch_strip {
+        ui.label(
+            RichText::new(tr(
+                "Touch strip: each half moves the deck on its side, and SHIFT seeks a stopped \
+                 deck. Hold a finger on it and press a loop or FX button to use it for that.",
+            ))
+            .weak(),
+        );
+    }
+    if has.sound_card {
+        ui.label(RichText::new(tr("Built-in sound card: choose it in Audio Setup.")).weak());
+    }
+    if has.calibration || has.stored_calibration {
+        ui.add_space(6.0);
+        search::heading(ui, "Calibration");
+        if has.calibration {
+            controls.calibration_section(ui, Some(name));
+        } else {
+            ui.label(RichText::new(tr("Uses the calibration saved in the controller.")).weak());
+        }
+    }
+    if has.screens {
+        ui.add_space(6.0);
+        let size = backspn_control::kontrol::layout(name)
+            .and_then(|l| l.screens)
+            .map_or((crate::screen::WIDTH, crate::screen::HEIGHT), |p| {
+                (p.width, p.height)
+            });
+        screens::screens(ui, s, previews, size);
+    }
 }
 
 fn deck_sizes(ui: &mut Ui, s: &mut Settings) {
@@ -661,10 +717,44 @@ mod tests {
     use super::*;
 
     #[test]
-    fn the_s4_page_is_in_the_tree_only_while_its_controller_is_chosen() {
-        assert!(Page::shown(true).any(|p| p == Page::KontrolS4Mk3));
-        assert!(Page::shown(false).all(|p| p != Page::KontrolS4Mk3));
-        assert_eq!(Page::shown(false).count(), Page::ALL.len() - 1);
+    fn the_controller_page_is_in_the_tree_only_while_one_is_chosen() {
+        let x1 = Some(backspn_control::kontrol::x1mk2::NAME);
+        assert!(Page::shown(x1).any(|p| p == Page::Native));
+        assert!(Page::shown(None).all(|p| p != Page::Native));
+        assert_eq!(Page::shown(None).count(), Page::ALL.len() - 1);
+        assert_eq!(Page::Native.title_for(x1), "Kontrol X1 MK2");
+        assert_eq!(Page::Mixer.title_for(x1), Page::Mixer.title());
+    }
+
+    #[test]
+    fn every_native_controller_gets_a_page_with_its_own_sections() {
+        let ctx = egui::Context::default();
+        let mut controls = Controls::detached();
+        let mut previews = screens::Previews::default();
+        for model in backspn_control::controller::models() {
+            let mut s = Settings::default();
+            let titles = std::cell::RefCell::new(Vec::new());
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+                egui::CentralPanel::default().show(ui, |ui| {
+                    *titles.borrow_mut() = search::Search::collect(ui, |ui| {
+                        native_page(ui, &mut s, &mut controls, Some(model.name), &mut previews);
+                    });
+                });
+            });
+            out.textures_delta.clear();
+            let titles = titles.into_inner();
+            let has = backspn_control::kontrol::features(model.name).expect("features");
+            let shows = |t: &str| titles.iter().any(|x| x == t);
+            assert_eq!(shows("Jog mode at start-up:"), has.jogs, "{}", model.name);
+            assert_eq!(shows("Tempo fader:"), has.tempo_fader, "{}", model.name);
+            assert_eq!(shows("Turntable base speed:"), has.motors, "{}", model.name);
+            assert_eq!(
+                shows("Calibration"),
+                has.calibration || has.stored_calibration,
+                "{}",
+                model.name
+            );
+        }
     }
 
     #[test]

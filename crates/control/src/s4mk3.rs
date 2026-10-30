@@ -185,6 +185,8 @@ pub struct Switch {
     pub name: &'static str,
     pub byte: usize,
     pub bit: u8,
+    /// How many bits the switch takes: 2 for a three-way switch, 1 for a flag.
+    pub bits: u8,
 }
 
 const fn sw(name: &'static str, byte: usize, bit: u8) -> Switch {
@@ -192,6 +194,7 @@ const fn sw(name: &'static str, byte: usize, bit: u8) -> Switch {
         name,
         byte: byte + 1,
         bit,
+        bits: 2,
     }
 }
 
@@ -202,6 +205,32 @@ const SWITCHES: &[Switch] = &[
     sw("Mixer.D.Xfader Assign", 17, 0),
     sw("Mixer.Xfader Curve", 18, 0),
 ];
+
+/// An endless knob that reports where it points, 0 to 999 around the turn,
+/// as a little-endian u16 in the analog report. It turns as an encoder.
+#[derive(Debug)]
+pub struct Erp {
+    pub name: &'static str,
+    pub byte: usize,
+}
+
+/// Readings in one turn of an endless knob, and the encoder steps it gives.
+const ERP_POSITIONS: i32 = 1000;
+const ERP_STEPS_PER_TURN: i32 = 32;
+
+/// Encoder steps for a move of an endless knob from `before` to `now`, keeping
+/// the part of a step left over in `rest`. Readings past the turn are ignored.
+pub fn erp_steps(now: u16, before: u16, rest: &mut i32) -> i32 {
+    let (now, before) = (i32::from(now), i32::from(before));
+    if now >= ERP_POSITIONS || before >= ERP_POSITIONS {
+        return 0;
+    }
+    let delta = (now - before + ERP_POSITIONS / 2).rem_euclid(ERP_POSITIONS) - ERP_POSITIONS / 2;
+    let total = *rest + delta * ERP_STEPS_PER_TURN;
+    let steps = total / ERP_POSITIONS;
+    *rest = total - steps * ERP_POSITIONS;
+    steps
+}
 
 #[derive(Debug)]
 pub struct Jog {
@@ -242,6 +271,9 @@ pub struct TouchStrip {
     pub first: u16,
     pub last: u16,
     pub bar: Option<crate::strip::Bar>,
+    /// A strip that belongs whole to one side, instead of being split in two
+    /// halves.
+    pub side: Option<usize>,
 }
 
 pub const STRIP_TOUCH: [&str; 2] = ["Left.Jog.Touch", "Right.Jog.Touch"];
@@ -275,7 +307,9 @@ impl TouchStrip {
     }
 
     fn along_half(&self, side: usize, at: u16) -> f32 {
-        if side == 0 {
+        if self.side.is_some() {
+            self.along(at)
+        } else if side == 0 {
             Self::share(at, self.first, self.centre)
         } else {
             Self::share(at, self.centre, self.last)
@@ -283,7 +317,9 @@ impl TouchStrip {
     }
 
     fn landing(&self, at: u16) -> Finger {
-        if at.abs_diff(self.centre) <= self.gap {
+        if let Some(side) = self.side {
+            Finger::On(side)
+        } else if at.abs_diff(self.centre) <= self.gap {
             Finger::Gap
         } else {
             Finger::On(usize::from(at > self.centre))
@@ -429,6 +465,8 @@ pub struct Layout {
     pub switches: &'static [Switch],
     pub analogs: &'static [Analog],
     pub encoders: &'static [Encoder],
+    /// Endless knobs, read from the analog report.
+    pub erps: &'static [Erp],
     pub jogs: &'static [Jog],
     pub jog_steps_per_turn: f64,
     pub analog_report: u8,
@@ -442,7 +480,7 @@ pub struct Layout {
     pub calibration: &'static [crate::calibration::Group],
     pub stored_calibration: Option<&'static crate::poti::StoredCalibration>,
     pub rings: bool,
-    pub screens: bool,
+    pub screens: Option<&'static screen::Panel>,
     pub tempo_leds: Option<[usize; 2]>,
     pub wheel_leds: Option<[[usize; 8]; 2]>,
     pub strip_leds: Option<[[usize; 6]; 2]>,
@@ -462,7 +500,7 @@ pub struct Layout {
     pub shared_shift: bool,
     /// Output reports written once on connect, before anything else.
     pub connect_reports: &'static [&'static [u8]],
-    pub touch_strip: Option<TouchStrip>,
+    pub touch_strips: &'static [TouchStrip],
     /// Output reports that draw the device's displays.
     pub displays: Option<DisplayFn>,
 }
@@ -480,8 +518,9 @@ impl Layout {
             || self.switches.iter().any(|s| s.name == name)
             || self.analogs.iter().any(|a| a.name == name)
             || self.encoders.iter().any(|e| e.name == name)
+            || self.erps.iter().any(|e| e.name == name)
             || self.jogs.iter().any(|j| j.name == name)
-            || (self.touch_strip.is_some() && strip_controls().any(|n| n == name))
+            || (!self.touch_strips.is_empty() && strip_controls().any(|n| n == name))
     }
 
     pub fn has_input(&self, mapping: &Mapping) -> bool {
@@ -502,6 +541,7 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
         switches: SWITCHES,
         analogs: ANALOGS,
         encoders: ENCODERS,
+        erps: &[],
         jogs: &JOGS,
         jog_steps_per_turn: JOG_STEPS_PER_TURN,
         analog_report: 0x02,
@@ -521,7 +561,7 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
             inputs: crate::profile::Inputs::NONE,
         }),
         rings: true,
-        screens: true,
+        screens: Some(&screen::S4_PANEL),
         tempo_leds: Some(driver::TEMPO_LED),
         wheel_leds: None,
         strip_leds: None,
@@ -539,7 +579,7 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
         mx2_transport: false,
         shared_shift: false,
         connect_reports: &[],
-        touch_strip: None,
+        touch_strips: &[],
         displays: None,
     }
 });
@@ -548,7 +588,8 @@ pub struct Decoder {
     layout: &'static Layout,
     previous: HashMap<u8, Vec<u8>>,
     potis: Vec<Option<crate::poti::Poti>>,
-    fingers: [Finger; STRIP_FINGERS],
+    fingers: Vec<[Finger; STRIP_FINGERS]>,
+    erp_rest: Vec<i32>,
 }
 
 impl Default for Decoder {
@@ -563,7 +604,8 @@ impl Decoder {
             layout,
             previous: HashMap::new(),
             potis: vec![None; layout.analogs.len()],
-            fingers: [Finger::Off; STRIP_FINGERS],
+            fingers: vec![[Finger::Off; STRIP_FINGERS]; layout.touch_strips.len()],
+            erp_rest: vec![0; layout.erps.len()],
         };
         if let Some(stored) = layout.stored_calibration {
             decoder.set_potis(&stored.defaults());
@@ -620,6 +662,9 @@ impl Decoder {
             self.decode_encoders(report, prev, &mut out);
         }
         if id == self.layout.analog_report {
+            if let Some(prev) = previous.as_deref() {
+                self.decode_erps(report, prev, &mut out);
+            }
             self.decode_analogs(id, report, previous.as_deref(), &mut out);
         }
         if id == self.layout.jog_report
@@ -627,16 +672,17 @@ impl Decoder {
         {
             self.decode_jogs(report, prev, &mut out);
         }
-        if let Some(strip) = self.layout.touch_strip
-            && id == strip.report
-        {
-            self.decode_strip(strip, report, previous.as_deref(), &mut out);
+        for (i, &strip) in self.layout.touch_strips.iter().enumerate() {
+            if id == strip.report {
+                self.decode_strip(i, strip, report, previous.as_deref(), &mut out);
+            }
         }
         out
     }
 
     fn decode_strip(
         &mut self,
+        index: usize,
         strip: TouchStrip,
         report: &[u8],
         prev: Option<&[u8]>,
@@ -653,8 +699,9 @@ impl Decoder {
         }
         let touched = |fingers: &[Finger]| [0, 1].map(|side| fingers.contains(&Finger::On(side)));
         let anywhere = |fingers: &[Finger]| fingers.iter().any(|f| *f != Finger::Off);
-        let before_touch = touched(&self.fingers);
-        let before_anywhere = anywhere(&self.fingers);
+        let mine = &mut self.fingers[index];
+        let before_touch = touched(&mine[..]);
+        let before_anywhere = anywhere(&mine[..]);
         let mut turns = [0i32; 2];
         let mut half_at: [Option<u16>; 2] = [None; 2];
         let mut first_at = None;
@@ -664,9 +711,9 @@ impl Decoder {
                 .and_then(|p| read(p, f))
                 .filter(|&v| v != STRIP_INVALID)
                 .unwrap_or(0);
-            match (self.fingers[f], at) {
-                (_, 0) => self.fingers[f] = Finger::Off,
-                (Finger::Off, at) => self.fingers[f] = strip.landing(at),
+            match (mine[f], at) {
+                (_, 0) => mine[f] = Finger::Off,
+                (Finger::Off, at) => mine[f] = strip.landing(at),
                 (Finger::On(side), at) if before != 0 => {
                     turns[side] += i32::from(at) - i32::from(before);
                 }
@@ -674,17 +721,19 @@ impl Decoder {
             }
             if at != 0 && at != before {
                 first_at = first_at.or(Some(at));
-                if let Finger::On(side) = self.fingers[f] {
+                if let Finger::On(side) = mine[f] {
                     half_at[side] = half_at[side].or(Some(at));
                 }
             }
         }
-        let after_touch = touched(&self.fingers);
-        let after_anywhere = anywhere(&self.fingers);
-        if after_anywhere && !before_anywhere {
+        let after_touch = touched(&mine[..]);
+        let after_anywhere = anywhere(&mine[..]);
+        // A strip of its own side has no whole-strip gestures.
+        let whole = strip.side.is_none();
+        if whole && after_anywhere && !before_anywhere {
             out.push(event(STRIP_ANY_TOUCH, 1.0, 0, Some(true)));
         }
-        if let Some(at) = first_at {
+        if let Some(at) = first_at.filter(|_| whole) {
             out.push(event(STRIP_ANY_POSITION, strip.along(at), 0, None));
         }
         for side in 0..2 {
@@ -703,17 +752,24 @@ impl Decoder {
                 out.push(event(STRIP_TOUCH[side], 0.0, 0, Some(false)));
             }
         }
-        if before_anywhere && !after_anywhere {
+        if whole && before_anywhere && !after_anywhere {
             out.push(event(STRIP_ANY_TOUCH, 0.0, 0, Some(false)));
         }
     }
 
     fn decode_buttons(&self, report: &[u8], previous: Option<&[u8]>, out: &mut Vec<InputEvent>) {
         for switch in self.layout.switches {
-            let read = |r: &[u8]| r.get(switch.byte).map(|v| (v >> switch.bit) & 0x03);
+            let mask = (1u8 << switch.bits.clamp(1, 2)) - 1;
+            let read = |r: &[u8]| r.get(switch.byte).map(|v| (v >> switch.bit) & mask);
             let Some(now) = read(report) else { continue };
             if previous.and_then(read) != Some(now) {
-                out.push(event(switch.name, f32::from(now.min(2)) / 2.0, now, None));
+                let top = mask.min(2);
+                out.push(event(
+                    switch.name,
+                    f32::from(now.min(top)) / f32::from(top),
+                    now,
+                    None,
+                ));
             }
         }
         let Some(prev) = previous else { return };
@@ -730,6 +786,22 @@ impl Decoder {
                     0,
                     Some(now),
                 ));
+            }
+        }
+    }
+
+    fn decode_erps(&mut self, report: &[u8], prev: &[u8], out: &mut Vec<InputEvent>) {
+        for (erp, rest) in self.layout.erps.iter().zip(&mut self.erp_rest) {
+            let read = |r: &[u8]| {
+                r.get(erp.byte..erp.byte + 2)
+                    .map(|v| u16::from_le_bytes([v[0], v[1]]))
+            };
+            if let (Some(now), Some(before)) = (read(report), read(prev)) {
+                let steps = erp_steps(now, before, rest);
+                if steps != 0 {
+                    let raw = (steps.clamp(-64, 63) as i8 as u8) & 0x7F;
+                    out.push(event(erp.name, steps as f32, raw, None));
+                }
             }
         }
     }
@@ -1651,7 +1723,8 @@ pub(crate) mod tests {
         names.extend(l.encoders.iter().map(|e| e.name.to_owned()));
         names.extend(l.switches.iter().map(|s| s.name.to_owned()));
         names.extend(l.jogs.iter().map(|j| j.name.to_owned()));
-        if l.touch_strip.is_some() {
+        names.extend(l.erps.iter().map(|e| e.name.to_owned()));
+        if !l.touch_strips.is_empty() {
             names.extend(strip_controls().map(str::to_owned));
         }
         names
@@ -1683,6 +1756,21 @@ pub(crate) mod tests {
                 m.input
             );
         }
+    }
+
+    #[test]
+    fn endless_knobs_step_across_the_top_and_keep_the_rest() {
+        let mut rest = 0;
+        assert_eq!(erp_steps(40, 10, &mut rest), 0, "under a step");
+        assert_eq!(rest, 960);
+        assert_eq!(erp_steps(50, 40, &mut rest), 1, "the rest adds up");
+        assert_eq!(erp_steps(10, 980, &mut rest), 1);
+        let mut rest = 0;
+        assert_eq!(erp_steps(10, 980, &mut rest), 0, "30 forward across 0");
+        assert_eq!(rest, 960);
+        let mut rest = 0;
+        assert_eq!(erp_steps(900, 100, &mut rest), -6, "the short way back");
+        assert_eq!(erp_steps(1200, 100, &mut rest), 0, "no reading");
     }
 
     #[test]

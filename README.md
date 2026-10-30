@@ -237,7 +237,7 @@ Settings.
 
 | Kind | Brand | Models |
 |---|---|---|
-| Native drivers (HID) | Native Instruments | Kontrol S4 MK3\*, S4 MK2, S2 MK3, S2 MK2, S3, MX2, X1 MK2, X1 MK3, F1, Z1, Z2 |
+| Native drivers (HID) | Native Instruments | Kontrol S4 MK3\*, S4 MK2, S8, S5, D2, S2 MK3, S2 MK2, S3, MX2, X1 MK2, X1 MK3, F1, Z1, Z2 |
 | MIDI profiles | AlphaTheta | DDJ-FLX2, DDJ-FLX4, DDJ-GRV6 |
 | | Pioneer DJ | DDJ-200, DDJ-400, DDJ-800, DDJ-1000, DDJ-ERGO, DDJ-FLX6, DDJ-RB, DDJ-REV5, DDJ-RR, DDJ-RX, DDJ-RZ, DDJ-RZX, DDJ-SB, DDJ-SB2, DDJ-SP1, DDJ-SR, DDJ-SX, DDJ-SX2, DDJ-SZ, DDJ-WeGO, DDJ-WeGO2, DDJ-WeGO3, DDJ-WeGO4, DDJ-XP1, DDJ-XP2 |
 | | Denon DJ | MC7000 |
@@ -251,7 +251,13 @@ work, but they have not been tried on the real device yet and may have bugs.
 If you own one, please [report](https://github.com/suitux/Backspn/issues) what
 works and what doesn't.</sub>
 
-The S4 MK3 driver draws its own screens, with four layouts to pick from:
+The drivers draw their own screens. On the 320 × 240 screens of the S4 MK3 you
+pick Standard, Classic, Waveform or Big Numbers (below), or one of the booth
+layouts: Phrase (beat, bar and phrase, bars to the next cue and to the end),
+Mix (both decks stacked with tempo, phase and key against each other), Cues
+(every hotcue and the bars until it) and Stems. The 480 × 272 screens of the
+S8 and D2 add Wide Deck, Wide Waveform and Wide Mix, which also name what the
+faders, knobs and buttons under the screen are doing.
 
 <p align="center">
   <img src="docs/images/s4-screens.webp" alt="The four screen layouts for the Kontrol S4 MK3: Standard, Classic, Waveform and Big Numbers">

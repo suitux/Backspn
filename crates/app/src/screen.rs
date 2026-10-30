@@ -7,13 +7,19 @@ use crate::deck_view::{SIZES, clock};
 use crate::theme::Theme;
 use crate::waveform::{self, PLAYED_DIM, Peaks, WaveStyle};
 
+mod booth;
 mod classic;
 mod sample_deck;
+mod wide;
+
+pub use booth::partner_of;
 
 pub use sample_deck::{SampleScreen, ScreenCell, SlotOverlay};
 
 pub const WIDTH: usize = 320;
 pub const HEIGHT: usize = 240;
+/// The larger panel of the bigger controllers.
+pub const WIDE: (usize, usize) = (480, 272);
 
 const PAD: i32 = 10;
 
@@ -32,6 +38,18 @@ pub struct ScreenDeck<'a> {
     pub clock_ms: u64,
     pub stem: Option<StemOverlay>,
     pub sample_deck: Option<SampleScreen>,
+    /// Every stem of the track, for the layouts that show them all.
+    pub stems: Option<[StemOverlay; 4]>,
+    /// The deck this one is mixed against, for the layouts that compare.
+    pub partner: Option<Partner<'a>>,
+}
+
+/// The other deck a screen compares with.
+pub struct Partner<'a> {
+    pub index: usize,
+    pub state: &'a DeckState,
+    pub peaks: Option<&'a Peaks>,
+    pub key: Option<backspn_formats::nml::MusicalKey>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
@@ -41,15 +59,53 @@ pub enum Layout {
     Classic,
     Waveform,
     BigNumbers,
+    Phrase,
+    Mix,
+    Cues,
+    Stems,
+    WideDeck,
+    WideWaveform,
+    WideMix,
 }
 
 impl Layout {
-    pub const ALL: [Self; 4] = [
+    /// The layouts drawn at 320 × 240.
+    pub const ALL: [Self; 8] = [
         Self::Standard,
         Self::Classic,
         Self::Waveform,
         Self::BigNumbers,
+        Self::Phrase,
+        Self::Mix,
+        Self::Cues,
+        Self::Stems,
     ];
+    /// The layouts drawn at 480 × 272.
+    pub const WIDE: [Self; 3] = [Self::WideDeck, Self::WideWaveform, Self::WideMix];
+
+    /// The layouts a panel of this size can show: on a wide panel the wide
+    /// ones first, then the smaller ones, which sit in its middle.
+    pub fn for_panel(size: (usize, usize)) -> Vec<Self> {
+        if size == WIDE {
+            Self::WIDE.into_iter().chain(Self::ALL).collect()
+        } else {
+            Self::ALL.to_vec()
+        }
+    }
+
+    pub fn is_wide(self) -> bool {
+        Self::WIDE.contains(&self)
+    }
+
+    /// The 320 × 240 layout that stands in for a wide one on a smaller panel.
+    pub fn small(self) -> Self {
+        match self {
+            Self::WideDeck => Self::Standard,
+            Self::WideWaveform => Self::Waveform,
+            Self::WideMix => Self::Mix,
+            other => other,
+        }
+    }
 
     pub fn label(self) -> &'static str {
         match self {
@@ -57,6 +113,13 @@ impl Layout {
             Self::Classic => "Classic",
             Self::Waveform => "Waveform",
             Self::BigNumbers => "Big Numbers",
+            Self::Phrase => "Phrase",
+            Self::Mix => "Mix",
+            Self::Cues => "Cues",
+            Self::Stems => "Stems",
+            Self::WideDeck => "Wide Deck",
+            Self::WideWaveform => "Wide Waveform",
+            Self::WideMix => "Wide Mix",
         }
     }
 
@@ -68,26 +131,52 @@ impl Layout {
             Self::Classic => "Boxes for BPM, key, remaining time and loop, and the track stripe",
             Self::Waveform => "A tall zoomed waveform with the track, time and tempo around it",
             Self::BigNumbers => "Remaining time, BPM and key in large type",
+            Self::Phrase => {
+                "Beat in the bar, bar in the phrase, and bars to the next cue and to the end"
+            }
+            Self::Mix => {
+                "Both decks' waveforms stacked, with tempo, phase and key against the other deck"
+            }
+            Self::Cues => "Every hotcue with its time and the bars until it",
+            Self::Stems => "Level, mute and filter of the four stems",
+            Self::WideDeck => {
+                "Waveform, track stripe, tempo, key and loop, and what the controls under the screen do"
+            }
+            Self::WideWaveform => {
+                "A tall waveform with the beat counter, and what the controls under the screen do"
+            }
+            Self::WideMix => {
+                "Both decks lined up, with tempo, phase and key against the other deck"
+            }
         }
     }
 }
 
 struct Canvas {
     px: Vec<[u8; 3]>,
+    width: usize,
+    height: usize,
 }
 
 impl Canvas {
     fn new(fill: Color32) -> Self {
+        Self::sized((WIDTH, HEIGHT), fill)
+    }
+
+    fn sized((width, height): (usize, usize), fill: Color32) -> Self {
         Self {
-            px: vec![[fill.r(), fill.g(), fill.b()]; WIDTH * HEIGHT],
+            px: vec![[fill.r(), fill.g(), fill.b()]; width * height],
+            width,
+            height,
         }
     }
 
     fn blend(&mut self, (px, py): (i32, i32), color: Color32, alpha: f32) {
-        if px < 0 || py < 0 || px >= WIDTH as i32 || py >= HEIGHT as i32 || alpha <= 0.0 {
+        let (w, h) = (self.width as i32, self.height as i32);
+        if px < 0 || py < 0 || px >= w || py >= h || alpha <= 0.0 {
             return;
         }
-        let pixel = &mut self.px[py as usize * WIDTH + px as usize];
+        let pixel = &mut self.px[py as usize * self.width + px as usize];
         let a = alpha.min(1.0);
         for (dst, src) in pixel.iter_mut().zip([color.r(), color.g(), color.b()]) {
             *dst = (f32::from(*dst) * (1.0 - a) + f32::from(src) * a).round() as u8;
@@ -95,9 +184,10 @@ impl Canvas {
     }
 
     fn rect(&mut self, (left, top): (i32, i32), (width, height): (i32, i32), color: Color32) {
-        for row in top.max(0)..(top + height).min(HEIGHT as i32) {
-            for col in left.max(0)..(left + width).min(WIDTH as i32) {
-                self.px[row as usize * WIDTH + col as usize] = [color.r(), color.g(), color.b()];
+        for row in top.max(0)..(top + height).min(self.height as i32) {
+            for col in left.max(0)..(left + width).min(self.width as i32) {
+                self.px[row as usize * self.width + col as usize] =
+                    [color.r(), color.g(), color.b()];
             }
         }
     }
@@ -108,8 +198,8 @@ impl Canvas {
 
     fn frame(&self) -> Frame {
         Frame {
-            width: WIDTH,
-            height: HEIGHT,
+            width: self.width,
+            height: self.height,
             pixels: self
                 .px
                 .iter()
@@ -334,11 +424,18 @@ pub fn render(deck: &ScreenDeck, style: &WaveStyle, t: &Theme, layout: Layout) -
     if let Some(r) = &deck.sample_deck {
         return sample_deck::render(r).frame();
     }
+    let layout = layout.small();
     let mut c = match layout {
-        Layout::Standard => render_standard(deck, style, t),
+        Layout::Standard | Layout::WideDeck | Layout::WideWaveform | Layout::WideMix => {
+            render_standard(deck, style, t)
+        }
         Layout::Classic => classic::render(deck, style),
         Layout::Waveform => render_waveform(deck, style, t),
         Layout::BigNumbers => render_big(deck, style, t),
+        Layout::Phrase => booth::render_phrase(deck, style, t),
+        Layout::Mix => booth::render_mix(deck, style, t),
+        Layout::Cues => booth::render_cues(deck, t),
+        Layout::Stems => booth::render_stems(deck, style, t),
     };
     if let Some(stem) = &deck.stem {
         let bg = if layout == Layout::Classic {
@@ -349,6 +446,21 @@ pub fn render(deck: &ScreenDeck, style: &WaveStyle, t: &Theme, layout: Layout) -
         draw_stem(&mut c, stem, bg);
     }
     c.frame()
+}
+
+/// A frame for a panel of `size`: a wide layout fills a wide panel; anything
+/// else is drawn at 320 × 240, which the controller centres on a larger panel.
+pub fn render_panel(
+    deck: &ScreenDeck,
+    style: &WaveStyle,
+    t: &Theme,
+    layout: Layout,
+    size: (usize, usize),
+) -> Frame {
+    if size == WIDE && layout.is_wide() && deck.sample_deck.is_none() {
+        return wide::render(deck, style, t, layout).frame();
+    }
+    render(deck, style, t, layout)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -465,13 +577,36 @@ fn draw_zoomed(
     t: &Theme,
     (y0, y1): (i32, i32),
 ) {
-    let s = deck.state;
-    let xs = (0, WIDTH as i32);
-    c.rect((0, y0), (WIDTH as i32, y1 - y0), t.well);
-    let (Some(peaks), true) = (deck.peaks, s.loaded) else {
+    draw_zoomed_in(
+        c,
+        deck.state,
+        deck.peaks,
+        style,
+        t,
+        deck.zoom_s,
+        (0, WIDTH as i32),
+        (y0, y1),
+    );
+}
+
+/// A deck's waveform around its playhead between `xs` and `ys`, with the beat
+/// grid, the loop, the hotcues and the playhead in the middle.
+#[allow(clippy::too_many_arguments)]
+fn draw_zoomed_in(
+    c: &mut Canvas,
+    s: &DeckState,
+    peaks: Option<&Peaks>,
+    style: &WaveStyle,
+    t: &Theme,
+    zoom_s: f64,
+    xs: (i32, i32),
+    (y0, y1): (i32, i32),
+) {
+    c.rect((xs.0, y0), (xs.1 - xs.0, y1 - y0), t.well);
+    let (Some(peaks), true) = (peaks, s.loaded) else {
         return;
     };
-    let window = (s.position_s - deck.zoom_s, s.position_s + deck.zoom_s);
+    let window = (s.position_s - zoom_s, s.position_s + zoom_s);
     if let Some(grid) = s.grid {
         for (at, bar) in grid.beats_in(window.0, window.1) {
             let line = if bar { t.text_faint } else { t.border };
@@ -480,7 +615,7 @@ fn draw_zoomed(
     }
     if let (Some(a), Some(b)) = (s.loop_start_s, s.loop_end_s) {
         let tint = if s.loop_active { t.play } else { t.text_dim };
-        for xx in x_of(xs, window, a).max(0)..x_of(xs, window, b).min(WIDTH as i32) {
+        for xx in x_of(xs, window, a).max(xs.0)..x_of(xs, window, b).min(xs.1) {
             for yy in y0..y1 {
                 c.blend((xx, yy), tint, 0.18);
             }
@@ -504,7 +639,7 @@ fn draw_zoomed(
             );
         }
     }
-    c.rect((WIDTH as i32 / 2 - 1, y0), (2, y1 - y0), t.danger);
+    c.rect((i32::midpoint(xs.0, xs.1) - 1, y0), (2, y1 - y0), t.danger);
 }
 
 fn render_waveform(deck: &ScreenDeck, style: &WaveStyle, t: &Theme) -> Canvas {
@@ -647,10 +782,21 @@ fn draw_band_overview(
     deck: &ScreenDeck,
     style: &WaveStyle,
     t: &Theme,
+    ys: (i32, i32),
+) {
+    draw_band_overview_in(c, deck, style, t, (PAD, WIDTH as i32 - PAD), ys);
+}
+
+/// The whole track between `xs` and `ys`, the played part dimmed, with the position.
+fn draw_band_overview_in(
+    c: &mut Canvas,
+    deck: &ScreenDeck,
+    style: &WaveStyle,
+    t: &Theme,
+    xs: (i32, i32),
     (y0, y1): (i32, i32),
 ) {
     let s = deck.state;
-    let xs = (PAD, WIDTH as i32 - PAD);
     c.rect((xs.0, y0), (xs.1 - xs.0, y1 - y0), t.well);
     if let (Some(peaks), true) = (deck.peaks, s.loaded && s.duration_s > 0.0) {
         let whole = (0.0, s.duration_s);
@@ -841,6 +987,8 @@ mod tests {
             clock_ms: 0,
             stem: None,
             sample_deck: None,
+            stems: None,
+            partner: None,
         }
     }
 
@@ -940,7 +1088,7 @@ mod tests {
         assert_eq!(pixel(&classic, 10, 85), Frame::rgb565(0x46, 0x46, 0x46));
         let warn = ScreenDeck {
             end_warning: true,
-            ..d
+            ..deck(&state, 4.0)
         };
         let red = Frame::rgb565(0xFF, 0x00, 0x50);
         assert_eq!(
@@ -1042,6 +1190,198 @@ mod tests {
             &render(&sample_deck(&r), &style(), &DARK, Layout::Standard),
         )
         .unwrap();
+    }
+
+    fn booth_state() -> DeckState {
+        let mut state = DeckState {
+            loaded: true,
+            playing: true,
+            duration_s: 60.0,
+            position_s: 21.3,
+            tempo: 1.02,
+            keylock: true,
+            loop_active: true,
+            loop_start_s: Some(20.0),
+            loop_end_s: Some(23.9),
+            grid: Some(backspn_engine::Grid {
+                bpm: 123.0,
+                anchor_s: 0.1,
+                ..backspn_engine::Grid::FIXED
+            }),
+            ..DeckState::default()
+        };
+        let cue = |start_s, loop_s| {
+            Some(backspn_engine::HotcuePoint {
+                start_s,
+                kind: backspn_engine::CueKind::Cue,
+                loop_s,
+            })
+        };
+        state.hotcues[0] = cue(5.0, None);
+        state.hotcues[1] = cue(28.0, None);
+        state.hotcues[3] = cue(40.0, Some(3.9));
+        state
+    }
+
+    fn booth_stems() -> [StemOverlay; 4] {
+        let stem = |name: &str, (r, g, b), volume, muted, filter_on| StemOverlay {
+            name: name.to_owned(),
+            colour: Color32::from_rgb(r, g, b),
+            volume,
+            muted,
+            filter: 0.3,
+            filter_on,
+        };
+        [
+            stem("Drums", (0xE8, 0x5D, 0x3A), 1.0, false, false),
+            stem("Bass", (0xE8, 0xB8, 0x3A), 0.8, false, true),
+            stem("Other", (0x3A, 0xB8, 0xE8), 0.6, false, false),
+            stem("Vocals", (0xB0, 0x5D, 0xE8), 0.0, true, false),
+        ]
+    }
+
+    fn every_size() -> [(usize, usize); 2] {
+        [(WIDTH, HEIGHT), WIDE]
+    }
+
+    #[test]
+    fn every_layout_draws_empty_loaded_and_compared_decks_at_every_size() {
+        let empty = DeckState::default();
+        let loaded = booth_state();
+        let other = DeckState {
+            position_s: 30.0,
+            ..booth_state()
+        };
+        for size in every_size() {
+            for layout in Layout::for_panel(size) {
+                for state in [&empty, &loaded] {
+                    for with_extras in [false, true] {
+                        let d = ScreenDeck {
+                            key: Some("8A"),
+                            stems: with_extras.then(booth_stems),
+                            partner: with_extras.then_some(Partner {
+                                index: 1,
+                                state: &other,
+                                peaks: None,
+                                key: backspn_formats::nml::MusicalKey::parse("9A"),
+                            }),
+                            ..deck(state, 4.0)
+                        };
+                        let frame = render_panel(&d, &style(), &DARK, layout, size);
+                        let expected = if layout.is_wide() && size == WIDE {
+                            WIDE
+                        } else {
+                            (WIDTH, HEIGHT)
+                        };
+                        assert_eq!((frame.width, frame.height), expected, "{layout:?}");
+                        assert_eq!(frame.pixels.len(), expected.0 * expected.1);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn the_small_panel_lists_only_its_layouts_and_wide_ones_fall_back() {
+        assert!(
+            Layout::for_panel((WIDTH, HEIGHT))
+                .iter()
+                .all(|l| !l.is_wide())
+        );
+        let wide = Layout::for_panel(WIDE);
+        assert_eq!(&wide[..3], &Layout::WIDE, "the wide ones first");
+        assert_eq!(wide.len(), Layout::WIDE.len() + Layout::ALL.len());
+        let state = booth_state();
+        let d = deck(&state, 4.0);
+        assert_eq!(
+            render(&d, &style(), &DARK, Layout::WideDeck).pixels,
+            render(&d, &style(), &DARK, Layout::Standard).pixels,
+            "a wide layout on a small panel draws its small stand-in"
+        );
+        assert_eq!(Layout::WideMix.small(), Layout::Mix);
+    }
+
+    #[test]
+    fn the_wide_deck_names_the_stems_under_the_screen() {
+        let state = booth_state();
+        let d = ScreenDeck {
+            stems: Some(booth_stems()),
+            ..deck(&state, 4.0)
+        };
+        let frame = render_panel(&d, &style(), &DARK, Layout::WideDeck, WIDE);
+        let px = |x: usize, y: usize| frame.pixels[y * WIDE.0 + x];
+        assert_eq!(
+            px(4, 240),
+            rgb565(Color32::from_rgb(0xE8, 0x5D, 0x3A)),
+            "drums tab"
+        );
+        assert_ne!(
+            px(364, 240),
+            rgb565(Color32::from_rgb(0xB0, 0x5D, 0xE8)),
+            "muted vocals dimmed"
+        );
+        assert_eq!(px(240, 100), rgb565(DARK.well), "the waveform's well");
+    }
+
+    #[test]
+    fn the_phrase_screen_lights_the_beat_of_the_bar() {
+        let state = DeckState {
+            position_s: 0.1 + 2.0 * 60.0 / 123.0 + 0.01,
+            ..booth_state()
+        };
+        let frame = render(&deck(&state, 4.0), &style(), &DARK, Layout::Phrase);
+        let lit = rgb565(deck_color(0, &DARK));
+        let third = 10 + 2 * ((300 - 18) / 4 + 6) + 5;
+        assert_eq!(pixel(&frame, third, 50), lit, "beat 3 of the bar");
+        assert_eq!(pixel(&frame, 15, 50), rgb565(DARK.well));
+    }
+
+    #[test]
+    fn layout_previews() {
+        let Some(dir) = std::env::var_os("BACKSPN_SCREEN_SNAPSHOT") else {
+            return;
+        };
+        let rate = 8000;
+        let samples: Vec<f32> = (0..rate * 60 * 2)
+            .map(|i| (i as f32 * 0.05).sin() * ((i / 4000) % 7) as f32 / 7.0)
+            .collect();
+        let track = backspn_decode::Track::from_stereo(rate as u32, samples);
+        let peaks = Peaks::compute(&track);
+        let state = booth_state();
+        let other = DeckState {
+            position_s: 33.4,
+            tempo: 1.0,
+            ..booth_state()
+        };
+        let d = ScreenDeck {
+            name: "Some Artist - A Rather Long Track Title",
+            peaks: Some(&peaks),
+            key: Some("8A"),
+            key_color: Some(Color32::from_rgb(0x40, 0xC0, 0xFF)),
+            synced: true,
+            loop_beats: 8.0,
+            stems: Some(booth_stems()),
+            partner: Some(Partner {
+                index: 1,
+                state: &other,
+                peaks: Some(&peaks),
+                key: backspn_formats::nml::MusicalKey::parse("9A"),
+            }),
+            ..deck(&state, 8.0)
+        };
+        for size in every_size() {
+            for layout in Layout::for_panel(size) {
+                let frame = render_panel(&d, &style(), &DARK, layout, size);
+                let image = image::RgbImage::from_raw(
+                    frame.width as u32,
+                    frame.height as u32,
+                    rgb_bytes(&frame),
+                )
+                .unwrap();
+                let name = format!("{layout:?}-{}x{}.png", size.0, size.1);
+                image.save(std::path::Path::new(&dir).join(name)).unwrap();
+            }
+        }
     }
 
     #[test]

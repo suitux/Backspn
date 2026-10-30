@@ -48,7 +48,7 @@ pub fn start_with(
         layout,
         device,
         decoder: Decoder::new(layout),
-        screens: layout.screens.then(Screens::start),
+        screens: layout.screens.map(Screens::start_on),
         state: S4State::for_layout(layout),
         leds: None,
         meters: None,
@@ -168,7 +168,7 @@ impl Controller for S4Mk3 {
                 &mut leds,
             );
         }
-        if let Some(bar) = self.layout.touch_strip.and_then(|s| s.bar) {
+        if let Some(bar) = self.layout.touch_strips.first().and_then(|s| s.bar) {
             let levels = self
                 .state
                 .strip
@@ -656,7 +656,7 @@ impl S4State {
             fx_select_toggle: layout.fx_select_toggles,
             mx2: layout.mx2_transport,
             shared_shift: layout.shared_shift,
-            has_strip: layout.touch_strip.is_some(),
+            has_strip: !layout.touch_strips.is_empty(),
             ..Self::default()
         }
     }
@@ -2728,10 +2728,7 @@ mod tests {
             [(Action::FxKnob { unit: 0, knob: 1 }, Trigger::Set(0.5))]
         );
         let mut leds = Leds::for_layout(&crate::kontrol::x1mk2::LAYOUT);
-        let bar = crate::kontrol::x1mk2::LAYOUT
-            .touch_strip
-            .and_then(|s| s.bar)
-            .unwrap();
+        let bar = crate::kontrol::x1mk2::LAYOUT.touch_strips[0].bar.unwrap();
         let levels = st.strip.bar(&st.shown, st.layer, bar.positions);
         crate::strip::write_bar(&levels, bar, &mut leds.0);
         assert_ne!(leds.0[bar.first], 0, "the bar shows the value");

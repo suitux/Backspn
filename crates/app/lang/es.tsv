@@ -886,3 +886,27 @@ Similar	Similar
 Up	Subir
 Down	Bajar
 Estimated energy (1–10) and change from the master track	Energía estimada (1–10) y cambio respecto a la pista master
+Controller	Controladora
+Vinyl (touch to scratch)	Vinilo (tocar para scratch)
+Touch strip: each half moves the deck on its side, and SHIFT seeks a stopped deck. Hold a finger on it and press a loop or FX button to use it for that.	Tira táctil: cada mitad mueve el deck de su lado, y con SHIFT busca en un deck parado. Deja un dedo encima y pulsa un botón de loop o de FX para usarla con eso.
+Built-in sound card: choose it in Audio Setup.	Tarjeta de sonido integrada: elígela en Configuración de audio.
+Uses the calibration saved in the controller.	Usa la calibración guardada en la controladora.
+Phrase	Frase
+Mix	Mezcla
+Cues	Cues
+Stems	Stems
+Wide Deck	Deck ancho
+Wide Waveform	Forma de onda ancha
+Wide Mix	Mezcla ancha
+Title, artist, BPM, time, loop size and overview, in the app's theme	Título, artista, BPM, tiempo, tamaño del loop y vista general, con el tema de la app
+Boxes for BPM, key, remaining time and loop, and the track stripe	Cajas para BPM, tonalidad, tiempo restante y loop, y la franja de la pista
+A tall zoomed waveform with the track, time and tempo around it	Una forma de onda ampliada y alta, con la pista, el tiempo y el tempo alrededor
+Remaining time, BPM and key in large type	Tiempo restante, BPM y tonalidad en letra grande
+Beat in the bar, bar in the phrase, and bars to the next cue and to the end	Tiempo del compás, compás de la frase, y compases hasta el siguiente cue y hasta el final
+Both decks' waveforms stacked, with tempo, phase and key against the other deck	Las formas de onda de los dos decks apiladas, con tempo, fase y tonalidad frente al otro deck
+Every hotcue with its time and the bars until it	Cada hotcue con su tiempo y los compases que faltan
+Level, mute and filter of the four stems	Nivel, mute y filtro de los cuatro stems
+Waveform, track stripe, tempo, key and loop, and what the controls under the screen do	Forma de onda, franja de la pista, tempo, tonalidad y loop, y qué hacen los controles bajo la pantalla
+A tall waveform with the beat counter, and what the controls under the screen do	Una forma de onda alta con el contador de tiempos, y qué hacen los controles bajo la pantalla
+Both decks lined up, with tempo, phase and key against the other deck	Los dos decks alineados, con tempo, fase y tonalidad frente al otro deck
+The 320 × 240 layouts sit in the middle of these larger screens.	Los diseños de 320 × 240 se muestran en el centro de estas pantallas más grandes.

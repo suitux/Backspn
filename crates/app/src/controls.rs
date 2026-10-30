@@ -53,6 +53,7 @@ pub struct Controls {
     cards_offered: Vec<&'static str>,
     calibration: Option<calibrate::Calibration>,
     calibration_outcome: Option<calibrate::Outcome>,
+    calibration_device: Option<&'static str>,
 }
 
 impl Controls {
@@ -106,6 +107,7 @@ impl Controls {
             cards_offered: Vec::new(),
             calibration: None,
             calibration_outcome: None,
+            calibration_device: None,
         };
         let (user, errors) = backspn_control::profile::read_dir(&profiles::user_dir());
         controls.profiles = backspn_control::profile::with_user(user);
@@ -156,6 +158,7 @@ impl Controls {
             cards_offered: Vec::new(),
             calibration: None,
             calibration_outcome: None,
+            calibration_device: None,
         }
     }
 

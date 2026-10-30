@@ -168,6 +168,8 @@ pub struct Settings {
     pub deck_sizes: [crate::deck_view::DeckSize; DECKS],
     pub beat_jump_pages: [u8; DECKS],
     pub screen_layout: crate::screen::Layout,
+    /// The layout of the 480 × 272 screens.
+    pub screen_layout_wide: crate::screen::Layout,
     pub screen_idle_logo: bool,
     pub screen_quit_logo: bool,
     pub screen_logo: Option<PathBuf>,
@@ -305,6 +307,7 @@ impl Default for Settings {
             deck_sizes: [crate::deck_view::DeckSize::Full; DECKS],
             beat_jump_pages: [backspn_control::pads::BEAT_JUMP_PAGE_START; DECKS],
             screen_layout: crate::screen::Layout::Standard,
+            screen_layout_wide: crate::screen::Layout::WideDeck,
             screen_idle_logo: true,
             screen_quit_logo: true,
             screen_logo: None,

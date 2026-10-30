@@ -194,6 +194,7 @@ const SWITCHES: &[Switch] = &[Switch {
     name: XFADER_REVERSE,
     byte: 8,
     bit: 7,
+    bits: 1,
 }];
 
 /// Puts channels A and B on their crossfader sides for the switch position.
@@ -247,6 +248,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     switches: SWITCHES,
     analogs: ANALOGS,
     encoders: ENCODERS,
+    erps: &[],
     jogs: &[],
     jog_steps_per_turn: 1.0,
     analog_report: 0x02,
@@ -266,7 +268,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     calibration: &[],
     stored_calibration: None,
     rings: false,
-    screens: false,
+    screens: None,
     tempo_leds: None,
     wheel_leds: None,
     strip_leds: None,
@@ -284,7 +286,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     mx2_transport: false,
     shared_shift: true,
     connect_reports: &[HOST_MODE],
-    touch_strip: None,
+    touch_strips: &[],
     displays: None,
 });
 

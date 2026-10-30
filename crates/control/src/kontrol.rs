@@ -1,6 +1,7 @@
 use crate::s4mk3::{Analog, Button, Encoder, Jog, Layout, Shifted};
 use crate::{Action, Input, Interaction, Mapping};
 
+pub mod d2;
 pub mod f1;
 pub mod loop_display;
 pub mod mono;
@@ -9,6 +10,8 @@ pub mod s2mk2;
 pub mod s2mk3;
 pub mod s3;
 pub mod s4mk2;
+pub mod s5;
+pub mod s8;
 pub mod x1mk2;
 pub mod x1mk3;
 pub mod z1;
@@ -152,7 +155,7 @@ fn common_shifted(name: &str) -> Shifted {
     }))
 }
 
-pub fn layouts() -> [&'static Layout; 10] {
+pub fn layouts() -> [&'static Layout; 13] {
     [
         &s2mk3::LAYOUT,
         &s3::LAYOUT,
@@ -164,13 +167,76 @@ pub fn layouts() -> [&'static Layout; 10] {
         &x1mk3::LAYOUT,
         &f1::LAYOUT,
         &z2::LAYOUT,
+        &s8::LAYOUT,
+        &s5::LAYOUT,
+        &d2::LAYOUT,
     ]
+}
+
+/// What a native controller has that its settings page can offer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "one flag per hardware feature"
+)]
+pub struct Features {
+    pub jogs: bool,
+    pub tempo_fader: bool,
+    pub motors: bool,
+    pub screens: bool,
+    pub displays: bool,
+    pub calibration: bool,
+    pub stored_calibration: bool,
+    pub touch_strip: bool,
+    pub sound_card: bool,
+}
+
+impl Features {
+    pub fn of(layout: &Layout) -> Self {
+        Self {
+            jogs: !layout.jogs.is_empty(),
+            tempo_fader: layout.has("Left.Tempo") || layout.has("Right.Tempo"),
+            motors: layout.motors,
+            screens: layout.screens.is_some(),
+            displays: layout.displays.is_some(),
+            calibration: !layout.calibration.is_empty(),
+            stored_calibration: layout.stored_calibration.is_some(),
+            touch_strip: !layout.touch_strips.is_empty(),
+            sound_card: layout.sound_card.is_some(),
+        }
+    }
+}
+
+/// The layout of a native controller by its model name, the S4 MK3 included.
+pub fn layout(name: &str) -> Option<&'static Layout> {
+    std::iter::once(&*crate::s4mk3::S4)
+        .chain(layouts())
+        .find(|l| l.name == name)
+}
+
+pub fn features(name: &str) -> Option<Features> {
+    layout(name).map(Features::of)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::s4mk3::Decoder;
+
+    #[test]
+    fn every_model_has_features_and_they_follow_the_hardware() {
+        for m in crate::controller::models() {
+            assert!(features(m.name).is_some(), "{}", m.name);
+        }
+        let s4 = features(crate::s4mk3::NAME).expect("S4");
+        assert!(s4.jogs && s4.tempo_fader && s4.motors && s4.screens && s4.calibration);
+        let x1 = features(x1mk2::NAME).expect("X1 MK2");
+        assert!(x1.touch_strip && !x1.jogs && !x1.tempo_fader && !x1.motors);
+        assert!(features(x1mk3::NAME).expect("X1 MK3").displays);
+        assert!(features(z2::NAME).expect("Z2").sound_card);
+        assert!(features(z1::NAME).expect("Z1").stored_calibration);
+        assert_eq!(features("Unknown"), None);
+    }
 
     #[test]
     fn layouts_are_consistent() {

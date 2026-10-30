@@ -473,6 +473,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     switches: &[],
     analogs: ANALOGS,
     encoders: ENCODERS,
+    erps: &[],
     jogs: &[],
     jog_steps_per_turn: 1.0,
     analog_report: 0x01,
@@ -486,7 +487,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     calibration: &[],
     stored_calibration: None,
     rings: false,
-    screens: false,
+    screens: None,
     tempo_leds: None,
     wheel_leds: None,
     strip_leds: None,
@@ -507,7 +508,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     mx2_transport: false,
     shared_shift: true,
     connect_reports: &[APP_MODE],
-    touch_strip: None,
+    touch_strips: &[],
     displays: Some(displays),
 });
 

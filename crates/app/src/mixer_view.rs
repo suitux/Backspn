@@ -92,6 +92,15 @@ impl ChannelControls {
     }
 }
 
+/// A press flips an on/off state; a latched switch on the controller sets it.
+fn latch(current: bool, trigger: Trigger) -> Option<bool> {
+    match trigger {
+        Trigger::Press => Some(!current),
+        Trigger::Set(v) => Some(v > 0.5),
+        Trigger::Release | Trigger::Delta(_) | Trigger::Reset => None,
+    }
+}
+
 pub(crate) fn level(current: f32, trigger: Trigger) -> Option<f32> {
     match trigger {
         Trigger::Set(v) => Some(v.clamp(0.0, 1.0)),
@@ -828,6 +837,11 @@ impl MixerView {
                         self.fx_commands(channel, out);
                     }
                 }
+                // A latched switch on the controller says where it is.
+                Trigger::Set(v) => {
+                    self.channels[channel].filter_on = v > 0.5;
+                    self.fx_commands(channel, out);
+                }
                 _ => {}
             },
             Action::MixerFxSelect { slot } if slot <= 4 => {
@@ -956,9 +970,9 @@ impl MixerView {
                 }
             }
             Action::MonitorCue { channel } if channel < 4 => {
-                if trigger == Trigger::Press {
-                    self.channels[channel].cue = !self.channels[channel].cue;
-                    send(MixerCommand::Cue(channel, self.channels[channel].cue));
+                if let Some(on) = latch(self.channels[channel].cue, trigger) {
+                    self.channels[channel].cue = on;
+                    send(MixerCommand::Cue(channel, on));
                 }
             }
             Action::Crossfader => {
@@ -1163,6 +1177,53 @@ mod tests {
             out.iter()
                 .any(|c| matches!(c, Command::Mixer(MixerCommand::Filter(1, f)) if *f == 0.0))
         );
+    }
+
+    #[test]
+    fn latched_switches_set_cue_and_filter() {
+        let mut m = MixerView::new();
+        let mut out = Vec::new();
+        m.apply(
+            Action::MonitorCue { channel: 1 },
+            Trigger::Set(1.0),
+            &mut out,
+        );
+        m.apply(
+            Action::MonitorCue { channel: 1 },
+            Trigger::Set(1.0),
+            &mut out,
+        );
+        m.apply(
+            Action::MonitorCue { channel: 1 },
+            Trigger::Set(0.0),
+            &mut out,
+        );
+        assert_eq!(
+            mixer(&out),
+            [
+                MixerCommand::Cue(1, true),
+                MixerCommand::Cue(1, true),
+                MixerCommand::Cue(1, false)
+            ]
+        );
+        m.apply(
+            Action::MixerFxOn { channel: 2 },
+            Trigger::Set(0.0),
+            &mut out,
+        );
+        assert!(!m.channels[2].filter_on);
+        m.apply(
+            Action::MixerFxOn { channel: 2 },
+            Trigger::Set(1.0),
+            &mut out,
+        );
+        assert!(m.channels[2].filter_on);
+        m.apply(
+            Action::MixerFxOn { channel: 2 },
+            Trigger::Set(1.0),
+            &mut out,
+        );
+        assert!(m.channels[2].filter_on, "a switch sets, it does not toggle");
     }
 
     #[test]

@@ -9,7 +9,7 @@ export interface Brand {
 export const tested = 'Kontrol S4 MK3';
 
 export const native: Brand[] = [
-  { brand: 'Native Instruments', models: [tested, 'Kontrol S4 MK2', 'Kontrol S2 MK3', 'Kontrol S2 MK2', 'Kontrol S3', 'Kontrol MX2', 'Kontrol X1 MK2', 'Kontrol X1 MK3', 'Kontrol F1', 'Kontrol Z1', 'Kontrol Z2'] },
+  { brand: 'Native Instruments', models: [tested, 'Kontrol S4 MK2', 'Kontrol S8', 'Kontrol S5', 'Kontrol D2', 'Kontrol S2 MK3', 'Kontrol S2 MK2', 'Kontrol S3', 'Kontrol MX2', 'Kontrol X1 MK2', 'Kontrol X1 MK3', 'Kontrol F1', 'Kontrol Z1', 'Kontrol Z2'] },
 ];
 
 export const midi: Brand[] = [
