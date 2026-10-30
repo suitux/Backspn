@@ -429,7 +429,7 @@ pub fn render(deck: &ScreenDeck, style: &WaveStyle, t: &Theme, layout: Layout) -
         Layout::Standard | Layout::WideDeck | Layout::WideWaveform | Layout::WideMix => {
             render_standard(deck, style, t)
         }
-        Layout::Classic => classic::render(deck, style),
+        Layout::Classic => classic::render(deck, style, t),
         Layout::Waveform => render_waveform(deck, style, t),
         Layout::BigNumbers => render_big(deck, style, t),
         Layout::Phrase => booth::render_phrase(deck, style, t),
@@ -438,12 +438,7 @@ pub fn render(deck: &ScreenDeck, style: &WaveStyle, t: &Theme, layout: Layout) -
         Layout::Stems => booth::render_stems(deck, style, t),
     };
     if let Some(stem) = &deck.stem {
-        let bg = if layout == Layout::Classic {
-            Color32::BLACK
-        } else {
-            t.base
-        };
-        draw_stem(&mut c, stem, bg);
+        draw_stem(&mut c, stem, t.base);
     }
     c.frame()
 }
@@ -1085,12 +1080,13 @@ mod tests {
             assert_eq!(frame.pixels.len(), WIDTH * HEIGHT, "{layout:?}");
         }
         let classic = render(&d, &style(), &DARK, Layout::Classic);
-        assert_eq!(pixel(&classic, 10, 85), Frame::rgb565(0x46, 0x46, 0x46));
+        let well = rgb565(DARK.well);
+        assert_eq!(pixel(&classic, 10, 85), well);
         let warn = ScreenDeck {
             end_warning: true,
             ..deck(&state, 4.0)
         };
-        let red = Frame::rgb565(0xFF, 0x00, 0x50);
+        let red = rgb565(DARK.danger);
         assert_eq!(
             pixel(&render(&warn, &style(), &DARK, Layout::Classic), 10, 85),
             red

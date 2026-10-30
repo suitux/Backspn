@@ -142,6 +142,7 @@ export default {
     licence: 'Licence',
     bmc: 'Buy me a coffee',
     copyright: '© 2026 Xavier Rincón. The Backspn name and logo are not covered by the code licence.',
+    trademarks: 'Controller and other product names are trademarks of their owners, used only to identify compatible hardware and files. Backspn is not affiliated with or endorsed by any of them.',
   },
   insights: {
     title: 'Statistics · Backspn',

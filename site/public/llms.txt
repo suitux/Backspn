@@ -82,3 +82,5 @@ device names and IP addresses are never sent. Public results: https://backspn.co
 - Spanish landing page: https://backspn.com/es
 - Usage statistics: https://backspn.com/insights
 - Issues: https://github.com/suitux/Backspn/issues
+
+Controller and other product names are trademarks of their owners, used only to identify compatible hardware and files. Backspn is not affiliated with or endorsed by any of them.

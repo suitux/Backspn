@@ -144,6 +144,7 @@ const es: typeof en = {
     licence: 'Licencia',
     bmc: 'Invítame a un café',
     copyright: '© 2026 Xavier Rincón. El nombre y el logotipo de Backspn no forman parte de la licencia del código.',
+    trademarks: 'Los nombres de controladoras y otros productos son marcas de sus propietarios y se usan solo para identificar el hardware y los archivos compatibles. Backspn no está afiliado a ninguno de ellos ni cuenta con su respaldo.',
   },
   insights: {
     title: 'Estadísticas · Backspn',

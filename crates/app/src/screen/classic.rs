@@ -1,21 +1,16 @@
 use backspn_engine::CueKind;
 use eframe::egui::Color32;
 
-use super::{Canvas, ScreenDeck, fonts, text, text_width, title, waveform_band};
+use super::{Canvas, ScreenDeck, draw_band_overview_in, fonts, text, text_width, title};
+use crate::theme::Theme;
 use crate::waveform::WaveStyle;
 
 const BLACK: Color32 = Color32::BLACK;
 const WHITE: Color32 = Color32::WHITE;
-const DARK_GREY: Color32 = Color32::from_rgb(0x28, 0x28, 0x28);
-const GREY: Color32 = Color32::from_rgb(0x46, 0x46, 0x46);
-const LOOP_ON: Color32 = Color32::from_rgb(0x00, 0xFF, 0x46);
-const RED: Color32 = Color32::from_rgb(0xFF, 0x00, 0x50);
-const CYAN: Color32 = Color32::from_rgb(0x60, 0xDC, 0xFF);
-const PLAYHEAD: Color32 = Color32::from_rgb(0xFF, 0x38, 0x1A);
 
 const LEFT: i32 = 6;
 const RIGHT: i32 = 162;
-const BOX: i32 = 150;
+const BOX: i32 = 152;
 
 fn loop_label(beats: f64) -> String {
     super::beats_label(beats)
@@ -50,96 +45,101 @@ pub(super) fn tint(color: Color32, alpha: f32) -> Color32 {
     Color32::from_rgb(m(color.r()), m(color.g()), m(color.b()))
 }
 
-fn hotcue_color(kind: CueKind) -> Color32 {
+fn hotcue_color(kind: CueKind, t: &Theme) -> Color32 {
     match kind {
-        CueKind::Grid => WHITE,
-        CueKind::Cue | CueKind::Other(_) => CYAN,
-        CueKind::FadeIn | CueKind::FadeOut => Color32::from_rgb(0xFF, 0x78, 0x00),
-        CueKind::Load => Color32::from_rgb(0xFF, 0xFF, 0x00),
-        CueKind::Loop => Color32::from_rgb(0x28, 0xFF, 0x28),
+        CueKind::Grid => t.text,
+        CueKind::Cue | CueKind::Other(_) => t.accent,
+        CueKind::FadeIn | CueKind::FadeOut => t.master,
+        CueKind::Load => t.cue,
+        CueKind::Loop => t.play,
     }
 }
 
-pub(super) fn render(deck: &ScreenDeck, style: &WaveStyle) -> Canvas {
+/// A box with a thin outline: `bg` inside, `t.border` around it.
+fn field(c: &mut Canvas, (left, top, width, height): (i32, i32, i32, i32), bg: Color32, t: &Theme) {
+    c.rect((left, top), (width, height), t.border);
+    c.rect((left + 1, top + 1), (width - 2, height - 2), bg);
+}
+
+pub(super) fn render(deck: &ScreenDeck, style: &WaveStyle, t: &Theme) -> Canvas {
     let s = deck.state;
-    let mut c = Canvas::new(BLACK);
+    let mut c = Canvas::new(t.base);
     let head = if s.loaded {
         title(deck)
     } else {
         "No Track Loaded"
     };
-    text(&mut c, &fonts().sans, 22.0, (12.0, 5.0), 294.0, WHITE, head);
-    c.rect((LEFT, 42), (BOX, 33), DARK_GREY);
-    c.rect((LEFT + 2, 44), (BOX - 4, 29), BLACK);
+    text(
+        &mut c,
+        &fonts().sans,
+        22.0,
+        (12.0, 5.0),
+        294.0,
+        t.text,
+        head,
+    );
+
+    let time = (LEFT, 38, BOX, 52);
+    let red = deck.end_warning && (deck.clock_ms / 500).is_multiple_of(2);
+    let (bg, ink) = if red {
+        (t.danger, BLACK)
+    } else {
+        (t.well, t.text)
+    };
+    field(&mut c, time, bg, t);
+    centred(
+        &mut c,
+        30.0,
+        time,
+        ink,
+        &remaining(s.position_s, s.duration_s, s.loaded),
+    );
+
+    let tempo = (RIGHT, 38, BOX, 52);
+    field(&mut c, tempo, t.well, t);
     let bpm = if s.loaded {
         s.effective_bpm()
             .map_or_else(|| "0.00".into(), |b| format!("{b:.2}"))
     } else {
         "0.00".into()
     };
-    centred(&mut c, 24.0, (LEFT, 42, BOX, 33), WHITE, &bpm);
+    centred(&mut c, 30.0, tempo, t.text, &bpm);
+
+    let key_box = (LEFT, 94, BOX, 62);
     let has_key = s.loaded && deck.key.is_some();
     let (bg, ink) = match (s.keylock, has_key) {
         (true, true) => {
-            let k = deck.key_color.unwrap_or(CYAN);
+            let k = deck.key_color.unwrap_or(t.accent);
             (tint(k, 0.3), k)
         }
-        (true, false) => (tint(CYAN, 0.7), WHITE),
-        (false, _) => (DARK_GREY, WHITE),
+        (true, false) => (tint(t.accent, 0.7), WHITE),
+        (false, _) => (t.well, t.text),
     };
-    c.rect((RIGHT, 42), (BOX, 33), bg);
+    field(&mut c, key_box, bg, t);
     let key = match (deck.key, has_key) {
         (Some(k), true) => k.to_owned(),
         _ if s.key_adjust.abs() > 0.01 => format!("{:+.2}", s.key_adjust),
         _ => "No key".into(),
     };
-    centred(&mut c, 24.0, (RIGHT, 42, BOX, 33), ink, &key);
-    let red = deck.end_warning && (deck.clock_ms / 500).is_multiple_of(2);
-    let (bg, ink) = if red { (RED, BLACK) } else { (GREY, WHITE) };
-    c.rect((LEFT, 81), (BOX, 72), bg);
-    centred(
-        &mut c,
-        45.0,
-        (LEFT, 81, BOX, 72),
-        ink,
-        &remaining(s.position_s, s.duration_s, s.loaded),
-    );
+    centred(&mut c, 40.0, key_box, ink, &key);
+
+    let loop_box = (RIGHT, 94, BOX, 62);
     let (bg, ink) = if s.loop_active {
-        (LOOP_ON, BLACK)
+        (t.accent, WHITE)
     } else {
-        (GREY, WHITE)
+        (t.well, t.text)
     };
-    c.rect((RIGHT, 81), (BOX, 72), bg);
-    centred(
-        &mut c,
-        45.0,
-        (RIGHT, 81, BOX, 72),
-        ink,
-        &loop_label(deck.loop_beats),
-    );
-    if let (Some(peaks), true) = (deck.peaks, s.loaded && s.duration_s > 0.0) {
-        let (x0, y0, w, h) = (12, 159, 300, 72);
-        let whole = (0.0, s.duration_s);
-        let at = |t: f64| x0 + (t / s.duration_s * f64::from(w)).round() as i32;
-        waveform_band(
-            &mut c,
-            peaks,
-            style,
-            whole,
-            s.position_s,
-            (x0, x0 + w),
-            (y0, y0 + h),
-        );
-        for y in y0..y0 + h {
-            for x in x0..at(s.position_s).min(x0 + w) {
-                c.blend((x, y), BLACK, 175.0 / 255.0);
-            }
-        }
+    field(&mut c, loop_box, bg, t);
+    centred(&mut c, 40.0, loop_box, ink, &loop_label(deck.loop_beats));
+
+    let (x0, x1, y0) = (LEFT, RIGHT + BOX, 160);
+    draw_band_overview_in(&mut c, deck, style, t, (x0, x1), (y0, 232));
+    if s.loaded && s.duration_s > 0.0 {
+        let at = |t: f64| x0 + (t / s.duration_s * f64::from(x1 - x0)).round() as i32;
         for (n, h_cue) in s.hotcues.iter().enumerate() {
             if let Some(h_cue) = h_cue {
-                let color = hotcue_color(h_cue.kind);
                 let hx = at(h_cue.start_s) - 6;
-                c.rect((hx, y0), (13, 13), color);
+                c.rect((hx, y0), (13, 13), hotcue_color(h_cue.kind, t));
                 text(
                     &mut c,
                     &fonts().sans,
@@ -151,7 +151,6 @@ pub(super) fn render(deck: &ScreenDeck, style: &WaveStyle) -> Canvas {
                 );
             }
         }
-        c.rect((at(s.position_s) - 1, y0), (2, h), PLAYHEAD);
     }
     c
 }
