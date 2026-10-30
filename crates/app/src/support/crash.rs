@@ -1,7 +1,11 @@
+use std::any::Any;
+use std::fmt::Display;
 use std::fs;
-use std::path::PathBuf;
+use std::panic::{self, AssertUnwindSafe};
+use std::path::{Path, PathBuf};
 
 use super::log::Previous;
+use crate::i18n::tr;
 
 fn report_path() -> PathBuf {
     super::folder("Crashlogs").join("last-crash.txt")
@@ -30,6 +34,47 @@ fn panic_text(info: &str, backtrace: &str) -> String {
         super::version(),
         super::system()
     )
+}
+
+/// Runs the app and, if it ends on an error, says so in a system dialog: the
+/// window may never have opened, so egui cannot be the one to show it.
+pub fn tell_fatal<E: Display>(run: impl FnOnce() -> Result<(), E>) -> Result<(), E> {
+    match panic::catch_unwind(AssertUnwindSafe(run)) {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(e)) => {
+            show_fatal(&e.to_string());
+            Err(e)
+        }
+        Err(payload) => {
+            show_fatal(panic_message(payload.as_ref()));
+            panic::resume_unwind(payload)
+        }
+    }
+}
+
+fn show_fatal(error: &str) {
+    rfd::MessageDialog::new()
+        .set_level(rfd::MessageLevel::Error)
+        .set_title("Backspn")
+        .set_description(fatal_text(error, &super::log::path()))
+        .show();
+}
+
+fn fatal_text(error: &str, log: &Path) -> String {
+    format!(
+        "{}\n\n{error}\n\n{} {}",
+        tr("Backspn has to close because of an error:"),
+        tr("Log file:"),
+        log.display()
+    )
+}
+
+fn panic_message(payload: &(dyn Any + Send)) -> &str {
+    payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("unknown error")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,6 +136,23 @@ mod tests {
             text: "x - >>> LOG OPEN, a\nx - boom\n".into(),
             closed,
         }
+    }
+
+    #[test]
+    fn the_fatal_message_names_the_error_and_the_log() {
+        let text = fatal_text("no OpenGL context", Path::new("/data/Backspn.log"));
+        assert!(text.contains("no OpenGL context"));
+        assert!(text.contains("/data/Backspn.log"));
+    }
+
+    #[test]
+    fn a_panic_message_is_read_from_its_payload() {
+        let text: Box<dyn Any + Send> = Box::new("boom");
+        assert_eq!(panic_message(text.as_ref()), "boom");
+        let owned: Box<dyn Any + Send> = Box::new(String::from("bang"));
+        assert_eq!(panic_message(owned.as_ref()), "bang");
+        let other: Box<dyn Any + Send> = Box::new(1);
+        assert_eq!(panic_message(other.as_ref()), "unknown error");
     }
 
     #[test]

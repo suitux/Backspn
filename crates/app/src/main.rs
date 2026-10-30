@@ -104,32 +104,34 @@ fn main() -> eframe::Result {
         persistence_path: Some(prefs::ui_state_path()),
         ..Default::default()
     };
-    let result = eframe::run_native(
-        "Backspn",
-        options,
-        Box::new(move |cc| {
-            let mut app = App::new();
-            if let Some(pending) = crash {
-                app.offer_crash_report(pending);
-            }
-            cc.egui_ctx.set_fonts(theme::fonts());
-            theme::apply(&cc.egui_ctx, app.settings.theme.theme());
-            theme::set_tooltips(&cc.egui_ctx, app.settings.show_tooltips);
-            i18n::set(app.settings.language);
-            toast::set_seconds(app.settings.toast_seconds);
-            #[cfg(target_os = "macos")]
-            match menu::AppMenu::install(&cc.egui_ctx) {
-                Ok(m) => app.menu = Some(m),
-                Err(e) => toast::error(format!("Cannot install the menu bar: {e}")),
-            }
-            #[cfg(not(target_os = "macos"))]
-            let _ = cc;
-            for (deck, path) in files.into_iter().take(DECKS).enumerate() {
-                app.open_file(deck, path);
-            }
-            Ok(Box::new(app))
-        }),
-    );
+    let result = support::crash::tell_fatal(|| {
+        eframe::run_native(
+            "Backspn",
+            options,
+            Box::new(move |cc| {
+                let mut app = App::new();
+                if let Some(pending) = crash {
+                    app.offer_crash_report(pending);
+                }
+                cc.egui_ctx.set_fonts(theme::fonts());
+                theme::apply(&cc.egui_ctx, app.settings.theme.theme());
+                theme::set_tooltips(&cc.egui_ctx, app.settings.show_tooltips);
+                i18n::set(app.settings.language);
+                toast::set_seconds(app.settings.toast_seconds);
+                #[cfg(target_os = "macos")]
+                match menu::AppMenu::install(&cc.egui_ctx) {
+                    Ok(m) => app.menu = Some(m),
+                    Err(e) => toast::error(format!("Cannot install the menu bar: {e}")),
+                }
+                #[cfg(not(target_os = "macos"))]
+                let _ = cc;
+                for (deck, path) in files.into_iter().take(DECKS).enumerate() {
+                    app.open_file(deck, path);
+                }
+                Ok(Box::new(app))
+            }),
+        )
+    });
     support::log::close();
     support::reset::finish();
     result
