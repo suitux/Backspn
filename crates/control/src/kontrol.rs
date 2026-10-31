@@ -9,6 +9,7 @@ pub mod mx2;
 pub mod s2mk2;
 pub mod s2mk3;
 pub mod s3;
+pub mod s4mk1;
 pub mod s4mk2;
 pub mod s5;
 pub mod s8;
@@ -155,13 +156,14 @@ fn common_shifted(name: &str) -> Shifted {
     }))
 }
 
-pub fn layouts() -> [&'static Layout; 13] {
+pub fn layouts() -> [&'static Layout; 14] {
     [
         &s2mk3::LAYOUT,
         &s3::LAYOUT,
         &mx2::LAYOUT,
         &z1::LAYOUT,
         &s4mk2::LAYOUT,
+        &s4mk1::LAYOUT,
         &s2mk2::LAYOUT,
         &x1mk2::LAYOUT,
         &x1mk3::LAYOUT,

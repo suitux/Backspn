@@ -237,7 +237,7 @@ Settings.
 
 | Kind | Brand | Models |
 |---|---|---|
-| Native drivers (HID) | Native Instruments | Kontrol S4 MK3\*, S4 MK2, S8, S5, D2, S2 MK3, S2 MK2, S3, MX2, X1 MK2, X1 MK3, F1, Z1, Z2 |
+| Native drivers (HID and USB) | Native Instruments | Kontrol S4 MK3\*, S4 MK2, S4 MK1, S8, S5, D2, S2 MK3, S2 MK2, S3, MX2, X1 MK2, X1 MK3, F1, Z1, Z2 |
 | MIDI profiles | AlphaTheta | DDJ-FLX2, DDJ-FLX4, DDJ-GRV6 |
 | | Pioneer DJ | DDJ-200, DDJ-400, DDJ-800, DDJ-1000, DDJ-ERGO, DDJ-FLX6, DDJ-RB, DDJ-REV5, DDJ-RR, DDJ-RX, DDJ-RZ, DDJ-RZX, DDJ-SB, DDJ-SB2, DDJ-SP1, DDJ-SR, DDJ-SX, DDJ-SX2, DDJ-SZ, DDJ-WeGO, DDJ-WeGO2, DDJ-WeGO3, DDJ-WeGO4, DDJ-XP1, DDJ-XP2 |
 | | Denon DJ | MC7000 |
@@ -282,6 +282,12 @@ apps or after a restart, so repeat this if the screens stay blank.
   `NTKDaemon.exe`.
 - **Linux**: the manufacturer ships no services for Linux, so there is nothing
   to stop.
+
+**S4 MK1**: it talks raw USB, not HID, so Backspn reaches it only while no
+other driver holds it. On macOS and Windows, the manufacturer's driver and its
+hardware service keep it (quit `NIHardwareAgent` as above; on Windows it also
+needs the WinUSB driver on its control interface). On Linux, Backspn takes the
+control interface from the kernel driver while it runs. Untested.
 
 **Linux**: to reach HID controllers and the S4 MK3 screens without `sudo`,
 install the udev rules and plug the controller in again:

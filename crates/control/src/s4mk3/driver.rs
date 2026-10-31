@@ -43,8 +43,24 @@ pub fn start_with(
     events: EventSender,
     wake: Waker,
 ) -> Result<Box<dyn Controller>, String> {
-    let device = Device::start(layout, events, wake)?;
-    Ok(Box::new(S4Mk3 {
+    Ok(start_device(layout, Device::start(layout, events, wake)?))
+}
+
+/// A controller whose device runs over its own link instead of HID.
+pub(crate) fn start_on(
+    layout: &'static Layout,
+    events: EventSender,
+    wake: Waker,
+    link: super::Link,
+) -> Result<Box<dyn Controller>, String> {
+    Ok(start_device(
+        layout,
+        Device::start_on(layout, events, wake, link)?,
+    ))
+}
+
+fn start_device(layout: &'static Layout, device: Device) -> Box<dyn Controller> {
+    Box::new(S4Mk3 {
         layout,
         device,
         decoder: Decoder::new(layout),
@@ -55,7 +71,7 @@ pub fn start_with(
         rings: None,
         motors: None,
         displays: None,
-    }))
+    })
 }
 
 impl Controller for S4Mk3 {
@@ -236,7 +252,12 @@ impl Controller for S4Mk3 {
     }
 
     fn status(&self) -> Vec<String> {
-        match &self.screens {
+        let device = self
+            .device
+            .problem()
+            .filter(|_| !self.device.connected())
+            .map(|p| format!("Controller: {p}."));
+        let screens = match &self.screens {
             None => Vec::new(),
             Some(Ok(s)) if s.connected() => vec!["Screens: showing the decks.".into()],
             Some(Ok(s)) => s
@@ -244,7 +265,8 @@ impl Controller for S4Mk3 {
                 .map(|p| vec![format!("Screens: {p}.")])
                 .unwrap_or_default(),
             Some(Err(e)) => vec![format!("Screens: {e}.")],
-        }
+        };
+        device.into_iter().chain(screens).collect()
     }
 }
 

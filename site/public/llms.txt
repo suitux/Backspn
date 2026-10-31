@@ -50,7 +50,7 @@ MP3, AAC/M4A, ALAC, FLAC, WAV, AIFF, Ogg Vorbis and .stem.mp4.
 ## Controllers
 
 - Native HID drivers: Kontrol S4 MK3 (tested on hardware, with its own screen layouts); Kontrol
-  S4 MK2, S2 MK3, S2 MK2, S3, MX2 and Z1 (untested).
+  S4 MK2, S4 MK1, S2 MK3, S2 MK2, S3, MX2 and Z1 (untested).
 - MIDI profiles: Pioneer DJ DDJ series, Denon DJ MC7000, Hercules DJControl Inpulse 200/300/500,
   Numark Mixtrack Pro FX and Platinum FX, Reloop READY and Buddy.
 - Anything else: MIDI learn and keyboard mappings.

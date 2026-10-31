@@ -1067,7 +1067,7 @@ pub struct Device {
     calibration: Sender<Vec<[u8; crate::calibration::REPORT_LEN + 1]>>,
     reports: Sender<Vec<Vec<u8>>>,
     running: Arc<AtomicBool>,
-    connected: Arc<AtomicBool>,
+    link: Arc<LinkStatus>,
 }
 
 impl std::fmt::Debug for Device {
@@ -1090,6 +1090,16 @@ impl Device {
         events: Sender<(String, InputEvent)>,
         wake: impl Fn() + Send + 'static,
     ) -> Result<Self, String> {
+        Self::start_on(layout, events, wake, supervise)
+    }
+
+    /// Starts the device over its own link instead of HID.
+    pub(crate) fn start_on(
+        layout: &'static Layout,
+        events: Sender<(String, InputEvent)>,
+        wake: impl Fn() + Send + 'static,
+        link: Link,
+    ) -> Result<Self, String> {
         let (led_tx, led_rx) = std::sync::mpsc::channel::<Leds>();
         let (meter_tx, meter_rx) = std::sync::mpsc::channel::<Meters>();
         let (ring_tx, ring_rx) = std::sync::mpsc::channel::<[JogRing; 2]>();
@@ -1097,8 +1107,8 @@ impl Device {
         let (calibration_tx, calibration_rx) = std::sync::mpsc::channel();
         let (reports_tx, reports_rx) = std::sync::mpsc::channel();
         let running = Arc::new(AtomicBool::new(true));
-        let connected = Arc::new(AtomicBool::new(false));
-        let (alive, online) = (Arc::clone(&running), Arc::clone(&connected));
+        let link_status = Arc::new(LinkStatus::default());
+        let (alive, online) = (Arc::clone(&running), Arc::clone(&link_status));
         std::thread::Builder::new()
             .name(layout.source.to_ascii_lowercase().replace(' ', ""))
             .spawn(move || {
@@ -1110,7 +1120,7 @@ impl Device {
                     calibration: calibration_rx,
                     reports: reports_rx,
                 };
-                supervise(layout, &events, &outputs, &alive, &online, &wake);
+                link(layout, &events, &outputs, &alive, &online, &wake);
             })
             .map_err(|e| e.to_string())?;
         Ok(Self {
@@ -1122,12 +1132,17 @@ impl Device {
             calibration: calibration_tx,
             reports: reports_tx,
             running,
-            connected,
+            link: link_status,
         })
     }
 
     pub fn connected(&self) -> bool {
-        self.connected.load(Ordering::Relaxed)
+        self.link.connected.load(Ordering::Relaxed)
+    }
+
+    /// Why the device can't be reached, while it is present but held.
+    pub fn problem(&self) -> Option<&'static str> {
+        self.link.problem()
     }
 
     pub fn layout(&self) -> &'static Layout {
@@ -1167,14 +1182,54 @@ impl Device {
     }
 }
 
-struct Outputs {
-    leds: Receiver<Leds>,
+pub(crate) struct Outputs {
+    pub(crate) leds: Receiver<Leds>,
     meters: Receiver<Meters>,
     rings: Receiver<[JogRing; 2]>,
     motors: Receiver<motor::Settings>,
     calibration: Receiver<Vec<[u8; crate::calibration::REPORT_LEN + 1]>>,
     reports: Receiver<Vec<Vec<u8>>>,
 }
+
+impl Outputs {
+    /// Drops what a link without those outputs never sends.
+    pub(crate) fn drain_unused(&self) {
+        self.meters.try_iter().for_each(drop);
+        self.rings.try_iter().for_each(drop);
+        self.motors.try_iter().for_each(drop);
+        self.calibration.try_iter().for_each(drop);
+        self.reports.try_iter().for_each(drop);
+    }
+}
+
+/// Whether the device is connected, and why not when something stops it.
+#[derive(Debug, Default)]
+pub(crate) struct LinkStatus {
+    pub(crate) connected: AtomicBool,
+    problem: std::sync::Mutex<Option<&'static str>>,
+}
+
+impl LinkStatus {
+    pub(crate) fn set_problem(&self, problem: Option<&'static str>) {
+        if let Ok(mut p) = self.problem.lock() {
+            *p = problem;
+        }
+    }
+
+    fn problem(&self) -> Option<&'static str> {
+        self.problem.lock().ok().and_then(|p| *p)
+    }
+}
+
+/// The thread that keeps a device connected and moves its reports.
+pub(crate) type Link = fn(
+    &'static Layout,
+    &Sender<(String, InputEvent)>,
+    &Outputs,
+    &AtomicBool,
+    &LinkStatus,
+    &dyn Fn(),
+);
 
 #[derive(Default)]
 struct Sent {
@@ -1187,16 +1242,17 @@ struct Sent {
 
 const INITIAL_REPORTS: [(u8, usize); 2] = [(0x01, 26), (0x02, 79)];
 
-const RETRY: Duration = Duration::from_secs(2);
+pub(crate) const RETRY: Duration = Duration::from_secs(2);
 
 fn supervise(
     layout: &'static Layout,
     events: &Sender<(String, InputEvent)>,
     outputs: &Outputs,
     running: &AtomicBool,
-    connected: &AtomicBool,
+    status: &LinkStatus,
     wake: &dyn Fn(),
 ) {
+    let connected = &status.connected;
     let Ok(mut api) = hidapi::HidApi::new() else {
         return;
     };

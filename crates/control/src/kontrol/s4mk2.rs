@@ -217,24 +217,37 @@ const SEGMENT_ON: u8 = 0x7F;
 
 fn deck_leds(feedback: &Feedback, decoder: &Decoder, layer: [usize; 2], leds: &mut Leds) {
     let phase = loop_display::phase_ms();
-    for (i, side) in ["Left", "Right"].into_iter().enumerate() {
-        let d = &feedback.decks[layer[i]];
+    for (&deck, &first) in layer.iter().zip(&LOOP_DISPLAY) {
+        let d = &feedback.decks[deck];
         let digits = loop_display::loop_display(d.loop_size, d.loop_active, d.live, phase);
-        loop_display::write_digits(&mut leds.0, at(R82, LOOP_DISPLAY[i]), digits, SEGMENT_ON);
+        loop_display::write_digits(&mut leds.0, at(R82, first), digits, SEGMENT_ON);
+    }
+    remix_leds(feedback, decoder, layer, leds, SEGMENT_ON);
+}
+
+/// The remix slot buttons show the sample deck of the lower layer.
+pub(super) fn remix_leds(
+    feedback: &Feedback,
+    decoder: &Decoder,
+    layer: [usize; 2],
+    leds: &mut Leds,
+    on: u8,
+) {
+    for (i, side) in ["Left", "Right"].into_iter().enumerate() {
         let slots = (layer[i] >= 2)
             .then(|| feedback.decks[i + 2].sample_deck)
             .flatten();
         for slot in 0..4 {
             if let Some(led) = decoder.led(&format!("{side}.Remix.{}", slot + 1)) {
                 let state = slots.map_or(0, |s| s.slots[slot].state.min(4));
-                leds.0[led] = remix_led(state);
+                leds.0[led] = remix_led(state, on);
             }
         }
     }
 }
 
-fn remix_led(state: u8) -> u8 {
-    u8::try_from(u32::from(state.min(4)) * u32::from(SEGMENT_ON) / 4).unwrap_or(SEGMENT_ON)
+fn remix_led(state: u8, on: u8) -> u8 {
+    u8::try_from(u32::from(state.min(4)) * u32::from(on) / 4).unwrap_or(on)
 }
 
 fn meter_leds(feedback: &Feedback, _decoder: &Decoder, leds: &mut Leds) {
@@ -304,7 +317,7 @@ fn browse_mappings() -> Vec<Mapping> {
     v
 }
 
-fn default_mappings() -> Vec<Mapping> {
+pub(super) fn default_mappings() -> Vec<Mapping> {
     let mut v: Vec<Mapping> = super::default_mappings(&LAYOUT, Vec::new())
         .into_iter()
         .filter(|m| !matches!(m.action, Action::Gain { .. }))
@@ -383,7 +396,7 @@ fn default_mappings() -> Vec<Mapping> {
     v
 }
 
-fn shifted(name: &str) -> Shifted {
+pub(super) fn shifted(name: &str) -> Shifted {
     let (side, control) = name.split_once('.')?;
     let deck = match side {
         "Left" => 0,
