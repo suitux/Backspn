@@ -917,3 +917,6 @@ The audio engine could not start:	El motor de audio no ha podido arrancar:
 Choose another output device.	Elige otro dispositivo de salida.
 Try Again	Reintentar
 Generating stems needs at least macOS	Generar stems requiere como mínimo macOS
+High-pass: removes the low end; higher lets less bass through	Paso alto: quita los graves; más alto deja pasar menos graves
+Low-pass: removes the high end; lower lets fewer highs through	Paso bajo: quita los agudos; más bajo deja pasar menos agudos
+Size: how large the space sounds; higher gives a longer tail	Tamaño: lo grande que suena el espacio; más alto alarga la cola
