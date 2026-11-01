@@ -36,10 +36,16 @@ jobs:
         include:
           - os: macos-latest
             formats: app
+            platform: apple
+            arch: universal
           - os: windows-latest
             formats: nsis
+            platform: windows
+            arch: x86_64
           - os: ubuntu-24.04
             formats: deb,appimage
+            platform: linux
+            arch: x86_64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -72,6 +78,14 @@ jobs:
           codesign --force --deep --sign - target/packages/Backspn.app
           codesign --verify --deep --strict target/packages/Backspn.app
           packaging/macos/dmg/make-dmg.sh target/packages/Backspn.app target/packages/Backspn.dmg
+      - name: Name the packages
+        working-directory: target/packages
+        shell: bash
+        run: |
+          name="Backspn_${GITHUB_REF_NAME#v}_${{ matrix.platform }}_${{ matrix.arch }}"
+          for f in *.dmg *.exe *.deb *.AppImage; do
+            if [ -e "$f" ]; then mv "$f" "$name.${f##*.}"; fi
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: backspn-${{ runner.os }}
