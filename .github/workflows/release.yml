@@ -78,6 +78,7 @@ jobs:
           codesign --force --deep --sign - target/packages/Backspn.app
           codesign --verify --deep --strict target/packages/Backspn.app
           packaging/macos/dmg/make-dmg.sh target/packages/Backspn.app target/packages/Backspn.dmg
+          COPYFILE_DISABLE=1 tar -czf target/packages/Backspn.app.tar.gz -C target/packages Backspn.app
       - name: Name the packages
         working-directory: target/packages
         shell: bash
@@ -86,11 +87,13 @@ jobs:
           for f in *.dmg *.exe *.deb *.AppImage; do
             if [ -e "$f" ]; then mv "$f" "$name.${f##*.}"; fi
           done
+          if [ -e Backspn.app.tar.gz ]; then mv Backspn.app.tar.gz "$name.app.tar.gz"; fi
       - uses: actions/upload-artifact@v4
         with:
           name: backspn-${{ runner.os }}
           path: |
             target/packages/*.dmg
+            target/packages/*.app.tar.gz
             target/packages/*.exe
             target/packages/*.deb
             target/packages/*.AppImage
@@ -102,10 +105,24 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with:
           path: packages
           merge-multiple: true
+      - name: Sign the update manifest
+        env:
+          UPDATE_KEY: ${{ secrets.BACKSPN_UPDATE_KEY }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          packaging/manifest.sh "$version" packages
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends minisign
+          key="$RUNNER_TEMP/update.key"
+          printf '%s\n' "$UPDATE_KEY" > "$key"
+          minisign -S -s "$key" -m packages/backspn-manifest.json -t "backspn-manifest $version"
+          rm -f "$key"
+          minisign -V -p crates/app/src/support/update/backspn.pub -m packages/backspn-manifest.json
       - uses: softprops/action-gh-release@v2
         with:
           prerelease: ${{ needs.version.outputs.prerelease == 'true' }}

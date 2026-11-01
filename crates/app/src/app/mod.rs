@@ -29,7 +29,7 @@ pub(crate) use loop_rec::LoopCopyFor;
 pub(crate) use pad_fx::PadFxDeck;
 pub(crate) use pads::PadPages;
 pub(crate) use quit::Quit;
-pub(crate) use report::CrashAnswer;
+pub(crate) use report::{CrashAnswer, UpdateAnswer};
 pub(crate) use sets::SetImport;
 pub(crate) use settings::start_engine;
 pub(crate) use setup_wizard::Wizard;

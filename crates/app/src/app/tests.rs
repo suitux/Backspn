@@ -1021,3 +1021,21 @@ fn a_failed_audio_engine_asks_for_another_device() {
     h.press_key(egui::Key::Escape);
     assert_eq!(h.app.audio_offer.closed_failure.as_deref(), Some(&*error));
 }
+
+#[test]
+fn a_copy_that_cannot_install_only_links_to_the_release() {
+    use crate::support::update::{Release, Stage, Target};
+    let mut h = Harness::new("update");
+    h.app.update.release = Some(Release {
+        tag: "v99.0.0".into(),
+    });
+    h.app.update.target = Target::Unsupported("");
+    h.frame();
+    assert!(!h.app.update.can_install());
+    h.app.update.download();
+    assert_eq!(h.app.update.stage(), Stage::Idle, "nothing is downloaded");
+    h.frame();
+    assert!(h.app.update_ask.is_none());
+    h.app.update.target = Target::Nsis("Backspn.exe".into());
+    assert!(h.app.update.can_install());
+}

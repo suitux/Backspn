@@ -14,7 +14,7 @@ use ort::session::builder::AutoDevicePolicy;
 use ort::value::Tensor;
 
 pub use chunks::{OVERLAP, OverlapAdd, SEGMENT, segments, weight};
-pub use model::{MODEL_FILE, MODEL_SHA256, MODEL_SIZE, MODEL_URL, download, verify};
+pub use model::{MODEL_FILE, MODEL_SHA256, MODEL_SIZE, MODEL_URL, download, fetch, verify};
 pub use runtime::{MIN_MACOS, supported};
 
 pub const STEMS: usize = 4;
@@ -24,9 +24,9 @@ pub const MODEL_RATE: u32 = 44_100;
 pub enum Error {
     #[error("separation model: {0}")]
     Model(#[from] ort::Error),
-    #[error("model download failed: {0}")]
+    #[error("download failed: {0}")]
     Download(String),
-    #[error("the downloaded model does not match its checksum")]
+    #[error("the download does not match its checksum")]
     Checksum,
     #[error("cancelled")]
     Cancelled,

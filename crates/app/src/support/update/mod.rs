@@ -1,6 +1,16 @@
+mod apply;
+mod manifest;
+mod target;
+
 use std::cmp::Ordering;
+use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering as Atomic};
 use std::sync::mpsc::{self, Receiver};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
+
+use apply::Staged;
+pub use target::Target;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Version {
@@ -73,6 +83,14 @@ impl Release {
             self.tag
         )
     }
+
+    fn asset_url(&self, name: &str) -> String {
+        format!(
+            "https://github.com/{}/releases/download/{}/{name}",
+            super::REPO,
+            self.tag
+        )
+    }
 }
 
 pub fn newest(tags: &[String], current: &str) -> Option<Release> {
@@ -89,15 +107,89 @@ pub fn shows(release: &Release, dismissed: Option<&str>) -> bool {
     dismissed != Some(release.version())
 }
 
+static READY: Mutex<Option<Staged>> = Mutex::new(None);
+static RESTART: AtomicBool = AtomicBool::new(false);
+
+pub fn restart_after_quit(restart: bool) {
+    RESTART.store(restart, Atomic::SeqCst);
+}
+
+pub fn finish() {
+    let staged = READY.lock().unwrap_or_else(PoisonError::into_inner).take();
+    if let Some(staged) = staged
+        && let Err(e) = apply::install(&staged, RESTART.load(Atomic::SeqCst))
+    {
+        eprintln!("cannot install the update: {e}");
+    }
+}
+
+fn downloads() -> PathBuf {
+    super::folder("Updates")
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Stage {
+    Idle,
+    Downloading(f32),
+    Ready,
+}
+
+struct Download {
+    got: Arc<AtomicU64>,
+    total: Arc<AtomicU64>,
+    cancel: Arc<AtomicBool>,
+    answer: Receiver<Result<Staged, String>>,
+}
+
+impl Download {
+    fn start(release: Release, target: Target) -> Self {
+        let got = Arc::new(AtomicU64::new(0));
+        let total = Arc::new(AtomicU64::new(0));
+        let cancel = Arc::new(AtomicBool::new(false));
+        let (tx, rx) = mpsc::channel();
+        let (g, t, c) = (got.clone(), total.clone(), cancel.clone());
+        std::thread::spawn(move || {
+            let result = fetch_update(
+                &release,
+                &target,
+                &mut |got, total| {
+                    g.store(got, Atomic::Relaxed);
+                    t.store(total, Atomic::Relaxed);
+                },
+                &c,
+            );
+            tx.send(result).ok();
+        });
+        Self {
+            got,
+            total,
+            cancel,
+            answer: rx,
+        }
+    }
+
+    fn fraction(&self) -> f32 {
+        let total = self.total.load(Atomic::Relaxed);
+        if total == 0 {
+            return 0.0;
+        }
+        (self.got.load(Atomic::Relaxed) as f64 / total as f64).min(1.0) as f32
+    }
+}
+
 pub struct Check {
     answer: Option<Receiver<Option<Release>>>,
     pub release: Option<Release>,
+    pub target: Target,
+    download: Option<Download>,
+    ready: bool,
 }
 
 impl Check {
     pub fn start() -> Self {
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
+            let _ = std::fs::remove_dir_all(downloads());
             let release = fetch_tags()
                 .inspect_err(|e| log::info!("new-version check: {e}"))
                 .ok()
@@ -107,6 +199,9 @@ impl Check {
         Self {
             answer: Some(rx),
             release: None,
+            target: Target::current(),
+            download: None,
+            ready: false,
         }
     }
 
@@ -114,17 +209,106 @@ impl Check {
         Self {
             answer: None,
             release: None,
+            target: Target::Unsupported(""),
+            download: None,
+            ready: false,
         }
     }
 
-    pub fn poll(&mut self) {
+    pub fn can_install(&self) -> bool {
+        self.target.kind().is_some()
+    }
+
+    pub fn stage(&self) -> Stage {
+        match &self.download {
+            _ if self.ready => Stage::Ready,
+            Some(d) => Stage::Downloading(d.fraction()),
+            None => Stage::Idle,
+        }
+    }
+
+    pub fn download(&mut self) {
+        if let Some(release) = &self.release
+            && self.can_install()
+            && self.stage() == Stage::Idle
+        {
+            self.download = Some(Download::start(release.clone(), self.target.clone()));
+        }
+    }
+
+    pub fn cancel(&self) {
+        if let Some(d) = &self.download {
+            d.cancel.store(true, Atomic::Relaxed);
+        }
+    }
+
+    pub fn poll(&mut self) -> Option<String> {
         if let Some(rx) = &self.answer
             && let Ok(release) = rx.try_recv()
         {
             self.release = release;
             self.answer = None;
         }
+        let d = self.download.as_ref()?;
+        let result = d.answer.try_recv().ok()?;
+        let cancelled = d.cancel.load(Atomic::Relaxed);
+        self.download = None;
+        match result {
+            Ok(staged) => {
+                *READY.lock().unwrap_or_else(PoisonError::into_inner) = Some(staged);
+                self.ready = true;
+                None
+            }
+            Err(_) if cancelled => None,
+            Err(e) => {
+                log::warn!("update: {e}");
+                Some(e)
+            }
+        }
     }
+}
+
+fn fetch_update(
+    release: &Release,
+    target: &Target,
+    progress: &mut dyn FnMut(u64, u64),
+    cancel: &AtomicBool,
+) -> Result<Staged, String> {
+    let kind = target.kind().ok_or("this copy cannot update itself")?;
+    let manifest = manifest::read(
+        &get(&release.asset_url(manifest::FILE))?,
+        &get(&release.asset_url(manifest::SIGNATURE))?,
+        release.version(),
+    )?;
+    let asset = manifest
+        .asset(kind, manifest::arch(kind))
+        .ok_or("the release has no package for this system")?;
+    let file = downloads().join(release.version()).join(&asset.name);
+    backspn_separate::fetch(
+        &release.asset_url(&asset.name),
+        &file,
+        &asset.sha256,
+        asset.size,
+        progress,
+        cancel,
+    )
+    .map_err(|e| e.to_string())?;
+    apply::stage(target, &file)
+}
+
+fn get(url: &str) -> Result<String, String> {
+    let agent = ureq::Agent::config_builder()
+        .timeout_global(Some(Duration::from_secs(5)))
+        .build()
+        .new_agent();
+    agent
+        .get(url)
+        .header("Accept", "application/vnd.github.v3+json")
+        .call()
+        .map_err(|e| e.to_string())?
+        .body_mut()
+        .read_to_string()
+        .map_err(|e| e.to_string())
 }
 
 fn fetch_tags() -> Result<Vec<String>, String> {
@@ -136,19 +320,7 @@ fn fetch_tags() -> Result<Vec<String>, String> {
         "https://api.github.com/repos/{}/tags?per_page=100",
         super::REPO
     );
-    let agent = ureq::Agent::config_builder()
-        .timeout_global(Some(Duration::from_secs(5)))
-        .build()
-        .new_agent();
-    let text = agent
-        .get(&url)
-        .header("Accept", "application/vnd.github.v3+json")
-        .call()
-        .map_err(|e| e.to_string())?
-        .body_mut()
-        .read_to_string()
-        .map_err(|e| e.to_string())?;
-    let tags: Vec<Tag> = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+    let tags: Vec<Tag> = serde_json::from_str(&get(&url)?).map_err(|e| e.to_string())?;
     Ok(tags.into_iter().map(|t| t.name).collect())
 }
 

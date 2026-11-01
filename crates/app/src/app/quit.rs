@@ -70,6 +70,7 @@ impl App {
             ctx.send_viewport_cmd(ViewportCommand::Close);
         } else if self.quit_ask.is_none() {
             self.quit = Quit::Free;
+            crate::support::update::restart_after_quit(false);
         }
     }
 

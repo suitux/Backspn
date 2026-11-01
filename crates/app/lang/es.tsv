@@ -774,6 +774,18 @@ Backspn did not close properly last time. Report it on GitHub? The issue opens i
 Hide until the next version	Ocultar hasta la siguiente versión
 Backspn {v} is available	Backspn {v} ya está disponible
 Opens the release's page in your browser	Abre la página de la versión en el navegador
+Update Backspn	Actualizar Backspn
+Download Backspn {v}? It installs when you restart or quit Backspn, after checking that the download comes from Backspn.	¿Descargar Backspn {v}? Se instala al reiniciar o cerrar Backspn, tras comprobar que la descarga viene de Backspn.
+Later	Más tarde
+Release Notes	Notas de la versión
+Cannot update Backspn:	No se puede actualizar Backspn:
+Downloading Backspn {v}… {p} %	Descargando Backspn {v}… {p} %
+Cancel the download	Cancelar la descarga
+Restart to Update	Reiniciar para actualizar
+Installs Backspn {v} and starts it again. Quitting also installs it.	Instala Backspn {v} y lo vuelve a abrir. Al cerrar también se instala.
+Download and install the new version	Descargar e instalar la nueva versión
+Move Backspn to the Applications folder to update it from here.	Mueve Backspn a la carpeta Aplicaciones para actualizarlo desde aquí.
+This copy of Backspn was not installed from a release.	Esta copia de Backspn no se instaló desde una versión publicada.
 Timecode control (DVS) is not available yet.	El control por timecode (DVS) todavía no está disponible.
 Streaming services are not available yet.	Los servicios de streaming todavía no están disponibles.
 Broadcasting is not available yet.	La emisión todavía no está disponible.

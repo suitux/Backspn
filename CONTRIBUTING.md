@@ -89,3 +89,22 @@ asking, pushes `main` and the tag:
 ```sh
 scripts/release.sh 0.1.0-beta1
 ```
+
+### Updates from the app
+
+The app updates itself from the release: `packaging/manifest.sh` lists each
+package (macOS `.app.tar.gz`, Windows installer, AppImage, `.deb`) with its
+size and SHA-256 in `backspn-manifest.json`, and the release signs it with
+minisign. The app only installs a package listed in a manifest signed by the
+key in `crates/app/src/support/update/backspn.pub`, for the same version as
+the tag. How it works and what is left: `docs/updater.md`.
+
+The key is made once, without a password:
+
+```sh
+minisign -G -f -W -p crates/app/src/support/update/backspn.pub -s backspn-update.key
+```
+
+The secret key's contents go in the repository secret `BACKSPN_UPDATE_KEY`;
+keep the file somewhere safe, outside the repository. A new key only reaches
+users through a release signed with the old one.

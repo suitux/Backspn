@@ -29,10 +29,14 @@ fn sha256(mut reader: impl Read) -> std::io::Result<String> {
     }))
 }
 
-pub fn verify(path: &Path) -> bool {
+fn matches(path: &Path, expected: &str) -> bool {
     std::fs::File::open(path)
         .and_then(sha256)
-        .is_ok_and(|h| h == MODEL_SHA256)
+        .is_ok_and(|h| h == expected)
+}
+
+pub fn verify(path: &Path) -> bool {
+    matches(path, MODEL_SHA256)
 }
 
 pub fn download(
@@ -40,18 +44,29 @@ pub fn download(
     progress: &mut dyn FnMut(u64, u64),
     cancel: &AtomicBool,
 ) -> Result<(), Error> {
+    fetch(MODEL_URL, path, MODEL_SHA256, MODEL_SIZE, progress, cancel)
+}
+
+pub fn fetch(
+    url: &str,
+    path: &Path,
+    expected: &str,
+    size: u64,
+    progress: &mut dyn FnMut(u64, u64),
+    cancel: &AtomicBool,
+) -> Result<(), Error> {
     let partial = path.with_extension("part");
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
     }
-    let response = ureq::get(MODEL_URL)
+    let response = ureq::get(url)
         .call()
         .map_err(|e| Error::Download(e.to_string()))?;
     let total = response
         .headers()
         .get("content-length")
         .and_then(|v| v.to_str().ok()?.parse().ok())
-        .unwrap_or(MODEL_SIZE);
+        .unwrap_or(size);
     let mut body = response.into_body().into_reader();
     let mut file = std::fs::File::create(&partial)?;
     let mut buf = vec![0; 1 << 16];
@@ -75,7 +90,7 @@ pub fn download(
         let _ = std::fs::remove_file(&partial);
         return Err(e);
     }
-    if !verify(&partial) {
+    if !matches(&partial, expected) {
         let _ = std::fs::remove_file(&partial);
         return Err(Error::Checksum);
     }

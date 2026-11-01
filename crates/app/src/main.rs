@@ -134,6 +134,7 @@ fn main() -> eframe::Result {
     });
     support::log::close();
     support::reset::finish();
+    support::update::finish();
     result
 }
 
@@ -195,6 +196,7 @@ struct App {
     crash: Option<support::crash::Pending>,
     crash_ask: Option<modal::Ask<app::CrashAnswer>>,
     update: support::update::Check,
+    update_ask: Option<modal::Ask<app::UpdateAnswer>>,
     insights: insights::Insights,
     insights_ask: Option<modal::Ask<bool>>,
     insights_preview: Option<String>,
@@ -346,6 +348,7 @@ impl App {
             crash: None,
             crash_ask: None,
             update: support::update::Check::none(),
+            update_ask: None,
             insights: insights::Insights::none(),
             insights_ask: None,
             insights_preview: None,
@@ -536,6 +539,7 @@ impl App {
         self.preferences(&ctx);
         self.setup_wizard(&ctx);
         self.crash_prompt(&ctx);
+        self.update_prompt(&ctx);
         self.reset_prompt(&ctx);
         self.insights_windows(&ctx);
         if let Some(message) = self.browser.take_message() {
