@@ -51,6 +51,9 @@ jobs:
             pkg-config cmake libclang-dev libasound2-dev libudev-dev \
             libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev \
             libfuse2t64
+      - name: Intel target
+        if: runner.os == 'macOS'
+        run: rustup target add x86_64-apple-darwin
       - uses: Swatinem/rust-cache@v2
       - name: Packager
         run: cargo install cargo-packager --locked --version 0.11.8
@@ -63,6 +66,8 @@ jobs:
       - name: Sign and make the disk image
         if: runner.os == 'macOS'
         run: |
+          export BACKSPN_VERSION="${GITHUB_REF_NAME#v}"
+          packaging/macos/universal.sh target/packages/Backspn.app
           brew install create-dmg
           codesign --force --deep --sign - target/packages/Backspn.app
           codesign --verify --deep --strict target/packages/Backspn.app

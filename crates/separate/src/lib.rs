@@ -1,5 +1,6 @@
 mod chunks;
 mod model;
+mod runtime;
 
 use std::path::Path;
 use std::sync::Mutex;
@@ -14,6 +15,7 @@ use ort::value::Tensor;
 
 pub use chunks::{OVERLAP, OverlapAdd, SEGMENT, segments, weight};
 pub use model::{MODEL_FILE, MODEL_SHA256, MODEL_SIZE, MODEL_URL, download, verify};
+pub use runtime::{MIN_MACOS, supported};
 
 pub const STEMS: usize = 4;
 pub const MODEL_RATE: u32 = 44_100;
@@ -28,6 +30,10 @@ pub enum Error {
     Checksum,
     #[error("cancelled")]
     Cancelled,
+    #[error("generating stems needs macOS {}.{} or later", MIN_MACOS.0, MIN_MACOS.1)]
+    Unsupported,
+    #[error("separation runtime: {0}")]
+    Runtime(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
@@ -38,7 +44,7 @@ fn environment() -> Result<Environment, Error> {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if env.is_none() {
-        *env = Some(ort::init().with_name("backspn").build()?);
+        *env = Some(runtime::builder()?.with_name("backspn").build()?);
     }
     Ok(env.clone().expect("set above"))
 }

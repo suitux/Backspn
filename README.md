@@ -27,7 +27,8 @@ play 74 effects on the beat. Backspn is written in Rust, runs on macOS,
 Windows and Linux, and is released under the GPL.
 
 > **Status: public beta.** Every feature below is finished. Download a build
-> for macOS (`.dmg`), Windows (`.exe`) or Linux (`.deb`, AppImage) from
+> for macOS 12 or later (`.dmg`, Apple Silicon and Intel; generating stems
+> needs macOS 13.4), Windows (`.exe`) or Linux (`.deb`, AppImage) from
 > [Releases](https://github.com/suitux/Backspn/releases), or build it from
 > source (see [Building](#building)). Please report what breaks in
 > [Issues](https://github.com/suitux/Backspn/issues); testers with a
@@ -322,6 +323,10 @@ git clone https://github.com/suitux/Backspn
 cd Backspn
 cargo run --release -p backspn-app             # optionally pass up to 4 audio files to load
 ```
+
+On macOS, generating stems loads ONNX Runtime from a library next to the
+binary: fetch it once with `packaging/macos/onnxruntime.sh target/release`
+(or point `ORT_DYLIB_PATH` at a copy).
 
 Settings live in `settings.json` in your system's data folder (override with
 `BACKSPN_SETTINGS`): `~/Library/Application Support/Backspn` on macOS,

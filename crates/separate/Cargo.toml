@@ -8,12 +8,20 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
-ort = "=2.0.0-rc.15"
 sha2 = "0.10"
 thiserror.workspace = true
 backspn-analysis = { path = "../analysis" }
 backspn-decode = { path = "../decode" }
 ureq = "3"
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+ort = "=2.0.0-rc.15"
+
+# On macOS the runtime is a universal dylib shipped inside the app bundle
+# (packaging/macos/onnxruntime.sh), loaded only when the system can run it.
+[target.'cfg(target_os = "macos")'.dependencies]
+ort = { version = "=2.0.0-rc.15", default-features = false, features = ["std", "ndarray", "tracing", "load-dynamic", "api-23"] }
+objc2-foundation = "0.3.2"
 
 [lints]
 workspace = true
