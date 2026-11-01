@@ -19,8 +19,10 @@
 ## Checks
 
 CI (`.github/workflows/check.yml`) runs `scripts/check.sh` on macOS, Windows
-and Linux (on Windows, with Git for Windows' bash). Run it before sending a
-pull request:
+and Linux (on Windows, with Git for Windows' bash). On Windows the engine
+builds with ASIO, which needs LLVM/Clang installed (`LIBCLANG_PATH` pointing to
+its `bin`); the ASIO SDK is downloaded during the build. Run it before sending
+a pull request:
 
 ```sh
 scripts/check.sh                                                          # fmt + clippy -D warnings + tests

@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use backspn_engine::{DECKS, EffectKind, StreamInfo, output_devices};
+use backspn_engine::{DECKS, Driver, EffectKind, StreamInfo, output_devices};
 use eframe::egui::{self, ComboBox, RichText, ScrollArea, Ui};
 
 use crate::controls::Controls;
@@ -160,6 +160,7 @@ pub struct Prefs {
     pub open: bool,
     page: Page,
     devices: Vec<String>,
+    devices_of: Option<Driver>,
     fx_marks: (Option<EffectKind>, Option<usize>),
     search: search::Search,
     search_box: egui::Id,
@@ -180,6 +181,7 @@ impl Prefs {
             open: false,
             page: Page::AudioSetup,
             devices: Vec::new(),
+            devices_of: None,
             fx_marks: (None, None),
             search: search::Search::default(),
             search_box: egui::Id::NULL,
@@ -198,7 +200,7 @@ impl Prefs {
     pub fn toggle(&mut self) {
         self.open = !self.open;
         if self.open {
-            self.devices = output_devices();
+            self.devices_of = None;
             self.search.index = None;
         }
     }
@@ -450,10 +452,19 @@ impl Prefs {
 
     fn audio_setup(&mut self, ui: &mut Ui, s: &mut Settings, audio: Option<&StreamInfo>) -> bool {
         let mut restart = false;
+        if self.devices_of != Some(s.driver) {
+            self.devices = output_devices(s.driver);
+            self.devices_of = Some(s.driver);
+        }
         egui::Grid::new("audio")
             .num_columns(2)
             .spacing([12.0, 8.0])
             .show(ui, |ui| {
+                if Driver::available().len() > 1 {
+                    search::title(ui, "Driver");
+                    restart |= driver_combo(ui, s);
+                    ui.end_row();
+                }
                 search::title(ui, "Audio Device");
                 restart |= device_combo(ui, s, &self.devices);
                 ui.end_row();
@@ -538,6 +549,22 @@ impl Prefs {
         s.buffer_frames = Some(value);
         true
     }
+}
+
+fn driver_combo(ui: &mut Ui, s: &mut Settings) -> bool {
+    let mut chosen = s.driver;
+    ComboBox::from_id_salt("driver")
+        .selected_text(s.driver.name())
+        .show_ui(ui, |ui| {
+            for &driver in Driver::available() {
+                ui.selectable_value(&mut chosen, driver, driver.name());
+            }
+        });
+    if chosen == s.driver {
+        return false;
+    }
+    crate::mixer_cards::switch_driver(s, chosen);
+    true
 }
 
 const BUFFER_STEP: u32 = 64;

@@ -1,5 +1,5 @@
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{SampleFormat, StreamConfig};
+use cpal::{FromSample, I24, SampleFormat, SizedSample, StreamConfig};
 
 #[derive(Debug)]
 pub struct InputFeed {
@@ -59,8 +59,12 @@ impl InputFeed {
     }
 }
 
-pub fn open(name: &str, rate: u32, max_frames: usize) -> Option<(cpal::Stream, InputFeed, u16)> {
-    let host = cpal::default_host();
+pub fn open(
+    host: &cpal::Host,
+    name: &str,
+    rate: u32,
+    max_frames: usize,
+) -> Option<(cpal::Stream, InputFeed, u16)> {
     let device = host
         .input_devices()
         .ok()?
@@ -68,7 +72,7 @@ pub fn open(name: &str, rate: u32, max_frames: usize) -> Option<(cpal::Stream, I
     let supported = device
         .supported_input_configs()
         .ok()?
-        .filter(|c| c.sample_format() == SampleFormat::F32)
+        .filter(|c| crate::playable(c.sample_format()))
         .find_map(|c| c.try_with_sample_rate(rate))?;
     let channels = supported.channels();
     let config = StreamConfig {
@@ -77,29 +81,47 @@ pub fn open(name: &str, rate: u32, max_frames: usize) -> Option<(cpal::Stream, I
         buffer_size: cpal::BufferSize::Default,
     };
     let capacity = max_frames * usize::from(channels) * MAX_WAITING_BLOCKS * 4;
-    let (mut producer, consumer) = rtrb::RingBuffer::<f32>::new(capacity);
-    let stream = device
-        .build_input_stream::<f32, _, _>(
-            config,
-            move |data, _| {
-                let n = data.len().min(producer.slots());
-                if let Ok(mut chunk) = producer.write_chunk(n) {
-                    let (a, b) = chunk.as_mut_slices();
-                    a.copy_from_slice(&data[..a.len()]);
-                    b.copy_from_slice(&data[a.len()..n]);
-                    chunk.commit_all();
-                }
-            },
-            |err| log::warn!("audio input: {err}"),
-            None,
-        )
-        .ok()?;
+    let (producer, consumer) = rtrb::RingBuffer::<f32>::new(capacity);
+    let stream = match supported.sample_format() {
+        SampleFormat::I32 => input::<i32>(&device, config, producer),
+        SampleFormat::I24 => input::<I24>(&device, config, producer),
+        SampleFormat::I16 => input::<i16>(&device, config, producer),
+        _ => input::<f32>(&device, config, producer),
+    }?;
     stream.play().ok()?;
     Some((
         stream,
         InputFeed::new(consumer, usize::from(channels), max_frames),
         channels,
     ))
+}
+
+/// Takes the device's own sample format and queues it as f32.
+fn input<T: SizedSample + Send + 'static>(
+    device: &cpal::Device,
+    config: StreamConfig,
+    mut producer: rtrb::Producer<f32>,
+) -> Option<cpal::Stream>
+where
+    f32: FromSample<T>,
+{
+    device
+        .build_input_stream::<T, _, _>(
+            config,
+            move |data, _| {
+                let n = data.len().min(producer.slots());
+                if let Ok(mut chunk) = producer.write_chunk(n) {
+                    let (a, b) = chunk.as_mut_slices();
+                    for (o, &s) in a.iter_mut().chain(b.iter_mut()).zip(data) {
+                        *o = s.to_sample::<f32>();
+                    }
+                    chunk.commit_all();
+                }
+            },
+            |err| log::warn!("audio input: {err}"),
+            None,
+        )
+        .ok()
 }
 
 #[cfg(test)]

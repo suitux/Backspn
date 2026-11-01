@@ -32,7 +32,10 @@ pub use backspn_sampler::{
     TriggerType, size_factor as sample_size_factor,
 };
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{BufferSize, ErrorKind, SampleFormat, StreamConfig, SupportedBufferSize};
+use cpal::{
+    BufferSize, ErrorKind, FromSample, I24, SampleFormat, SizedSample, StreamConfig,
+    SupportedBufferSize,
+};
 pub mod input;
 pub mod loop_recorder;
 mod metronome;
@@ -64,7 +67,7 @@ pub enum Error {
     NoDevice,
     #[error("output device {0:?} not found")]
     DeviceNotFound(String),
-    #[error("device only offers {0} samples; f32 output is required")]
+    #[error("device only offers {0} samples, which the engine cannot play")]
     UnsupportedFormat(SampleFormat),
     #[error("audio backend error: {0}")]
     Backend(#[from] cpal::Error),
@@ -74,10 +77,63 @@ pub enum Error {
 
 #[derive(Debug, Clone, Default)]
 pub struct Config {
+    pub driver: Driver,
     pub device: Option<String>,
     pub buffer_frames: Option<u32>,
     pub sample_rate: Option<u32>,
     pub monitor: Option<(u16, u16)>,
+}
+
+/// The audio system the engine plays through.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum Driver {
+    /// The platform's own audio system.
+    #[default]
+    System,
+    /// ASIO drivers, on Windows.
+    Asio,
+}
+
+impl Driver {
+    pub fn available() -> &'static [Self] {
+        if cfg!(windows) {
+            &[Self::System, Self::Asio]
+        } else {
+            &[Self::System]
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::System if cfg!(windows) => "WASAPI",
+            Self::System if cfg!(target_os = "macos") => "CoreAudio",
+            Self::System => "ALSA",
+            Self::Asio => "ASIO",
+        }
+    }
+}
+
+#[cfg_attr(
+    not(windows),
+    expect(unused_variables, reason = "only Windows offers a second driver")
+)]
+fn host(driver: Driver) -> cpal::Host {
+    #[cfg(windows)]
+    if driver == Driver::Asio {
+        match cpal::host_from_id(cpal::HostId::Asio) {
+            Ok(host) => return host,
+            Err(e) => log::warn!("ASIO unavailable: {e}"),
+        }
+    }
+    cpal::default_host()
+}
+
+/// Sample formats the engine converts its output to and its input from.
+pub(crate) fn playable(format: SampleFormat) -> bool {
+    matches!(
+        format,
+        SampleFormat::F32 | SampleFormat::I32 | SampleFormat::I24 | SampleFormat::I16
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -1004,13 +1060,15 @@ impl std::fmt::Debug for Engine {
 }
 
 struct Opened {
+    driver: Driver,
     device: cpal::Device,
     config: StreamConfig,
+    format: SampleFormat,
     info: StreamInfo,
 }
 
 fn open_device(config: &Config, rate: Option<u32>) -> Result<Opened, Error> {
-    let host = cpal::default_host();
+    let host = host(config.driver);
     let device = match &config.device {
         None => host.default_output_device().ok_or(Error::NoDevice)?,
         Some(name) => host
@@ -1022,14 +1080,14 @@ fn open_device(config: &Config, rate: Option<u32>) -> Result<Opened, Error> {
         .description()
         .map_or_else(|_| "unknown".to_owned(), |d| d.name().to_owned());
     let current = device.default_output_config()?;
-    if current.sample_format() != SampleFormat::F32 {
+    if !playable(current.sample_format()) {
         return Err(Error::UnsupportedFormat(current.sample_format()));
     }
     let ranges: Vec<_> = device
         .supported_output_configs()
         .map(|c| {
             c.filter(|c| {
-                c.sample_format() == SampleFormat::F32 && c.channels() == current.channels()
+                c.sample_format() == current.sample_format() && c.channels() == current.channels()
             })
             .collect()
         })
@@ -1071,14 +1129,47 @@ fn open_device(config: &Config, rate: Option<u32>) -> Result<Opened, Error> {
         inputs: 0,
     };
     Ok(Opened {
+        driver: config.driver,
         device,
         config: stream_config,
+        format: supported.sample_format(),
         info,
     })
 }
 
 fn play(
     opened: &mut Opened,
+    renderer: &Arc<Mutex<Renderer>>,
+    stats: &Arc<Stats>,
+    lost: &Arc<AtomicBool>,
+) -> Result<cpal::Stream, Error> {
+    let build = |opened: &Opened| match opened.format {
+        SampleFormat::I32 => output::<i32>(opened, renderer, stats, lost),
+        SampleFormat::I24 => output::<I24>(opened, renderer, stats, lost),
+        SampleFormat::I16 => output::<i16>(opened, renderer, stats, lost),
+        _ => output::<f32>(opened, renderer, stats, lost),
+    };
+    let stream = match build(opened) {
+        Err(e) if opened.config.buffer_size != BufferSize::Default => {
+            log::warn!(
+                "buffer {:?} refused ({e}), using the device's own",
+                opened.config.buffer_size
+            );
+            opened.config.buffer_size = BufferSize::Default;
+            build(opened)?
+        }
+        stream => stream?,
+    };
+    stream.play()?;
+    if let Ok(n) = stream.buffer_size() {
+        opened.info.buffer_frames = Some(n);
+    }
+    Ok(stream)
+}
+
+/// Renders in f32 and hands the device its own sample format.
+fn output<T: SizedSample + FromSample<f32> + Send + 'static>(
+    opened: &Opened,
     renderer: &Arc<Mutex<Renderer>>,
     stats: &Arc<Stats>,
     lost: &Arc<AtomicBool>,
@@ -1090,7 +1181,8 @@ fn play(
         .info
         .monitor
         .map(|(l, r)| (usize::from(l), usize::from(r)));
-    let stream = opened.device.build_output_stream::<f32, _, _>(
+    let mut scratch = vec![0.0f32; MAX_BLOCK_FRAMES * channel_count.max(1)];
+    Ok(opened.device.build_output_stream::<T, _, _>(
         opened.config,
         move |data, info| {
             let ts = info.timestamp();
@@ -1104,9 +1196,15 @@ fn play(
                     if let Some(latency) = latency {
                         r.set_output_latency(latency);
                     }
-                    r.render(data, channel_count, monitor_channels);
+                    for block in data.chunks_mut(scratch.len()) {
+                        let out = &mut scratch[..block.len()];
+                        r.render(out, channel_count, monitor_channels);
+                        for (o, &s) in block.iter_mut().zip(out.iter()) {
+                            *o = T::from_sample(s);
+                        }
+                    }
                 }
-                Err(_) => data.fill(0.0),
+                Err(_) => data.fill(T::EQUILIBRIUM),
             }
         },
         move |err| match err.kind() {
@@ -1120,16 +1218,17 @@ fn play(
             _ => log::error!("audio stream error: {err}"),
         },
         None,
-    )?;
-    stream.play()?;
-    if let Ok(n) = stream.buffer_size() {
-        opened.info.buffer_frames = Some(n);
-    }
-    Ok(stream)
+    )?)
 }
 
-fn open_input(info: &mut StreamInfo, renderer: &Arc<Mutex<Renderer>>) -> Option<cpal::Stream> {
-    let (stream, feed, channels) = input::open(&info.device, info.sample_rate, MAX_BLOCK_FRAMES)?;
+fn open_input(opened: &mut Opened, renderer: &Arc<Mutex<Renderer>>) -> Option<cpal::Stream> {
+    let info = &mut opened.info;
+    let (stream, feed, channels) = input::open(
+        &host(opened.driver),
+        &info.device,
+        info.sample_rate,
+        MAX_BLOCK_FRAMES,
+    )?;
     info.inputs = channels;
     if let Ok(mut r) = renderer.lock() {
         r.set_input(Some(feed));
@@ -1144,7 +1243,7 @@ impl Engine {
         let renderer = Arc::new(Mutex::new(renderer));
         let lost = Arc::new(AtomicBool::new(false));
         let stream = play(&mut opened, &renderer, &controller.stats, &lost)?;
-        let input = open_input(&mut opened.info, &renderer);
+        let input = open_input(&mut opened, &renderer);
         log::info!("audio started: {:?}", opened.info);
         Ok(Self {
             stream: Some(stream),
@@ -1165,15 +1264,15 @@ impl Engine {
             return Ok(());
         };
         self.stream = None;
+        self.input = None;
         let rate = self.info.sample_rate;
         let mut opened = open_device(config, Some(rate))?;
         if opened.info.sample_rate != rate {
             return Err(Error::RateUnavailable(rate));
         }
         self.lost.store(false, Ordering::Relaxed);
-        self.input = None;
         let stream = play(&mut opened, &renderer, &self.controller.stats, &self.lost)?;
-        self.input = open_input(&mut opened.info, &renderer);
+        self.input = open_input(&mut opened, &renderer);
         log::info!("audio reopened: {:?}", opened.info);
         self.stream = Some(stream);
         self.info = opened.info;
@@ -1268,8 +1367,8 @@ pub fn device_present(wanted: Option<&str>, available: &[String]) -> bool {
     }
 }
 
-pub fn output_devices() -> Vec<String> {
-    cpal::default_host()
+pub fn output_devices(driver: Driver) -> Vec<String> {
+    host(driver)
         .output_devices()
         .map(|devices| {
             devices

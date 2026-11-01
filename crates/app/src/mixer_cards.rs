@@ -210,6 +210,19 @@ pub fn switch_device(s: &mut Settings, device: &str, first_time: impl FnOnce(&mu
     }
 }
 
+/// A new driver lists its own devices: start on its default one, keeping the
+/// old device's settings for when it comes back.
+pub fn switch_driver(s: &mut Settings, driver: backspn_engine::Driver) {
+    if s.driver == driver {
+        return;
+    }
+    if let Some(old) = s.device.take() {
+        let left = current(s);
+        s.inactive_devices.insert(old, left);
+    }
+    s.driver = driver;
+}
+
 fn apply_generic(s: &mut Settings) {
     s.buffer_frames = Some(512);
     s.sample_rate = Some(44_100);
@@ -272,6 +285,25 @@ mod tests {
         switch_device(&mut s, "DJM-V10", first_time("DJM-V10"));
         assert!(s.external_mixer.on);
         assert_eq!(s.external_mixer.preview, Some((8, 9)));
+    }
+
+    #[test]
+    fn a_new_driver_starts_on_its_default_device() {
+        use backspn_engine::Driver;
+        let mut s = Settings {
+            device: Some("Speakers".into()),
+            buffer_frames: Some(128),
+            ..Settings::default()
+        };
+        switch_driver(&mut s, Driver::Asio);
+        assert_eq!((s.driver, s.device.as_deref()), (Driver::Asio, None));
+        s.buffer_frames = Some(64);
+        switch_device(&mut s, "Speakers", first_time("Speakers"));
+        assert_eq!(
+            s.buffer_frames,
+            Some(128),
+            "the device's own settings return"
+        );
     }
 
     #[test]

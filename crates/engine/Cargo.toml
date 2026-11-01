@@ -10,6 +10,7 @@ publish.workspace = true
 cpal = "0.18.2"
 log = "0.4.34"
 rtrb = "0.4.0"
+serde = { version = "1.0.229", features = ["derive"] }
 thiserror.workspace = true
 backspn-deck = { path = "../deck" }
 backspn-fx = { path = "../fx" }
@@ -18,6 +19,9 @@ backspn-mixer = { path = "../mixer" }
 backspn-sampler = { path = "../sampler" }
 backspn-sync = { path = "../sync" }
 triple_buffer = "9.0.0"
+
+[target.'cfg(windows)'.dependencies]
+cpal = { version = "0.18.2", features = ["asio"] }
 
 [lints]
 workspace = true

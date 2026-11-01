@@ -113,7 +113,7 @@ impl App {
                 .is_none_or(|t| t.elapsed() >= CARD_CHECK)
         {
             self.audio_offer.card_checked = Some(std::time::Instant::now());
-            controls.offer_native_card(&backspn_engine::output_devices());
+            controls.offer_native_card(&backspn_engine::output_devices(self.settings.driver));
             ctx.request_repaint_after(CARD_CHECK);
         }
         if self.wizard.is_none()
@@ -122,7 +122,10 @@ impl App {
                 .as_mut()
                 .and_then(crate::controls::Controls::take_audio_offer)
         {
-            self.consider(Offer::Controller(audio), &backspn_engine::output_devices());
+            self.consider(
+                Offer::Controller(audio),
+                &backspn_engine::output_devices(self.settings.driver),
+            );
         }
         if self.wizard.is_none()
             && self.audio_offer.asking.is_none()
@@ -132,7 +135,7 @@ impl App {
                 .is_none_or(|t| t.elapsed() >= CARD_CHECK)
         {
             self.audio_offer.mixers_checked = Some(std::time::Instant::now());
-            let devices = backspn_engine::output_devices();
+            let devices = backspn_engine::output_devices(self.settings.driver);
             let offers = new_mixer_cards(&devices, &self.audio_offer.devices);
             self.audio_offer.devices.clone_from(&devices);
             for offer in offers {

@@ -238,7 +238,7 @@ impl App {
         let config = self.settings.audio_config();
         if !backspn_engine::device_present(
             config.device.as_deref(),
-            &backspn_engine::output_devices(),
+            &backspn_engine::output_devices(self.settings.driver),
         ) {
             return;
         }

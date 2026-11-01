@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use backspn_engine::{
-    Config, DECKS, EffectKind, EqModel, FX_UNITS, FilterModel, FxMode, FxRouting, LimiterModel,
-    MIXER_FX_SLOTS, MixerFx,
+    Config, DECKS, Driver, EffectKind, EqModel, FX_UNITS, FilterModel, FxMode, FxRouting,
+    LimiterModel, MIXER_FX_SLOTS, MixerFx,
 };
 use serde::{Deserialize, Serialize};
 
@@ -153,6 +153,7 @@ pub enum Monitor {
 #[serde(default)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Settings {
+    pub driver: Driver,
     pub device: Option<String>,
     pub buffer_frames: Option<u32>,
     pub sample_rate: Option<u32>,
@@ -292,6 +293,7 @@ impl Default for Settings {
     #[allow(clippy::too_many_lines)]
     fn default() -> Self {
         Self {
+            driver: Driver::System,
             device: None,
             buffer_frames: None,
             sample_rate: None,
@@ -539,6 +541,7 @@ impl Settings {
 
     pub fn audio_config(&self) -> Config {
         Config {
+            driver: self.driver,
             device: self.device.clone(),
             buffer_frames: self.buffer_frames,
             sample_rate: self.sample_rate,

@@ -184,10 +184,9 @@ impl App {
                     Step::Welcome => welcome(ui),
                     Step::Device => device = self.device_step(ui, wizard.device.clone()),
                     Step::Audio => {
-                        let cards = wizard
-                            .sound_cards
-                            .clone()
-                            .unwrap_or_else(backspn_engine::output_devices);
+                        let cards = wizard.sound_cards.clone().unwrap_or_else(|| {
+                            backspn_engine::output_devices(self.settings.driver)
+                        });
                         self.audio_step(ui, &cards);
                         sound_cards = Some(cards);
                     }
