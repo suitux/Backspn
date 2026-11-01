@@ -1,0 +1,10 @@
+{
+  "version": "0.1.0",
+  "assets": [
+    { "platform": "apple", "arch": "universal", "kind": "app", "name": "Backspn_0.1.0_apple_universal.app.tar.gz", "size": 3, "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" },
+    { "platform": "windows", "arch": "x86_64", "kind": "nsis", "name": "Backspn_0.1.0_windows_x86_64.exe", "size": 3, "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" },
+    { "platform": "linux", "arch": "x86_64", "kind": "appimage", "name": "Backspn_0.1.0_linux_x86_64.AppImage", "size": 3, "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" },
+    { "platform": "linux", "arch": "x86_64", "kind": "deb", "name": "Backspn_0.1.0_linux_x86_64.deb", "size": 3, "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" },
+    { "platform": "linux", "arch": "x86_64", "kind": "deb", "name": "../escape.deb", "size": 3, "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" }
+  ]
+}
