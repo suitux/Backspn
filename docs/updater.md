@@ -35,6 +35,43 @@ the `.dmg`, writes the manifest with `packaging/manifest.sh`, signs it with
 minisign and checks the signature with the key in the repository before
 publishing.
 
+## Done on this branch
+
+- `crates/app/src/support/update/` (was `update.rs`):
+  - `mod.rs`: version check (unchanged), download state (`Stage`), the
+    `READY`/`RESTART` hand-off to `finish`.
+  - `manifest.rs`: reads and verifies the signed manifest, picks the package.
+  - `target.rs`: tells how this copy was installed.
+  - `apply.rs`: prepares the package and installs it after quitting.
+  - `fixtures/`: a synthetic manifest signed with a test key (public key
+    only) for the tests.
+  - `backspn.pub`: placeholder for the release key.
+- `crates/separate/src/model.rs`: the checked download is now
+  `fetch(url, path, sha256, size, …)`, shared by the stem model and the
+  updater. Its errors no longer name the model ("download failed", "the
+  download does not match its checksum").
+- UI: `app/report.rs` (notice, question, progress, Restart to Update),
+  `main.rs` (`update_ask`, `update_prompt`, `update::finish`), `app/quit.rs`
+  (a cancelled quit does not restart). 12 new texts in `lang/es.tsv`.
+- Release: `packaging/manifest.sh` and the `.app.tar.gz`, manifest and
+  signing steps in `.github/workflows/release.yml`; key setup in
+  `CONTRIBUTING.md`.
+- New dependency: `minisign-verify` (MIT).
+
+Checked so far:
+
+- `scripts/check.sh` passes. Tests cover the signature (valid, edited,
+  another version, no key), package choice, unsafe names, target detection
+  per system, the helper commands and the AppImage swap; a wiring test with
+  `App::offline()` checks that a copy that cannot install only links.
+- On macOS, by hand: a fake ad-hoc signed `.app` packed as in the workflow
+  was extracted, passed `codesign --verify` and swapped in, with the old
+  bundle kept aside; the wait-for-exit helper was run against a real process.
+- `packaging/manifest.sh` on dummy packages gives valid JSON.
+
+Not tried yet: a real update on Windows and Linux, the workflow's new steps,
+and a whole update against a published release.
+
 ## Left to do
 
 ### Before the first release with the updater
