@@ -83,7 +83,14 @@ pub(crate) struct AudioOffer {
     dont_ask: bool,
     card_checked: Option<std::time::Instant>,
     mixers_checked: Option<std::time::Instant>,
-    mixers_there: Vec<String>,
+    devices: Vec<String>,
+    pub(super) closed_failure: Option<String>,
+}
+
+/// Asks for another output device while the engine is down, unless the user
+/// closed the question for this same error.
+fn ask_device(error: Option<&str>, closed: Option<&str>) -> bool {
+    error.is_some() && error != closed
 }
 
 fn new_mixer_cards(devices: &[String], before: &[String]) -> Vec<Offer> {
@@ -126,12 +133,15 @@ impl App {
         {
             self.audio_offer.mixers_checked = Some(std::time::Instant::now());
             let devices = backspn_engine::output_devices();
-            let offers = new_mixer_cards(&devices, &self.audio_offer.mixers_there);
-            self.audio_offer.mixers_there.clone_from(&devices);
+            let offers = new_mixer_cards(&devices, &self.audio_offer.devices);
+            self.audio_offer.devices.clone_from(&devices);
             for offer in offers {
                 self.consider(offer, &devices);
             }
             ctx.request_repaint_after(CARD_CHECK);
+        }
+        if self.audio_failure(ctx) {
+            return;
         }
         let Some(audio) = self.audio_offer.asking.clone() else {
             return;
@@ -172,6 +182,59 @@ impl App {
             self.audio_offer.asking = None;
             self.audio_offer.dont_ask = false;
         }
+    }
+
+    /// Whether the question about the failed audio device is up: it waits for
+    /// the setup assistant, the crash report and the usage statistics notice.
+    pub(crate) fn asking_device(&self) -> bool {
+        self.wizard.is_none()
+            && self.crash_ask.is_none()
+            && self.insights_ask.is_none()
+            && ask_device(
+                self.engine.as_ref().err().map(String::as_str),
+                self.audio_offer.closed_failure.as_deref(),
+            )
+    }
+
+    /// While the engine is down, says why and lets the user pick another
+    /// output device. Returns whether the question is on screen.
+    fn audio_failure(&mut self, ctx: &Context) -> bool {
+        if !self.asking_device() {
+            return false;
+        }
+        let error = self.engine.as_ref().err().cloned().unwrap_or_default();
+        let t = theme::get(ctx);
+        let (mut changed, mut retry, mut close) = (false, false, false);
+        let mut open = true;
+        egui::Window::new(tr("Audio Unavailable"))
+            .id(egui::Id::unique("backspn-audio-failure"))
+            .anchor(Align2::CENTER_CENTER, Vec2::ZERO)
+            .collapsible(false)
+            .resizable(false)
+            .show_closable(ctx, &mut open, |ui| {
+                ui.set_width(360.0);
+                ui.label(tr("The audio engine could not start:"));
+                ui.colored_label(t.danger, &error);
+                ui.add_space(8.0);
+                ui.label(tr("Choose another output device."));
+                changed =
+                    crate::prefs::device_combo(ui, &mut self.settings, &self.audio_offer.devices);
+                ui.add_space(10.0);
+                ui.horizontal(|ui| {
+                    close = ui.button(tr("Close")).clicked();
+                    retry = ui
+                        .button(RichText::new(tr("Try Again")).color(t.accent_ink))
+                        .clicked();
+                });
+            });
+        if changed || retry {
+            self.change_audio();
+        }
+        let escape = ctx.input(|i| i.key_pressed(egui::Key::Escape));
+        if close || !open || escape {
+            self.audio_offer.closed_failure = Some(error);
+        }
+        true
     }
 
     fn consider(&mut self, offer: Offer, devices: &[String]) {
@@ -269,6 +332,18 @@ mod tests {
         assert_eq!(s.input_routing.decks[2], None);
         assert_eq!(s.input_routing.microphone, Some((0, 1)));
         assert_eq!(s.input_routing.send, Some((6, 7)));
+    }
+
+    #[test]
+    fn a_failed_engine_asks_for_a_device_until_closed() {
+        let error = "output device \"Card\" not found";
+        assert!(!ask_device(None, None), "the engine runs");
+        assert!(ask_device(Some(error), None));
+        assert!(!ask_device(Some(error), Some(error)), "closed");
+        assert!(
+            ask_device(Some("no audio output device available"), Some(error)),
+            "a new error asks again"
+        );
     }
 
     #[test]

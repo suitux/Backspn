@@ -173,6 +173,7 @@ impl App {
             && self.wizard.is_none()
             && self.insights_ask.is_none()
             && self.crash_ask.is_none()
+            && !self.asking_device()
         {
             self.insights_ask = Some(notice());
         }

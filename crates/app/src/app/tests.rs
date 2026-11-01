@@ -46,6 +46,22 @@ impl Harness {
         output.textures_delta.clear();
     }
 
+    fn press_key(&mut self, key: egui::Key) {
+        let input = egui::RawInput {
+            events: vec![egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+            ..egui::RawInput::default()
+        };
+        let app = &mut self.app;
+        let mut output = self.ctx.run_ui(input, |ui| app.frame(ui));
+        output.textures_delta.clear();
+    }
+
     fn until(&mut self, what: &str, done: impl Fn(&App) -> bool) {
         let start = Instant::now();
         while !done(&self.app) {
@@ -990,4 +1006,18 @@ fn background_analysis_writes_the_activity_diary() {
         .collect();
     assert_eq!(texts[0], "Analysis queued: 1 track");
     assert!(texts[1].starts_with("Analysed: "), "{texts:?}");
+}
+
+#[test]
+fn a_failed_audio_engine_asks_for_another_device() {
+    let mut h = Harness::new("audio-failure");
+    let error = "output device \"Gone\" not found".to_owned();
+    h.app.engine = Err(error.clone());
+    h.frame();
+    assert!(
+        h.app.audio_offer.closed_failure.is_none(),
+        "the question stays up"
+    );
+    h.press_key(egui::Key::Escape);
+    assert_eq!(h.app.audio_offer.closed_failure.as_deref(), Some(&*error));
 }
