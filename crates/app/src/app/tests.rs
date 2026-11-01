@@ -1021,3 +1021,18 @@ fn a_failed_audio_engine_asks_for_another_device() {
     h.press_key(egui::Key::Escape);
     assert_eq!(h.app.audio_offer.closed_failure.as_deref(), Some(&*error));
 }
+
+#[test]
+fn advanced_decks_keep_their_panel_in_two_rows() {
+    use crate::deck_view::DeckSize;
+    let mut h = Harness::new("advanced-rows");
+    h.app.settings.deck_count = 4;
+    h.frame();
+    h.frame();
+    let full = h.app.decks[0].min_height();
+    h.app.decks[0].set_size(DeckSize::Advanced);
+    h.frame();
+    h.frame();
+    assert!(h.app.decks[0].compact);
+    assert!(h.app.decks[0].min_height() > full);
+}

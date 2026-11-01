@@ -867,7 +867,7 @@ impl DeckView {
                 if self.show_pads && !self.compact {
                     self.hotcue_row(ui, state, out);
                 }
-                if let Some(tab) = self.panel.filter(|_| !self.compact) {
+                if let Some(tab) = self.panel {
                     self.advanced_panel(ui, state, tab, out);
                 }
             }

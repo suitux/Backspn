@@ -228,6 +228,7 @@ impl DeckView {
                         )
                         .sense(Sense::click()),
                     )
+                    .on_hover_cursor(egui::CursorIcon::PointingHand)
                     .on_hover_text(tr("Deck size: click for the next one"));
                 if letter.clicked() {
                     self.set_size(self.size().next());
