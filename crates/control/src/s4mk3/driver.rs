@@ -60,11 +60,14 @@ pub(crate) fn start_on(
 }
 
 fn start_device(layout: &'static Layout, device: Device) -> Box<dyn Controller> {
+    let screens = layout
+        .screens
+        .map(|panel| Screens::start_on(panel, Some(device.link())));
     Box::new(S4Mk3 {
         layout,
         device,
         decoder: Decoder::new(layout),
-        screens: layout.screens.map(Screens::start_on),
+        screens,
         state: S4State::for_layout(layout),
         leds: None,
         meters: None,

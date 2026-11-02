@@ -3,7 +3,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use super::{PRODUCT_ID, VENDOR_ID};
+use super::{LinkStatus, PRODUCT_ID, VENDOR_ID};
 
 /// The size of the frames the app draws for a controller's screens.
 pub const WIDTH: usize = 320;
@@ -180,11 +180,18 @@ impl Drop for Screens {
 }
 
 impl Screens {
+    /// Drives the screens on their own, looking for them whether or not the
+    /// rest of the controller is connected.
     pub fn start() -> Result<Self, String> {
-        Self::start_on(&S4_PANEL)
+        Self::start_on(&S4_PANEL, None)
     }
 
-    pub fn start_on(panel: &'static Panel) -> Result<Self, String> {
+    /// Drives the screens of `device`, looking for them only while it is
+    /// connected (or always, without one).
+    pub(crate) fn start_on(
+        panel: &'static Panel,
+        device: Option<Arc<LinkStatus>>,
+    ) -> Result<Self, String> {
         let (tx, rx) = std::sync::mpsc::channel::<Vec<Frame>>();
         let running = Arc::new(AtomicBool::new(true));
         let connected = Arc::new(AtomicBool::new(false));
@@ -196,7 +203,7 @@ impl Screens {
         );
         let thread = std::thread::Builder::new()
             .name("controller-screens".into())
-            .spawn(move || supervise(panel, &rx, &alive, &online, &why))
+            .spawn(move || supervise(panel, device.as_deref(), &rx, &alive, &online, &why))
             .map_err(|e| e.to_string())?;
         Ok(Self {
             panel,
@@ -253,20 +260,31 @@ impl crate::controller::ScreenSink for Screens {
 const RETRY: Duration = Duration::from_secs(2);
 const TIMEOUT: Duration = Duration::from_millis(500);
 
+/// Whether to look for the screens now: listing USB devices costs time, so
+/// it waits while the controller they belong to is away.
+fn worth_looking(device: Option<&LinkStatus>) -> bool {
+    device.is_none_or(|d| d.connected.load(Ordering::Relaxed))
+}
+
 fn supervise(
     panel: &'static Panel,
+    device: Option<&LinkStatus>,
     frames: &Receiver<Vec<Frame>>,
     running: &AtomicBool,
     connected: &AtomicBool,
     problem: &Mutex<Option<String>>,
 ) {
     while running.load(Ordering::Relaxed) {
-        let opened = open(panel);
-        let why = opened.as_ref().err().filter(|e| *e != ABSENT).cloned();
+        let opened = worth_looking(device).then(|| open(panel));
+        let why = opened
+            .as_ref()
+            .and_then(|o| o.as_ref().err())
+            .filter(|e| *e != ABSENT)
+            .cloned();
         if let Ok(mut p) = problem.lock() {
             *p = why;
         }
-        if let Ok((handle, interface, endpoint)) = opened {
+        if let Some(Ok((handle, interface, endpoint))) = opened {
             connected.store(true, Ordering::Relaxed);
             run(panel, &handle, endpoint, frames, running);
             connected.store(false, Ordering::Relaxed);
@@ -310,8 +328,9 @@ fn bulk_out(device: &rusb::Device<rusb::GlobalContext>) -> Option<(u8, u8)> {
 type Opened = (rusb::DeviceHandle<rusb::GlobalContext>, u8, u8);
 
 fn open(panel: &Panel) -> Result<Opened, String> {
-    let handle = rusb::open_device_with_vid_pid(panel.vendor_id, panel.product_id)
-        .ok_or_else(|| ABSENT.to_owned())?;
+    let handle =
+        crate::usb::exclusive(|| rusb::open_device_with_vid_pid(panel.vendor_id, panel.product_id))
+            .ok_or_else(|| ABSENT.to_owned())?;
     let (interface, endpoint) = panel
         .interface
         .or_else(|| bulk_out(&handle.device()))
@@ -374,6 +393,15 @@ fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn screens_are_looked_for_only_while_their_controller_is_there() {
+        let device = LinkStatus::default();
+        assert!(!worth_looking(Some(&device)), "controller away");
+        device.connected.store(true, Ordering::Relaxed);
+        assert!(worth_looking(Some(&device)), "controller connected");
+        assert!(worth_looking(None), "screens on their own");
+    }
 
     #[test]
     fn pixels_go_out_as_bgr565_big_endian() {

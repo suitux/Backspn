@@ -77,16 +77,16 @@ fn interface_of(device: &rusb::Device<rusb::GlobalContext>) -> Option<u8> {
 /// Opens the device. Fails without a reason while it is absent, and with
 /// one when it is present but can't be used.
 fn open(layout: &Layout) -> Result<(Handle, u8), Option<&'static str>> {
-    let device = rusb::devices()
-        .ok()
-        .and_then(|list| {
+    let device = crate::usb::exclusive(|| {
+        rusb::devices().ok().and_then(|list| {
             list.iter().find(|d| {
                 d.device_descriptor().is_ok_and(|desc| {
                     desc.vendor_id() == layout.vendor_id && desc.product_id() == layout.product_id
                 })
             })
         })
-        .ok_or(None)?;
+    })
+    .ok_or(None)?;
     let interface = interface_of(&device).ok_or(Some("its control interface is missing"))?;
     let handle = device.open().map_err(|e| Some(claim_problem(e)))?;
     let _ = handle.set_auto_detach_kernel_driver(true);

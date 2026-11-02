@@ -22,6 +22,7 @@ pub mod stem;
 pub mod strip;
 pub mod table;
 pub mod tsi_import;
+mod usb;
 
 use std::path::Path;
 

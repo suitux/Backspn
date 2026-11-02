@@ -1140,6 +1140,11 @@ impl Device {
         self.link.connected.load(Ordering::Relaxed)
     }
 
+    /// The device's link, for the pieces that follow whether it is connected.
+    pub(crate) fn link(&self) -> Arc<LinkStatus> {
+        Arc::clone(&self.link)
+    }
+
     /// Why the device can't be reached, while it is present but held.
     pub fn problem(&self) -> Option<&'static str> {
         self.link.problem()
