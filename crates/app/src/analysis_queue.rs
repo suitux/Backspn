@@ -83,9 +83,7 @@ impl AnalysisQueue {
         self.cancel.store(false, Ordering::Relaxed);
         self.total += tracks.len();
         if let Ok(mut jobs) = self.jobs.lock() {
-            for (id, path) in tracks.into_iter().rev() {
-                jobs.insert(0, (id, path, parts));
-            }
+            jobs.splice(0..0, tracks.into_iter().map(|(id, path)| (id, path, parts)));
         }
         let workers = if parts.parallel {
             std::thread::available_parallelism().map_or(2, |n| (n.get() / 2).max(2))

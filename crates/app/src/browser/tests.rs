@@ -224,6 +224,21 @@ fn music_folders_import_their_new_files() {
 }
 
 #[test]
+fn every_imported_file_is_analysed_before_the_view_refreshes() {
+    let mut b = browser(&[]);
+    b.ctx = Some(egui::Context::default());
+    b.analyze_imports = true;
+    let lib = b.library().unwrap();
+    let ids = [
+        lib.add_file(Path::new("/m/a.mp3")).unwrap(),
+        lib.add_file(Path::new("/m/b.mp3")).unwrap(),
+    ];
+    assert!(b.row(ids[0]).is_none(), "the view has not refreshed yet");
+    b.analyse_imported(&ids);
+    assert_eq!(b.analysis.total, 2);
+}
+
+#[test]
 fn loading_a_folder_file_imports_it() {
     let dir = music_dir("import");
     let mut b = browser(&[]);

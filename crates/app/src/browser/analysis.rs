@@ -32,7 +32,8 @@ impl Browser {
         let jobs: Vec<(i64, PathBuf)> = tracks
             .iter()
             .filter_map(|&id| {
-                backspn_library::paths::local_file(&self.row(id)?.path).map(|file| (id, file))
+                backspn_library::paths::local_file(&self.row_or_library(id)?.path)
+                    .map(|file| (id, file))
             })
             .collect();
         if !jobs.is_empty() {
@@ -217,7 +218,7 @@ impl Browser {
         let fresh: Vec<i64> = ids
             .iter()
             .copied()
-            .filter(|id| self.row(*id).is_some_and(|t| !t.analyzed))
+            .filter(|id| self.row_or_library(*id).is_some_and(|t| !t.analyzed))
             .collect();
         let parts = self.default_parts();
         self.analyse(&fresh, parts);
