@@ -108,28 +108,22 @@ fn silent_wav(dir: &Path, name: &str) -> PathBuf {
 }
 
 fn wav_from(dir: &Path, name: &str, sound: Option<u32>) -> PathBuf {
-    let path = dir.join(format!("{name}.wav"));
-    let (rate, data) = (44_100u32, 44_100u32 * 4);
-    let mut wav = Vec::new();
-    wav.extend_from_slice(b"RIFF");
-    wav.extend_from_slice(&(36 + data).to_le_bytes());
-    wav.extend_from_slice(b"WAVEfmt ");
-    wav.extend_from_slice(&16u32.to_le_bytes());
-    wav.extend_from_slice(&1u16.to_le_bytes());
-    wav.extend_from_slice(&2u16.to_le_bytes());
-    wav.extend_from_slice(&rate.to_le_bytes());
-    wav.extend_from_slice(&(rate * 4).to_le_bytes());
-    wav.extend_from_slice(&4u16.to_le_bytes());
-    wav.extend_from_slice(&16u16.to_le_bytes());
-    wav.extend_from_slice(b"data");
-    wav.extend_from_slice(&data.to_le_bytes());
-    let start = wav.len();
-    wav.resize(start + data as usize, 0);
+    let mut samples = vec![0i16; 2 * RATE as usize];
     if let Some(from) = sound {
-        for frame in wav[start + 4 * from as usize..].chunks_mut(2) {
-            frame.copy_from_slice(&8000i16.to_le_bytes());
-        }
+        samples[2 * from as usize..].fill(8000);
     }
+    write_wav(dir, name, &samples)
+}
+
+const RATE: u32 = 44_100;
+
+/// Writes interleaved stereo 16-bit samples at `RATE`.
+fn write_wav(dir: &Path, name: &str, samples: &[i16]) -> PathBuf {
+    use crate::recorder::wav::{Format, header};
+    let path = dir.join(format!("{name}.wav"));
+    let data: Vec<u8> = samples.iter().flat_map(|s| s.to_le_bytes()).collect();
+    let mut wav = header(Format::Pcm16, RATE, u32::try_from(data.len()).unwrap());
+    wav.extend_from_slice(&data);
     std::fs::write(&path, wav).unwrap();
     path
 }
@@ -1038,10 +1032,8 @@ fn advanced_decks_keep_their_panel_in_two_rows() {
 }
 
 fn click_wav(dir: &Path, name: &str, bpm: u32, seconds: u32) -> PathBuf {
-    let path = dir.join(format!("{name}.wav"));
-    let rate = 44_100u32;
-    let frames = (rate * seconds) as usize;
-    let period = (rate * 60 / bpm) as usize;
+    let frames = (RATE * seconds) as usize;
+    let period = (RATE * 60 / bpm) as usize;
     let mut samples = vec![0i16; frames * 2];
     for beat in (0..frames.saturating_sub(400)).step_by(period) {
         for i in 0..400 {
@@ -1049,24 +1041,7 @@ fn click_wav(dir: &Path, name: &str, bpm: u32, seconds: u32) -> PathBuf {
             samples[2 * (beat + i)..2 * (beat + i) + 2].fill(v);
         }
     }
-    let data: Vec<u8> = samples.iter().flat_map(|s| s.to_le_bytes()).collect();
-    let size = u32::try_from(data.len()).unwrap();
-    let mut wav = Vec::new();
-    wav.extend_from_slice(b"RIFF");
-    wav.extend_from_slice(&(36 + size).to_le_bytes());
-    wav.extend_from_slice(b"WAVEfmt ");
-    wav.extend_from_slice(&16u32.to_le_bytes());
-    wav.extend_from_slice(&1u16.to_le_bytes());
-    wav.extend_from_slice(&2u16.to_le_bytes());
-    wav.extend_from_slice(&rate.to_le_bytes());
-    wav.extend_from_slice(&(rate * 4).to_le_bytes());
-    wav.extend_from_slice(&4u16.to_le_bytes());
-    wav.extend_from_slice(&16u16.to_le_bytes());
-    wav.extend_from_slice(b"data");
-    wav.extend_from_slice(&size.to_le_bytes());
-    wav.extend_from_slice(&data);
-    std::fs::write(&path, wav).unwrap();
-    path
+    write_wav(dir, name, &samples)
 }
 
 #[test]
@@ -1108,4 +1083,90 @@ fn the_grid_panel_keeps_the_grid_found_when_an_unanalysed_track_loads() {
         "{:?}",
         row.bpm
     );
+}
+
+#[test]
+fn the_test_wavs_decode_with_their_length_and_rate() {
+    let h = Harness::new("test-wavs");
+    for (file, seconds) in [
+        (silent_wav(&h.dir, "silent"), 1.0),
+        (wav_from(&h.dir, "late", Some(22_050)), 1.0),
+        (click_wav(&h.dir, "clicks", 120, 3), 3.0),
+    ] {
+        let track = backspn_decode::decode_file(&file).unwrap();
+        assert_eq!(track.sample_rate(), 44_100, "{}", file.display());
+        assert!(
+            (track.duration_s() - seconds).abs() < 1e-3,
+            "{}: {}",
+            file.display(),
+            track.duration_s()
+        );
+        let peak = |from: usize, to: usize| {
+            track.samples()[from..to]
+                .iter()
+                .fold(0.0f32, |m, s| m.max(s.abs()))
+        };
+        let name = file.file_stem().unwrap().to_string_lossy().into_owned();
+        match name.as_str() {
+            "silent" => assert!(peak(0, track.samples().len()) < 1e-6),
+            "late" => {
+                assert!(peak(0, 2 * 22_050) < 1e-6, "silent before the sound");
+                assert!(peak(2 * 22_050, track.samples().len()) > 0.2);
+            }
+            _ => {
+                assert!(peak(0, 800) > 0.5, "a click on the first beat");
+                assert!(peak(2 * 1_000, 2 * 22_000) < 1e-6, "quiet between beats");
+                assert!(peak(2 * 22_050, 2 * 22_050 + 800) > 0.5, "the next beat");
+            }
+        }
+    }
+}
+
+fn analysed_track(h: &mut Harness, name: &str, complete: bool) -> i64 {
+    let file = click_wav(&h.dir, name, 120, 6);
+    let id = h.app.browser.add_files(std::slice::from_ref(&file))[0];
+    let update = backspn_library::AnalysisUpdate {
+        bpm: Some(120.0),
+        grid_anchor_s: complete.then_some(0.0),
+        musical_key: complete.then_some(0),
+        key_text: complete.then(|| "1d".to_owned()),
+        lufs: complete.then_some(-9.0),
+        ..Default::default()
+    };
+    h.app
+        .browser
+        .library()
+        .unwrap()
+        .save_analysis(id, &update)
+        .unwrap();
+    id
+}
+
+#[test]
+fn a_fully_analysed_track_loads_without_analysing() {
+    let mut h = Harness::new("load-complete");
+    h.app.settings.auto_analyze_on_load = true;
+    let id = analysed_track(&mut h, "done", true);
+    h.frame();
+    h.app.load_from_library(0, id);
+    h.until("deck A is free", |app| {
+        app.decks[0].track_id() == Some(id) && !app.decks[0].is_busy()
+    });
+    assert!(!h.app.decks[0].is_analysing());
+    h.until_engine("the stored grid is set", |s| s.decks[0].grid.is_some());
+    let grid = h.app.engine_state().decks[0].grid;
+    assert_eq!(grid.map(|g| (g.bpm, g.anchor_s)), Some((120.0, 0.0)));
+}
+
+#[test]
+fn an_unanalysed_track_frees_the_deck_when_analysis_on_load_is_off() {
+    let mut h = Harness::new("load-no-analysis");
+    h.app.settings.auto_analyze_on_load = false;
+    let id = analysed_track(&mut h, "raw", false);
+    h.frame();
+    h.app.load_from_library(0, id);
+    h.until_engine("deck A is loaded", |s| s.decks[0].loaded);
+    assert!(!h.app.decks[0].is_analysing());
+    h.until("deck A is free", |app| !app.decks[0].is_busy());
+    assert_eq!(h.app.engine_state().decks[0].grid, None);
 }

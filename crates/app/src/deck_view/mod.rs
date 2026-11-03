@@ -448,11 +448,11 @@ impl DeckView {
         let (tx, rx) = mpsc::channel();
         let path = request.path.clone();
         let cover = request.cover.clone();
-        let options = request.analysis;
-        let (stems, output_rate) = (request.stems.clone(), request.output_rate);
         let missing =
             request.grid.is_none() || request.key_text.is_none() || request.lufs.is_none();
-        let analysing = missing && options.is_some();
+        let options = request.analysis.filter(|_| missing);
+        let analysing = options.is_some();
+        let (stems, output_rate) = (request.stems.clone(), request.output_rate);
         let auto_cue = self
             .auto_cue_db
             .filter(|_| request.cue_s.is_none() && request.duplicate_of.is_none());
@@ -487,7 +487,7 @@ impl DeckView {
             {
                 return;
             }
-            if let Some(options) = options.filter(|_| missing) {
+            if let Some(options) = options {
                 let analysis = backspn_analysis::analyze(&track, &options);
                 drop(tx.send(LoadEvent::Analyzed(Box::new(analysis))));
             }
@@ -740,12 +740,18 @@ impl DeckView {
     pub fn poll(&mut self, out: &mut Vec<Command>) -> Vec<DeckEvent> {
         let mut events = std::mem::take(&mut self.events);
         while let Some(loading) = &mut self.loading {
-            let Ok(event) = loading.events.try_recv() else {
-                return events;
+            let event = match loading.events.try_recv() {
+                Ok(event) => event,
+                Err(mpsc::TryRecvError::Empty) => return events,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.loading = None;
+                    return events;
+                }
             };
             match event {
                 LoadEvent::Decoded(track, peaks, cover, stems, auto_cue_s) => {
                     loading.decoded = true;
+                    let analysing = loading.analysing;
                     let request = loading.request.clone();
                     let cues = CueList::new(&request.cues);
                     let audio = Arc::clone(&track);
@@ -775,9 +781,6 @@ impl DeckView {
                             from,
                         });
                     }
-                    let complete = request.grid.is_some()
-                        && request.key_text.is_some()
-                        && request.lufs.is_some();
                     self.loaded = Some(Loaded {
                         name: request.name,
                         title: request.title,
@@ -795,7 +798,7 @@ impl DeckView {
                         audio,
                         path: request.path,
                     });
-                    if complete {
+                    if !analysing {
                         self.loading = None;
                     }
                 }
