@@ -364,7 +364,7 @@ fn open(panel: &Panel) -> Result<Opened, Unopened> {
         .ok_or_else(|| "the controller has no screen interface".to_owned())?;
     let _ = handle.set_auto_detach_kernel_driver(true);
     handle.claim_interface(interface).map_err(|e| match e {
-        rusb::Error::Access | rusb::Error::Busy => IN_USE.to_owned().into(),
+        rusb::Error::Access | rusb::Error::Busy => Unopened::from(IN_USE.to_owned()),
         #[cfg(windows)]
         rusb::Error::NotSupported | rusb::Error::NotFound => Unopened {
             why: format!(
@@ -376,7 +376,7 @@ fn open(panel: &Panel) -> Result<Opened, Unopened> {
                 number: interface,
             }),
         },
-        e => e.to_string().into(),
+        e => Unopened::from(e.to_string()),
     })?;
     Ok((handle, interface, endpoint))
 }
