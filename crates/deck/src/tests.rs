@@ -148,6 +148,20 @@ fn play_during_cue_preview_keeps_playing_on_release() {
 }
 
 #[test]
+fn toggle_play_during_cue_preview_keeps_playing_on_release() {
+    let mut deck = loaded();
+    deck.handle(Command::CueDown);
+    run(&mut deck, 100);
+    deck.handle(Command::TogglePlay);
+    run(&mut deck, 100);
+    assert!(deck.state().playing);
+    deck.handle(Command::CueUp);
+    run(&mut deck, 100);
+    assert!(deck.state().playing);
+    assert_near(deck.state().position_s, 0.3);
+}
+
+#[test]
 fn cup_jumps_to_cue_and_plays_on_release() {
     let mut deck = loaded();
     deck.handle(Command::Seek { seconds: 4.0 });

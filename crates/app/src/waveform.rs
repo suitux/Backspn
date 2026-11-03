@@ -468,6 +468,12 @@ pub fn time_at(rect: Rect, (from_s, to_s): (f64, f64), pos: Pos2) -> f64 {
     from_s + frac * (to_s - from_s)
 }
 
+/// Seconds the track moves when the waveform is dragged `dx` pixels: the
+/// audio follows the pointer, so dragging right goes back in the track.
+pub fn drag_seconds(rect: Rect, (from_s, to_s): (f64, f64), dx: f32) -> f64 {
+    -f64::from(dx / rect.width().max(1.0)) * (to_s - from_s)
+}
+
 pub fn marker(painter: &egui::Painter, rect: Rect, x: f32, color: Color32, width: f32) {
     if x >= rect.left() && x <= rect.right() {
         painter.line_segment(
@@ -549,6 +555,14 @@ mod tests {
         let cut = loop_span(rect, (0.0, 10.0), (8.0, 14.0)).unwrap();
         assert_eq!((cut.left(), cut.right()), (80.0, 100.0));
         assert!(loop_span(rect, (0.0, 10.0), (12.0, 14.0)).is_none());
+    }
+
+    #[test]
+    fn dragging_the_waveform_moves_the_track_with_the_pointer() {
+        let rect = Rect::from_min_max(pos2(0.0, 0.0), pos2(100.0, 10.0));
+        assert!((drag_seconds(rect, (10.0, 14.0), 25.0) + 1.0).abs() < 1e-9);
+        assert!((drag_seconds(rect, (10.0, 14.0), -50.0) - 2.0).abs() < 1e-9);
+        assert!(drag_seconds(rect, (10.0, 14.0), 0.0).abs() < 1e-9);
     }
 
     #[test]
