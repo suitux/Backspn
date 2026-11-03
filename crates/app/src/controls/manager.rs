@@ -619,6 +619,7 @@ impl Controls {
         for line in device.status() {
             ui.label(RichText::new(line).weak());
         }
+        super::screen_driver_setup(ui, device.as_ref());
         ui.label(RichText::new(tr("Device Target: each side's deck.")).weak());
     }
 

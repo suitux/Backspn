@@ -926,3 +926,12 @@ Low-pass: removes the high end; lower lets fewer highs through	Paso bajo: quita 
 Size: how large the space sounds; higher gives a longer tail	Tamaño: lo grande que suena el espacio; más alto alarga la cola
 Analyzing deck	Analizando el deck
 Analyzing decks	Analizando los decks
+Setting up the screens: accept the Windows prompt.	Preparando las pantallas: acepta el aviso de Windows.
+Screens set up; they light up in a few seconds.	Pantallas preparadas; se encenderán en unos segundos.
+The screens were not set up: the administrator prompt was declined.	No se han preparado las pantallas: se rechazó el aviso de administrador.
+The screens were not set up: the controller is not plugged in.	No se han preparado las pantallas: la controladora no está conectada.
+Windows did not install the WinUSB driver for the screens.	Windows no ha instalado el driver WinUSB para las pantallas.
+Windows did not register the screens' interface.	Windows no ha registrado la interfaz de las pantallas.
+The screens could not be set up.	No se han podido preparar las pantallas.
+Enable screens	Activar pantallas
+Puts the WinUSB driver that comes with Windows on the screens' USB interface; Windows asks for administrator rights	Pone el driver WinUSB que trae Windows en la interfaz USB de las pantallas; Windows pide permisos de administrador

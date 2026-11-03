@@ -298,10 +298,33 @@ sudo cp packaging/linux/99-backspn.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger
 ```
 
-**Windows**: buttons, lights and audio work with the manufacturer's driver.
-The S4 MK3 screens use raw USB and need the WinUSB driver on the device's
-interface 4 (for example, with Zadig), installed with the manufacturer's
-hardware service closed. Untested.
+**Windows**: buttons, lights and audio work without anything extra. The
+screens (S4 MK3, S8, S5, D2) use raw USB, so their USB interface needs the
+WinUSB driver that comes with Windows instead of the manufacturer's one, which
+Windows may install on its own. When that is the case, the controller's
+section in Preferences shows **Enable screens**: press it, accept the
+administrator prompt and the screens light up a few seconds later. It changes
+only the screens' interface (audio, buttons and lights keep their drivers);
+the manufacturer's software can no longer use those screens until you undo it
+in Device Manager (the screens' interface, for example *Traktor Kontrol S4 MK3
+BD*, then Driver › Roll Back Driver, or Uninstall device and plug the
+controller in again). The button runs
+[`screen_driver.ps1`](crates/control/src/screen_driver.ps1).
+
+To do the same by hand: in Device Manager, open the screens' interface (the
+S4 MK3's is interface 4, `USB\VID_17CC&PID_1720&MI_04`), choose Update driver ›
+Browse my computer › Let me pick, clear *Show compatible hardware* and pick
+*WinUsb Device*. Then, in an administrator PowerShell, register the interface
+and restart it (replace the instance ID with the one Device Manager shows under
+Details › Device instance path):
+
+```powershell
+$id = 'USB\VID_17CC&PID_1720&MI_04\<instance>'
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\$id\Device Parameters" `
+  -Name DeviceInterfaceGUIDs -PropertyType MultiString `
+  -Value @('{9C236364-BB55-4FBB-A44E-6B19DB09F530}') -Force
+pnputil /restart-device "$id"
+```
 
 ## Building
 

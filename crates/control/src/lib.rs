@@ -16,6 +16,7 @@ pub mod profile;
 pub mod relative;
 pub mod s4mk3;
 pub mod sample_deck;
+pub mod screen_driver;
 pub mod session;
 pub mod state;
 pub mod stem;

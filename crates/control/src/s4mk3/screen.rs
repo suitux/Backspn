@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use super::{LinkStatus, PRODUCT_ID, VENDOR_ID};
+use crate::screen_driver::Interface;
 
 /// The size of the frames the app draws for a controller's screens.
 pub const WIDTH: usize = 320;
@@ -156,7 +157,7 @@ pub struct Screens {
     frames: Sender<Vec<Frame>>,
     running: Arc<AtomicBool>,
     connected: Arc<AtomicBool>,
-    problem: Arc<Mutex<Option<String>>>,
+    problem: Arc<Mutex<Option<Unopened>>>,
     thread: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -220,7 +221,12 @@ impl Screens {
     }
 
     pub fn problem(&self) -> Option<String> {
-        self.problem.lock().ok().and_then(|p| p.clone())
+        self.problem.lock().ok()?.as_ref().map(|p| p.why.clone())
+    }
+
+    /// The interface Windows must hand to `WinUSB` before the screens work.
+    pub fn missing_driver(&self) -> Option<Interface> {
+        self.problem.lock().ok()?.as_ref()?.missing_driver
     }
 
     pub fn send(&self, frames: [Frame; 2]) {
@@ -243,6 +249,10 @@ impl crate::controller::ScreenSink for Screens {
 
     fn problem(&self) -> Option<String> {
         Screens::problem(self)
+    }
+
+    fn missing_driver(&self) -> Option<Interface> {
+        Screens::missing_driver(self)
     }
 
     fn send(&self, frames: Vec<Frame>) {
@@ -272,14 +282,14 @@ fn supervise(
     frames: &Receiver<Vec<Frame>>,
     running: &AtomicBool,
     connected: &AtomicBool,
-    problem: &Mutex<Option<String>>,
+    problem: &Mutex<Option<Unopened>>,
 ) {
     while running.load(Ordering::Relaxed) {
         let opened = worth_looking(device).then(|| open(panel));
         let why = opened
             .as_ref()
             .and_then(|o| o.as_ref().err())
-            .filter(|e| *e != ABSENT)
+            .filter(|e| e.why != ABSENT)
             .cloned();
         if let Ok(mut p) = problem.lock() {
             *p = why;
@@ -299,6 +309,23 @@ fn supervise(
 }
 
 const ABSENT: &str = "controller not found";
+
+/// Why the screens could not be opened.
+#[derive(Debug, Clone)]
+struct Unopened {
+    why: String,
+    /// The interface to set up first, when its driver is the reason.
+    missing_driver: Option<Interface>,
+}
+
+impl From<String> for Unopened {
+    fn from(why: String) -> Self {
+        Self {
+            why,
+            missing_driver: None,
+        }
+    }
+}
 
 #[cfg(target_os = "macos")]
 const IN_USE: &str = "the screens are in use by another program (on macOS, the \
@@ -327,7 +354,7 @@ fn bulk_out(device: &rusb::Device<rusb::GlobalContext>) -> Option<(u8, u8)> {
 
 type Opened = (rusb::DeviceHandle<rusb::GlobalContext>, u8, u8);
 
-fn open(panel: &Panel) -> Result<Opened, String> {
+fn open(panel: &Panel) -> Result<Opened, Unopened> {
     let handle =
         crate::usb::exclusive(|| rusb::open_device_with_vid_pid(panel.vendor_id, panel.product_id))
             .ok_or_else(|| ABSENT.to_owned())?;
@@ -337,21 +364,25 @@ fn open(panel: &Panel) -> Result<Opened, String> {
         .ok_or_else(|| "the controller has no screen interface".to_owned())?;
     let _ = handle.set_auto_detach_kernel_driver(true);
     handle.claim_interface(interface).map_err(|e| match e {
-        rusb::Error::Access | rusb::Error::Busy => IN_USE.to_owned(),
+        rusb::Error::Access | rusb::Error::Busy => IN_USE.to_owned().into(),
         #[cfg(windows)]
-        rusb::Error::NotSupported | rusb::Error::NotFound => {
-            format!(
-                "the screens need the WinUSB driver on the controller's interface {interface} \
-                 (README, Controllers)"
-            )
-        }
-        e => e.to_string(),
+        rusb::Error::NotSupported | rusb::Error::NotFound => Unopened {
+            why: format!(
+                "the screens need the WinUSB driver on the controller's interface {interface}"
+            ),
+            missing_driver: Some(Interface {
+                vendor_id: panel.vendor_id,
+                product_id: panel.product_id,
+                number: interface,
+            }),
+        },
+        e => e.to_string().into(),
     })?;
     Ok((handle, interface, endpoint))
 }
 
 pub fn probe() -> Result<(), String> {
-    let (handle, interface, _) = open(&S4_PANEL)?;
+    let (handle, interface, _) = open(&S4_PANEL).map_err(|e| e.why)?;
     let _ = handle.release_interface(interface);
     Ok(())
 }

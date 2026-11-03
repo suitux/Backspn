@@ -7,6 +7,7 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+base64 = "0.22"
 # On Linux, the backend that reads sysfs itself: the default one walks the
 # device database through libudev, which libusb's hotplug thread also uses,
 # and libudev aborts when two threads use it at once.

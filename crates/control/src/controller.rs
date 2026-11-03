@@ -12,6 +12,11 @@ pub trait ScreenSink {
     fn count(&self) -> usize;
     fn connected(&self) -> bool;
     fn problem(&self) -> Option<String>;
+    /// The interface to set up before the screens can be reached, when the
+    /// system gives it to another driver (Windows only).
+    fn missing_driver(&self) -> Option<crate::screen_driver::Interface> {
+        None
+    }
     fn send(&self, frames: Vec<Frame>);
 }
 

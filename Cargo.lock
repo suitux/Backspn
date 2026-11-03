@@ -583,6 +583,7 @@ name = "backspn-control"
 version = "0.0.25"
 dependencies = [
  "backspn-formats",
+ "base64 0.22.1",
  "hidapi",
  "midir",
  "rusb",
