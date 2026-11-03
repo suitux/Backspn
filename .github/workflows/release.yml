@@ -112,3 +112,27 @@ jobs:
           make_latest: ${{ needs.version.outputs.prerelease == 'true' && 'false' || 'true' }}
           generate_release_notes: true
           files: packages/*
+
+  discord:
+    needs: [version, release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Announce on Discord
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "::warning::DISCORD_WEBHOOK_URL is not set, skipping"
+            exit 0
+          fi
+          release=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json name,url,body)
+          name=$(jq -r '.name // empty' <<<"$release")
+          url=$(jq -r '.url' <<<"$release")
+          body=$(jq -r '.body // ""' <<<"$release")
+          title="🚀 Backspn ${name:-$GITHUB_REF_NAME}"
+          if [ "$PRERELEASE" = "true" ]; then title="$title (pre-release)"; fi
+          jq -n --arg t "$title" --arg u "$url" --arg d "${body:0:4000}" \
+            '{username: "Backspn Releases", embeds: [{title: $t, url: $u, description: $d, color: 5814783}]}' \
+          | curl -sSf -H "Content-Type: application/json" -d @- "$WEBHOOK"
