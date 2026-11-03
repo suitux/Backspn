@@ -56,13 +56,15 @@ impl DeckView {
         let mut seek = None;
         let mut save = false;
 
-        let (rect, response) = ui.allocate_exact_size(vec2(width, height), Sense::click());
-        let painter = ui.painter_at(rect);
-        let radius = if self.size.parallel_wave().is_some() {
-            0.0
+        let parallel = self.size.parallel_wave().is_some();
+        let sense = if parallel {
+            Sense::click_and_drag()
         } else {
-            6.0
+            Sense::click()
         };
+        let (rect, response) = ui.allocate_exact_size(vec2(width, height), sense);
+        let painter = ui.painter_at(rect);
+        let radius = if parallel { 0.0 } else { 6.0 };
         painter.rect_filled(rect, radius, t.well);
         let style = waveform::WaveStyle::get(ui.ctx());
         self.zoom_buttons(ui, rect, &t);
@@ -152,6 +154,36 @@ impl DeckView {
         self.pending_save_loop |= save;
         if let Some(seconds) = seek {
             out.push(self.deck(DeckCommand::Seek { seconds }));
+        }
+        if parallel {
+            self.drag_track(&response, rect, window, state.loaded, out);
+        }
+    }
+
+    /// Grabbing the waveform holds the track and moves it with the pointer.
+    fn drag_track(
+        &self,
+        response: &egui::Response,
+        rect: Rect,
+        window: (f64, f64),
+        loaded: bool,
+        out: &mut Vec<Command>,
+    ) {
+        if loaded && response.drag_started() {
+            out.push(self.deck(DeckCommand::ScratchStart));
+        }
+        if loaded && response.dragged() {
+            let dx = response.drag_delta().x;
+            if dx != 0.0 {
+                let seconds = waveform::drag_seconds(rect, window, dx);
+                out.push(self.deck(DeckCommand::ScratchMove(seconds)));
+            }
+            response.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+        } else if loaded && response.hovered() {
+            response.ctx.set_cursor_icon(egui::CursorIcon::Grab);
+        }
+        if response.drag_stopped() {
+            out.push(self.deck(DeckCommand::ScratchEnd));
         }
     }
 

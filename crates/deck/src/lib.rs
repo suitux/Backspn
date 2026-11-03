@@ -401,8 +401,8 @@ impl Deck {
             Command::Play | Command::CupUp => self.resume(),
             Command::Pause => self.pause(),
             Command::TogglePlay => match self.target_transport() {
-                Transport::Stopped => self.resume(),
-                Transport::Playing | Transport::CuePreview => self.pause(),
+                Transport::Stopped | Transport::CuePreview => self.resume(),
+                Transport::Playing => self.pause(),
             },
             Command::Seek { seconds } => {
                 let target = self.clamp(seconds * self.source_rate());
