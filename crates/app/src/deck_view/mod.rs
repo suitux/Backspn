@@ -85,6 +85,7 @@ struct Loading {
     request: LoadRequest,
     events: Receiver<LoadEvent>,
     decoded: bool,
+    analysing: bool,
 }
 
 struct Loaded {
@@ -451,6 +452,7 @@ impl DeckView {
         let (stems, output_rate) = (request.stems.clone(), request.output_rate);
         let missing =
             request.grid.is_none() || request.key_text.is_none() || request.lufs.is_none();
+        let analysing = missing && options.is_some();
         let auto_cue = self
             .auto_cue_db
             .filter(|_| request.cue_s.is_none() && request.duplicate_of.is_none());
@@ -497,6 +499,7 @@ impl DeckView {
             request,
             events: rx,
             decoded: false,
+            analysing,
         });
     }
 
@@ -690,6 +693,13 @@ impl DeckView {
 
     pub fn is_decoding(&self) -> bool {
         self.loading.as_ref().is_some_and(|l| !l.decoded)
+    }
+
+    /// The track is playable and its analysis on load is still running.
+    pub fn is_analysing(&self) -> bool {
+        self.loading
+            .as_ref()
+            .is_some_and(|l| l.decoded && l.analysing)
     }
 
     pub fn is_busy(&self) -> bool {
@@ -1014,6 +1024,20 @@ fn key_adjust(current: f32, trigger: backspn_control::Trigger) -> Option<f32> {
     Some(semitones.clamp(-max, max))
 }
 
+/// Status text while decks analyse the track they just loaded.
+pub fn analysing_text(decks: &[char]) -> Option<String> {
+    let letters = decks
+        .iter()
+        .map(char::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    match decks.len() {
+        0 => None,
+        1 => Some(format!("{} {letters}", crate::i18n::tr("Analyzing deck"))),
+        _ => Some(format!("{} {letters}", crate::i18n::tr("Analyzing decks"))),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::header::{clock, key_label};
@@ -1120,6 +1144,16 @@ mod tests {
         );
         assert_eq!(header::resulting_key(Some("1m"), true, 0.3), None);
         assert_eq!(header::resulting_key(None, true, 0.0), None);
+    }
+
+    #[test]
+    fn analysing_text_names_the_decks() {
+        assert_eq!(analysing_text(&[]), None);
+        assert_eq!(analysing_text(&['B']).as_deref(), Some("Analyzing deck B"));
+        assert_eq!(
+            analysing_text(&['A', 'C']).as_deref(),
+            Some("Analyzing decks A, C")
+        );
     }
 
     #[test]

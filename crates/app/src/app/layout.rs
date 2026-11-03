@@ -406,11 +406,29 @@ impl App {
         });
     }
 
+    fn deck_analysis_status(&self, ui: &mut Ui) {
+        let decks: Vec<char> = self
+            .decks
+            .iter()
+            .filter(|d| d.is_analysing())
+            .map(crate::deck_view::DeckView::letter)
+            .collect();
+        if let Some(text) = crate::deck_view::analysing_text(&decks) {
+            ui.add(
+                egui::ProgressBar::new(0.0)
+                    .desired_width(160.0)
+                    .animate(true)
+                    .text(text),
+            );
+        }
+    }
+
     pub(crate) fn status_row(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             self.status_bar(ui);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 self.browser.progress(ui);
+                self.deck_analysis_status(ui);
             });
         });
     }

@@ -1090,7 +1090,13 @@ fn the_grid_panel_keeps_the_grid_found_when_an_unanalysed_track_loads() {
     h.app.decks[0].panel = Some(PanelTab::Grid);
     h.frame();
     h.app.load_from_library(0, id);
+    h.until("deck A tells it is analysing", |app| {
+        app.decks[0].is_analysing()
+    });
     h.until_engine("the analysis sets the grid", |s| s.decks[0].grid.is_some());
+    h.until("deck A is done analysing", |app| {
+        !app.decks[0].is_analysing()
+    });
     for _ in 0..10 {
         h.frame();
     }
