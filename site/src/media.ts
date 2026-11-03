@@ -4,8 +4,10 @@ import { join } from 'node:path';
 export interface Clip {
   file: string;
   record: string;
-  /** Pixel size of a still screenshot, so the page reserves its space. */
+  /** Pixel size of the screenshot or clip, so the page reserves its space. */
   size?: [number, number];
+  /** First frame of a looping clip, shown until it plays. */
+  poster?: string;
 }
 
 export interface Video extends Clip {
@@ -13,22 +15,24 @@ export interface Video extends Clip {
 }
 
 // Screenshots are copies of docs/images/ in the repo (the same ones the README shows).
+// Clips in clips/ are short silent screen recordings of the app, each with its first
+// frame as a .webp poster.
 export const features = {
-  mixing: { file: 'screens/layout-parallel.webp', size: [2000, 1275], record: 'Four decks with their waveforms in parallel lanes.' },
+  mixing: { file: 'clips/mixing.mp4', poster: 'clips/mixing.webp', size: [1600, 866], record: 'Four synced decks playing while EQ and filter move.' },
   stems: { file: 'screens/stems.webp', size: [1125, 725], record: 'A stem deck with Drums, Bass, Other and Vocals lanes.' },
-  effects: { file: 'screens/effects.webp', size: [1118, 632], record: 'FX1 in group mode and FX2 in single mode, both on.' },
+  effects: { file: 'clips/effects.mp4', poster: 'clips/effects.webp', size: [1600, 348], record: 'FX units switched on over a playing deck, dry/wet raised and the effect changed.' },
   samples: { file: 'screens/sample-decks.webp', size: [2000, 723], record: 'A track deck next to a sample deck with four slots.' },
-  library: { file: 'screens/layout-essential.webp', size: [2000, 1275], record: 'Four Essential decks with the library below.' },
+  library: { file: 'clips/library.mp4', poster: 'clips/library.webp', size: [1600, 636], record: 'Two playing decks with the library below, the selection moving through it.' },
   controllers: { file: 'screens/s4-screens.webp', size: [1456, 380], record: 'The four screen layouts of the Kontrol S4 MK3.' },
 } satisfies Record<string, Clip>;
 
 export const gallery = {
-  drumMachine: { file: 'screens/drum-machine.webp', size: [1026, 295], record: 'An FX unit in Drum Machine mode.' },
+  drumMachine: { file: 'clips/drum-machine.mp4', poster: 'clips/drum-machine.webp', size: [1350, 296], record: 'An FX unit in Drum Machine mode, steps added while it plays.' },
   kits: { file: 'screens/drum-machine-kits.webp', size: [1960, 1516], record: 'Preferences, Drum Machine page.' },
   patterns: { file: 'screens/drum-machine-patterns.webp', size: [1580, 528], record: 'One pattern with three step sizes.' },
   loopRecorder: { file: 'screens/loop-recorder.webp', size: [1220, 1156], record: 'The loop recorder above a deck.' },
   saveAsLoop: { file: 'screens/save-as-loop.webp', size: [1220, 544], record: 'Save as Loop on an active deck loop.' },
-  themes: { file: 'screens/themes.webp', size: [2000, 1316], record: 'Darcula, Solar, Purple and Ocean.' },
+  themes: { file: 'clips/themes.mp4', poster: 'clips/themes.webp', size: [1600, 978], record: 'The window switching through the themes while two decks play.' },
 } satisfies Record<string, Clip>;
 
 export const videos = {
@@ -38,9 +42,10 @@ export const videos = {
 } satisfies Record<string, Video>;
 
 export const hero: Clip = {
-  file: 'screens/two-decks.webp',
-  size: [2000, 1189],
-  record: 'The whole window with two decks loaded (hero).',
+  file: 'clips/hero.mp4',
+  poster: 'clips/hero.webp',
+  size: [1920, 1174],
+  record: 'The whole window mixing two synced decks: fader up, bass swapped (hero).',
 };
 
 const root = join(process.cwd(), 'public', 'media');

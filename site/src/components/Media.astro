@@ -10,14 +10,14 @@ interface Props {
 const { clip, as, alt, eager = false } = Astro.props;
 const has = ready(clip.file);
 const isVideo = clip.file.endsWith('.mp4') || clip.file.endsWith('.webm');
-const poster = 'poster' in clip && ready(clip.poster) ? url(clip.poster) : undefined;
+const poster = clip.poster && ready(clip.poster) ? url(clip.poster) : undefined;
 ---
 
 {has && as === 'player' && (
   <video class="size-full object-cover" src={url(clip.file)} poster={poster} controls preload="none" playsinline aria-label={alt}></video>
 )}
 {has && as === 'loop' && isVideo && (
-  <video class="size-full object-cover" src={url(clip.file)} poster={poster} autoplay muted loop playsinline preload={eager ? 'auto' : 'metadata'} aria-label={alt}></video>
+  <video class="block h-auto w-full" src={url(clip.file)} poster={poster} width={clip.size?.[0]} height={clip.size?.[1]} autoplay muted loop playsinline disablepictureinpicture preload={eager ? 'auto' : 'metadata'} aria-label={alt}></video>
 )}
 {has && as === 'loop' && !isVideo && (
   <img class="block h-auto w-full" src={url(clip.file)} alt={alt} width={clip.size?.[0]} height={clip.size?.[1]} loading={eager ? 'eager' : 'lazy'} fetchpriority={eager ? 'high' : undefined} decoding="async" />
