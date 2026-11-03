@@ -11,6 +11,7 @@ use super::Browser;
 
 const FAILED: &str = "Could not generate the stems of: ";
 const LOADED: &str = "Unload the track from its deck before removing its stems.";
+const UNSUPPORTED: &str = "Generating stems needs at least macOS";
 
 impl Browser {
     pub fn set_stem_dirs(&mut self, dirs: StemDirs) {
@@ -79,6 +80,11 @@ impl Browser {
 
     pub(super) fn generate_stems(&mut self, id: i64) {
         if !self.can_generate_stems(id) {
+            return;
+        }
+        if !backspn_separate::supported() {
+            let (major, minor) = backspn_separate::MIN_MACOS;
+            crate::toast::warning(format!("{} {major}.{minor}", tr(UNSUPPORTED)));
             return;
         }
         if self.stem_jobs.has_model() {

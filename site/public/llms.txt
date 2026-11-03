@@ -50,7 +50,7 @@ MP3, AAC/M4A, ALAC, FLAC, WAV, AIFF, Ogg Vorbis and .stem.mp4.
 ## Controllers
 
 - Native HID drivers: Kontrol S4 MK3 (tested on hardware, with its own screen layouts); Kontrol
-  S4 MK2, S2 MK3, S2 MK2, S3, MX2 and Z1 (untested).
+  S4 MK2, S4 MK1, S2 MK3, S2 MK2, S3, MX2 and Z1 (untested).
 - MIDI profiles: Pioneer DJ DDJ series, Denon DJ MC7000, Hercules DJControl Inpulse 200/300/500,
   Numark Mixtrack Pro FX and Platinum FX, Reloop READY and Buddy.
 - Anything else: MIDI learn and keyboard mappings.
@@ -82,3 +82,5 @@ device names and IP addresses are never sent. Public results: https://backspn.co
 - Spanish landing page: https://backspn.com/es
 - Usage statistics: https://backspn.com/insights
 - Issues: https://github.com/suitux/Backspn/issues
+
+Controller and other product names are trademarks of their owners, used only to identify compatible hardware and files. Backspn is not affiliated with or endorsed by any of them.

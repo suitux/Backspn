@@ -537,7 +537,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
 name = "backspn-analysis"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-decode",
  "backspn-formats",
@@ -548,7 +548,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-app"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -581,9 +581,10 @@ dependencies = [
 
 [[package]]
 name = "backspn-control"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-formats",
+ "base64 0.22.1",
  "hidapi",
  "midir",
  "rusb",
@@ -593,7 +594,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-deck"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-decode",
  "backspn-formats",
@@ -602,7 +603,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-decode"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-formats",
  "opus",
@@ -612,11 +613,11 @@ dependencies = [
 
 [[package]]
 name = "backspn-dsp"
-version = "0.0.10"
+version = "0.0.26"
 
 [[package]]
 name = "backspn-encode"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-analysis",
  "backspn-decode",
@@ -627,7 +628,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-engine"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-deck",
  "backspn-decode",
@@ -645,7 +646,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-formats"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "quick-xml 0.42.0",
  "serde",
@@ -655,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-fx"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-dsp",
  "serde",
@@ -664,7 +665,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-library"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-formats",
  "base64 0.22.1",
@@ -679,7 +680,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-link"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "if-addrs",
  "socket2",
@@ -687,7 +688,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-mcp"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-library",
  "backspn-remote",
@@ -696,7 +697,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-mixer"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-dsp",
  "serde",
@@ -704,7 +705,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-remote"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-formats",
  "backspn-library",
@@ -714,7 +715,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-sampler"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-deck",
  "backspn-decode",
@@ -724,10 +725,11 @@ dependencies = [
 
 [[package]]
 name = "backspn-separate"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-analysis",
  "backspn-decode",
+ "objc2-foundation 0.3.2",
  "ort",
  "sha2",
  "thiserror 2.0.21",
@@ -736,14 +738,14 @@ dependencies = [
 
 [[package]]
 name = "backspn-stretch"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "signalsmith-stretch",
 ]
 
 [[package]]
 name = "backspn-sync"
-version = "0.0.10"
+version = "0.0.26"
 dependencies = [
  "backspn-deck",
 ]
@@ -765,6 +767,12 @@ name = "base64ct"
 version = "1.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
+
+[[package]]
+name = "basic-udev"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "868a8681ed3a19fae3e302c705b1cabf5be53278cc8720a9b82e9805c9ab171d"
 
 [[package]]
 name = "bindgen"
@@ -2625,9 +2633,11 @@ version = "2.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "818c0e1d27887aaf76fe737042e27a66b796a7b099e6d2e1a72d106c2dff3fa6"
 dependencies = [
+ "basic-udev",
  "cc",
  "cfg-if",
  "libc",
+ "nix",
  "pkg-config",
  "windows-sys 0.61.2",
 ]
@@ -3054,6 +3064,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "libloading"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "754ca22de805bb5744484a5b151a9e1a8e837d5dc232c2d7d8c2e3492edc8b60"
+dependencies = [
+ "cfg-if",
+ "windows-link",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3404,6 +3424,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
  "jni-sys 0.3.1",
+]
+
+[[package]]
+name = "nix"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
+dependencies = [
+ "bitflags 2.13.2",
+ "cfg-if",
+ "cfg_aliases",
+ "libc",
 ]
 
 [[package]]
@@ -3992,6 +4024,7 @@ version = "2.0.0-rc.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37c87aa7a90b7ff3e0fe36cccd475df8d67f15f07f4d6c370c4b38464232813c"
 dependencies = [
+ "libloading 0.9.0",
  "ndarray",
  "ort-sys",
  "smallvec",

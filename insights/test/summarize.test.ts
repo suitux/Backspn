@@ -9,7 +9,7 @@ import {
   installs,
   libraryBin,
   mergeReports,
-  minorVersion,
+  releaseVersion,
   summarize,
   weekStart,
   type DailySummary
@@ -91,7 +91,7 @@ describe('summarize', () => {
     expect(summary).toMatchObject({ reporting: 1, active: 2, newInstalls: 1 })
     expect(summary.controllers).toEqual({ none: 1, 'kontrol-s4-mk3': 1 })
     expect(summary.decks).toEqual({ '2': 1, '4': 1 })
-    expect(summary.versions).toEqual({ '0.0': 2 })
+    expect(summary.versions).toEqual({ '0.0.4': 2 })
     expect(summary.librarySizes['2k-10k']).toBe(2)
     expect(summary.features.controller).toBe(1)
     expect(summary.features.recording).toBe(2)
@@ -103,8 +103,8 @@ describe('summarize', () => {
     expect(libraryBin(0)).toBe('0')
     expect(libraryBin(500)).toBe('1-500')
     expect(libraryBin(60_000)).toBe('50k+')
-    expect(minorVersion('v0.4.2-beta.1')).toBe('0.4')
-    expect(minorVersion('dev')).toBe('unknown')
+    expect(releaseVersion('v0.4.2-beta.1')).toBe('0.4.2')
+    expect(releaseVersion('dev')).toBe('unknown')
   })
 
   it('adds usage', () => {

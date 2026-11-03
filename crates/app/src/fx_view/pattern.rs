@@ -12,6 +12,8 @@ use crate::widgets::{self, knob};
 
 const KNOBS: [&str; 3] = ["DECAY", "PITCH", "PTRN"];
 const SHOWN: [usize; 3] = [2, 1, 0];
+/// Width of the kit selector in the compact unit.
+const COMPACT_KIT: f32 = 96.0;
 const BUTTONS: [&str; 3] = ["DUCK", "NEXT", "PREV"];
 const DUCK: usize = 0;
 pub(crate) const BUTTONS_SHOWN: [usize; 3] = [2, 1, 0];
@@ -559,10 +561,17 @@ impl FxView {
         ui.vertical(|ui| {
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 3.0;
-                self.kit_combo(ui, u, 96.0, out);
+                // The sliders share what the kit and the buttons leave free;
+                // the buttons' width is measured on the previous frame.
+                let buttons_id = egui::Id::unique(("pattern-buttons", u));
+                let buttons = ui.data(|d| d.get_temp(buttons_id)).unwrap_or(150.0);
+                let gaps = 3.0 * (SHOWN.len() + 1) as f32;
+                let free = width - COMPACT_KIT - buttons - gaps;
+                let slider = (free / SHOWN.len() as f32).clamp(44.0, 200.0);
+                self.kit_combo(ui, u, COMPACT_KIT, out);
                 for i in SHOWN {
                     let mut v = self.patterns[u].knobs[i];
-                    ui.spacing_mut().slider_width = 44.0;
+                    ui.spacing_mut().slider_width = slider;
                     let r = ui
                         .add(egui::Slider::new(&mut v, 0.0..=1.0).show_value(false))
                         .on_hover_text(match i {
@@ -573,7 +582,9 @@ impl FxView {
                         self.set_pattern_knob(u, i, v, out);
                     }
                 }
-                self.pattern_buttons(ui, u, out);
+                let buttons = ui.scope(|ui| self.pattern_buttons(ui, u, out));
+                let measured = buttons.response.rect.width();
+                ui.data_mut(|d| d.insert_temp(buttons_id, measured));
             });
             self.pattern_steps(ui, u, width, out);
         });

@@ -578,6 +578,13 @@ impl App {
                     out.push(deck(d, DeckCommand::Seek { seconds }));
                 }
             }
+            Action::Seek { deck: d } if d < DECKS => {
+                if let Trigger::Set(share) = trigger
+                    && let Some(seconds) = seek_seconds(share, state.decks[d].duration_s)
+                {
+                    out.push(deck(d, DeckCommand::Seek { seconds }));
+                }
+            }
             Action::GridAdjust { deck: d } if d < DECKS => {
                 if let (Trigger::Delta(turns), Some(grid)) = (trigger, state.decks[d].grid) {
                     let moved = Grid {
@@ -696,6 +703,18 @@ impl App {
         }
     }
 
+    /// Whether the audio callback is close to its budget, and how many times
+    /// the audio has dropped out so far.
+    fn audio_health(&mut self) -> (bool, u64) {
+        self.engine.as_mut().ok().map_or((false, 0), |e| {
+            let stats = e.controller().stats();
+            (
+                backspn_control::feedback::audio_overloaded(stats.load_permille),
+                stats.xruns,
+            )
+        })
+    }
+
     pub(crate) fn handle_controls(&mut self, ctx: &egui::Context, state: &EngineState) {
         let clock = self.midi_clock.handlers();
         let controls = self
@@ -725,15 +744,7 @@ impl App {
             self.execute(action, trigger, state);
         }
         let now = Instant::now();
-        for d in 0..DECKS {
-            let (command, pending) = self.jog[d].tick(now);
-            if let Some(c) = command {
-                self.outbox.push(Command::Deck(d, c));
-            }
-            if pending {
-                ctx.request_repaint_after(jog::IDLE);
-            }
-        }
+        self.tick_jogs(ctx, now);
         self.tick_platters(ctx, state, now);
         self.tick_link(ctx, state);
         let turntable = self.jog.map(|j| j.turntable);
@@ -747,6 +758,7 @@ impl App {
         for (view, deck) in self.decks.iter_mut().zip(&state.decks) {
             view.watch_tempo_lock(deck.tempo);
         }
+        let (audio_overloaded, audio_dropouts) = self.audio_health();
         if let Some(controls) = &mut self.controls {
             controls.show(
                 state,
@@ -765,6 +777,9 @@ impl App {
                     platters,
                     tempo_ranges: std::array::from_fn(|d| self.decks[d].tempo_range_index()),
                     microphone: (self.settings.microphone_gain - 1.0).abs() < f32::EPSILON,
+                    audio_overloaded,
+                    fx_units: u8::try_from(self.settings.fx_units).unwrap_or(2),
+                    audio_dropouts,
                     pattern_steps: std::array::from_fn(|u| self.fx.mapped_steps(u)),
                     loop_sizes: std::array::from_fn(|d| {
                         backspn_control::feedback::loop_size_index(self.decks[d].loop_beats())
@@ -794,6 +809,18 @@ impl App {
             ctx.request_repaint_after(PREVIEW_BLINK / 2);
         }
         self.update_screens(ctx, state);
+    }
+
+    fn tick_jogs(&mut self, ctx: &egui::Context, now: Instant) {
+        for d in 0..DECKS {
+            let (command, pending) = self.jog[d].tick(now);
+            if let Some(c) = command {
+                self.outbox.push(Command::Deck(d, c));
+            }
+            if pending {
+                ctx.request_repaint_after(jog::IDLE);
+            }
+        }
     }
 
     fn platter_deck(&self, d: usize) -> bool {
@@ -838,10 +865,19 @@ impl App {
         let Some(controls) = &self.controls else {
             return;
         };
-        let decks = match controls.screens() {
-            Some((size, decks)) if size == (screen::WIDTH, screen::HEIGHT) => decks,
-            None if preview.is_some() => vec![0, 1],
+        let (size, decks) = match controls.screens() {
+            Some((size, decks))
+                if size == (screen::WIDTH, screen::HEIGHT) || size == screen::WIDE =>
+            {
+                (size, decks)
+            }
+            None if preview.is_some() => ((screen::WIDTH, screen::HEIGHT), vec![0, 1]),
             Some(_) | None => return,
+        };
+        let layout = if size == screen::WIDE {
+            self.settings.screen_layout_wide
+        } else {
+            self.settings.screen_layout
         };
         ctx.request_repaint_after(SCREEN_PERIOD);
         let now = Instant::now();
@@ -890,6 +926,8 @@ impl App {
                                 screen::deck_color(d, &theme),
                             )
                         }),
+                    stems: self.decks[d].stem_overlays(),
+                    partner: self.screen_partner(d, state),
                     clock_ms: std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
                         .map_or(0, |d| u64::try_from(d.as_millis()).unwrap_or(0)),
@@ -897,7 +935,7 @@ impl App {
                 if self.settings.screen_idle_logo && screen::idle(&deck) {
                     screen::render_logo(&theme, self.settings.screen_logo.as_deref())
                 } else {
-                    screen::render(&deck, &style, &theme, self.settings.screen_layout)
+                    screen::render_panel(&deck, &style, &theme, layout, size)
                 }
             })
             .collect();
@@ -911,6 +949,25 @@ impl App {
         controls.send_screens(frames);
     }
 
+    /// The deck a screen of deck `d` compares with, as the screen needs it.
+    fn screen_partner<'a>(
+        &'a self,
+        d: usize,
+        state: &'a EngineState,
+    ) -> Option<screen::Partner<'a>> {
+        let loaded: [bool; DECKS] = std::array::from_fn(|n| state.decks[n].loaded);
+        let playing: [bool; DECKS] = std::array::from_fn(|n| state.decks[n].playing);
+        let p = screen::partner_of(d, state.sync.master, &loaded, &playing)?;
+        Some(screen::Partner {
+            index: p,
+            state: &state.decks[p],
+            peaks: self.decks[p].screen_info().map(|i| i.1),
+            key: self.decks[p]
+                .key_label(&state.decks[p])
+                .and_then(|k| backspn_formats::nml::MusicalKey::parse(&k)),
+        })
+    }
+
     pub(crate) fn leave_screens(&self) {
         let Some(controls) = &self.controls else {
             return;
@@ -919,7 +976,7 @@ impl App {
             return;
         }
         if let Some((size, decks)) = controls.screens()
-            && size == (screen::WIDTH, screen::HEIGHT)
+            && (size == (screen::WIDTH, screen::HEIGHT) || size == screen::WIDE)
         {
             let logo = screen::render_logo(
                 &self.settings.theme.theme(),
@@ -970,6 +1027,12 @@ fn reset_position(action: Action) -> Option<f32> {
     backspn_control::output::position(action, &defaults)
 }
 
+/// Where a share of the track (0 start, 1 end) falls, or nothing with no
+/// track loaded.
+fn seek_seconds(share: f32, duration_s: f64) -> Option<f64> {
+    (duration_s > 0.0).then(|| f64::from(share.clamp(0.0, 1.0)) * duration_s)
+}
+
 fn master_beat(state: &EngineState) -> f64 {
     state
         .sync
@@ -984,6 +1047,14 @@ fn master_beat(state: &EngineState) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn seeking_takes_a_share_of_the_loaded_track() {
+        assert_eq!(seek_seconds(0.5, 200.0), Some(100.0));
+        assert_eq!(seek_seconds(1.5, 200.0), Some(200.0));
+        assert_eq!(seek_seconds(-1.0, 200.0), Some(0.0));
+        assert_eq!(seek_seconds(0.5, 0.0), None, "nothing loaded");
+    }
 
     #[test]
     fn preview_and_favorites_take_the_encoder_while_held() {

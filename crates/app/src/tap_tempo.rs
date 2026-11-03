@@ -35,11 +35,13 @@ impl BeatTapIn {
     }
 }
 
+/// Taps are track positions, so their spacing already gives the track's own
+/// tempo whatever the deck's tempo; `rate` only rules out a stopped deck.
 pub fn deck_tap(taps: &mut BeatTapIn, position_s: f64, rate: f64) -> Option<f64> {
     taps.tap(position_s);
     let n = taps.taps().len();
     if rate.abs() > MIN_RATE && n >= DECK_TAPS && n.is_multiple_of(DECK_TAPS) {
-        taps.bpm().map(|bpm| bpm / rate)
+        taps.bpm()
     } else {
         None
     }
@@ -117,7 +119,10 @@ mod tests {
         for t in [1.0, 1.5, 2.0] {
             deck_tap(&mut taps, t, 1.25);
         }
-        assert!(near(deck_tap(&mut taps, 2.5, 1.25), 96.0));
+        assert!(
+            near(deck_tap(&mut taps, 2.5, 1.25), 120.0),
+            "the deck's tempo does not change the track's tempo"
+        );
         taps.clear();
         for t in [1.0, 1.5, 2.0] {
             deck_tap(&mut taps, t, 0.0);

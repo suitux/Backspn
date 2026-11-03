@@ -679,3 +679,44 @@ fn a_drum_machine_assigned_again_plays_in_step_with_the_other_deck() {
     assert!(!heard[0].is_empty(), "the kit plays");
     assert_eq!(heard[0], heard[1], "both decks hit together");
 }
+
+#[test]
+fn the_drum_machine_follows_the_master_clock_not_its_deck() {
+    let mut rack = Rack::new(RATE);
+    rack.handle(Command::SetMode(0, Mode::DrumMachine));
+    rack.handle(Command::SetKit {
+        unit: 0,
+        players: kit_players(RATE),
+    });
+    rack.handle(Command::SetOn(0, true));
+    rack.handle(Command::Assign {
+        channel: 0,
+        unit: 0,
+        on: true,
+    });
+    let frames = 480;
+    let per_block = 120.0 / 60.0 * frames as f64 / f64::from(RATE);
+    let mut beat = 0.0;
+    let mut heard = Vec::new();
+    for b in 0..200 {
+        rack.set_clock(Context {
+            bpm: 120.0,
+            beat,
+            beat_end: beat + per_block,
+        });
+        beat += per_block;
+        let deck = Context {
+            bpm: 97.0,
+            beat: 5.3,
+            beat_end: 5.3,
+        };
+        let mut buf = vec![0.0; 2 * frames];
+        rack.process(0, &mut buf, &deck);
+        hits(&buf, b * frames, &mut heard);
+    }
+    let beats: Vec<_> = heard.into_iter().filter(|&h| h > 0).collect();
+    assert_eq!(beats.len(), 4, "{beats:?}");
+    for (n, h) in beats.into_iter().enumerate() {
+        assert!(h.abs_diff((n + 1) * 24_000) <= 1, "on the master beat: {h}");
+    }
+}

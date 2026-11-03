@@ -12,6 +12,11 @@ pub trait ScreenSink {
     fn count(&self) -> usize;
     fn connected(&self) -> bool;
     fn problem(&self) -> Option<String>;
+    /// The interface to set up before the screens can be reached, when the
+    /// system gives it to another driver (Windows only).
+    fn missing_driver(&self) -> Option<crate::screen_driver::Interface> {
+        None
+    }
     fn send(&self, frames: Vec<Frame>);
 }
 
@@ -101,8 +106,40 @@ pub fn models() -> &'static [Model] {
             start: crate::kontrol::s4mk2::start,
         },
         Model {
+            name: crate::kontrol::s4mk1::NAME,
+            start: crate::kontrol::s4mk1::start,
+        },
+        Model {
             name: crate::kontrol::s2mk2::NAME,
             start: crate::kontrol::s2mk2::start,
+        },
+        Model {
+            name: crate::kontrol::x1mk2::NAME,
+            start: crate::kontrol::x1mk2::start,
+        },
+        Model {
+            name: crate::kontrol::x1mk3::NAME,
+            start: crate::kontrol::x1mk3::start,
+        },
+        Model {
+            name: crate::kontrol::f1::NAME,
+            start: crate::kontrol::f1::start,
+        },
+        Model {
+            name: crate::kontrol::z2::NAME,
+            start: crate::kontrol::z2::start,
+        },
+        Model {
+            name: crate::kontrol::s8::NAME,
+            start: crate::kontrol::s8::start,
+        },
+        Model {
+            name: crate::kontrol::s5::NAME,
+            start: crate::kontrol::s5::start,
+        },
+        Model {
+            name: crate::kontrol::d2::NAME,
+            start: crate::kontrol::d2::start,
         },
     ]
 }

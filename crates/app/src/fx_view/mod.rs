@@ -558,18 +558,19 @@ impl FxView {
                     self.assign_toggles(ui, u, out);
                 });
             });
-            let hint = if self.routing[u] == FxRouting::Send {
-                "Return level"
-            } else {
-                "Dry / wet"
-            };
+            let label = self.dry_wet_label(u);
             let c = &mut self.units[u];
-            if widgets::knob_compact(ui, &mut c.dry_wet, 0.0..=1.0, 1.0, hint).changed() {
+            if widgets::knob_compact(ui, &mut c.dry_wet, 0.0..=1.0, 1.0, label).changed() {
                 out.push(Command::Fx(FxCommand::SetDryWet(u, c.dry_wet)));
             }
+            // Single shows the effect selector plus up to three parameters.
+            let columns = match self.units[u].mode {
+                FxMode::Single => FX_SLOTS + 1,
+                FxMode::Group | FxMode::DrumMachine => FX_SLOTS,
+            };
             let gap = ui.spacing().item_spacing.x;
             let slot_width =
-                ((ui.available_width() - gap * (FX_SLOTS - 1) as f32) / FX_SLOTS as f32).max(60.0);
+                ((ui.available_width() - gap * (columns - 1) as f32) / columns as f32).max(60.0);
             match self.units[u].mode {
                 FxMode::Group => {
                     for slot in 0..FX_SLOTS {
@@ -601,7 +602,8 @@ impl FxView {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
                     ui.spacing_mut().slider_width = (width - 22.0).max(20.0);
-                    let slider = ui.add(
+                    let slider = widgets::rail_slider(
+                        ui,
                         egui::Slider::new(&mut c.amounts[slot], 0.0..=1.0)
                             .show_value(false)
                             .trailing_fill(true),
@@ -650,10 +652,12 @@ impl FxView {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 2.0;
                     if !info.params[i].is_empty()
-                        && ui
-                            .add(egui::Slider::new(&mut c.params[i], 0.0..=1.0).show_value(false))
-                            .on_hover_text(info.params[i])
-                            .changed()
+                        && widgets::rail_slider(
+                            ui,
+                            egui::Slider::new(&mut c.params[i], 0.0..=1.0).show_value(false),
+                        )
+                        .on_hover_text(param_hint(info.params[i]))
+                        .changed()
                     {
                         out.push(Command::Fx(FxCommand::SetParam(u, i, c.params[i])));
                     }
@@ -970,6 +974,17 @@ fn mode_after(current: FxMode, trigger: Trigger) -> Option<FxMode> {
     (steps != 0).then(|| MODES[(at + steps).rem_euclid(3) as usize])
 }
 
+/// Tooltip for an effect parameter: what its short label does, or the label
+/// itself when it needs no explanation.
+fn param_hint(label: &str) -> &str {
+    match label {
+        "HP" => tr("High-pass: removes the low end; higher lets less bass through"),
+        "LP" => tr("Low-pass: removes the high end; lower lets fewer highs through"),
+        "SIZE" => tr("Size: how large the space sounds; higher gives a longer tail"),
+        _ => label,
+    }
+}
+
 fn switched(current: bool, trigger: Trigger) -> Option<bool> {
     match trigger {
         Trigger::Press => Some(!current),
@@ -993,6 +1008,14 @@ fn effect_after(list: &[EffectKind], current: EffectKind, trigger: Trigger) -> O
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn param_hint_explains_filters_and_size_and_keeps_other_labels() {
+        assert!(param_hint("HP").starts_with("High-pass"));
+        assert!(param_hint("LP").starts_with("Low-pass"));
+        assert!(param_hint("SIZE").starts_with("Size"));
+        assert_eq!(param_hint("RATE"), "RATE");
+    }
 
     #[test]
     fn the_unit_mode_selector_wraps_round() {

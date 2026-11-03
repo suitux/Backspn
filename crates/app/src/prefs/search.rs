@@ -92,16 +92,16 @@ pub(super) struct Search {
 }
 
 impl Search {
-    pub fn results(&self, s4_page: bool) -> Vec<(Page, String)> {
+    pub fn results(&self, native: Option<&'static str>) -> Vec<(Page, String)> {
         let words = words(&self.query);
-        let pages = Page::shown(s4_page)
-            .filter(|p| matches(p.title(), &words))
-            .map(|p| (p, p.title().to_owned()));
+        let pages = Page::shown(native)
+            .filter(|p| matches(p.title_for(native), &words))
+            .map(|p| (p, p.title_for(native).to_owned()));
         let titles = self
             .index
             .iter()
             .flatten()
-            .filter(|(p, t)| matches(t, &words) && (s4_page || *p != Page::KontrolS4Mk3))
+            .filter(|(p, t)| matches(t, &words) && (native.is_some() || *p != Page::Native))
             .cloned();
         let mut out: Vec<(Page, String)> = Vec::new();
         for r in pages.chain(titles) {
@@ -151,7 +151,7 @@ mod tests {
             ]),
         };
         assert_eq!(
-            s.results(true),
+            s.results(Some("Kontrol S4 MK3")),
             [
                 (Page::Mixer, "Mixer".to_owned()),
                 (Page::DecksLayout, "Show mixer".to_owned())
@@ -163,15 +163,15 @@ mod tests {
     fn the_hidden_controller_page_is_not_found() {
         let s = Search {
             query: "kontrol".into(),
-            index: Some(vec![(Page::KontrolS4Mk3, "Kontrol jog mode".into())]),
+            index: Some(vec![(Page::Native, "Kontrol jog mode".into())]),
         };
         assert_eq!(
-            s.results(true),
+            s.results(Some("Kontrol S4 MK3")),
             [
-                (Page::KontrolS4Mk3, "Kontrol S4 MK3".to_owned()),
-                (Page::KontrolS4Mk3, "Kontrol jog mode".to_owned())
+                (Page::Native, "Kontrol S4 MK3".to_owned()),
+                (Page::Native, "Kontrol jog mode".to_owned())
             ]
         );
-        assert_eq!(s.results(false), []);
+        assert_eq!(s.results(None), []);
     }
 }

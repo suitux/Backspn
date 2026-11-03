@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
@@ -514,6 +515,12 @@ impl Browser {
         self.index.get(&id).map(|&i| &self.rows[i])
     }
 
+    fn row_or_library(&self, id: i64) -> Option<Cow<'_, TrackRow>> {
+        self.row(id)
+            .map(Cow::Borrowed)
+            .or_else(|| self.library_track(id).map(Cow::Owned))
+    }
+
     pub fn resolve(&mut self, id: i64) -> Option<i64> {
         if id >= 0 {
             return Some(id);
@@ -565,10 +572,13 @@ impl Browser {
 
     fn restore_selection(&mut self, ids: &[i64], cursor: Option<i64>) {
         self.selection.clear();
-        let mut wanted: Vec<i64> = ids.to_vec();
+        let mut wanted: HashMap<i64, usize> = HashMap::new();
+        for &id in ids {
+            *wanted.entry(id).or_default() += 1;
+        }
         for (row, id) in self.view.iter().enumerate() {
-            if let Some(i) = wanted.iter().position(|w| w == id) {
-                wanted.swap_remove(i);
+            if let Some(left) = wanted.get_mut(id).filter(|n| **n > 0) {
+                *left -= 1;
                 self.selection.toggle(row);
             }
         }

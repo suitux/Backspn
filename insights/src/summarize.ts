@@ -137,10 +137,10 @@ export function libraryBin(tracks: number): string {
   return LIBRARY_BINS.find(bin => tracks <= bin.max)!.label
 }
 
-/** "0.4.2-beta.1" → "0.4": patch releases would split the chart into dozens of thin bands. */
-export function minorVersion(version: string): string {
-  const match = version.replace(/^v/, '').match(/^(\d+)\.(\d+)/)
-  return match ? `${match[1]}.${match[2]}` : 'unknown'
+/** "v0.4.2-beta.1" → "0.4.2": pre-releases count with the release they lead to. */
+export function releaseVersion(version: string): string {
+  const match = version.replace(/^v/, '').match(/^(\d+)\.(\d+)\.(\d+)/)
+  return match ? `${match[1]}.${match[2]}.${match[3]}` : 'unknown'
 }
 
 export function installs(rows: { day: string; report: Report }[]): Install[] {
@@ -203,7 +203,7 @@ export function summarize(day: Report[], active: Install[], newInstalls: number)
 
   for (const install of active) {
     const { report } = install
-    increment(summary.versions, minorVersion(report.version))
+    increment(summary.versions, releaseVersion(report.version))
     increment(summary.platforms, `${report.os.platform}/${report.os.arch}`)
     increment(summary.locales, report.locale || 'unknown')
     increment(summary.decks, String(report.config.decks))

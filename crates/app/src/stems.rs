@@ -64,6 +64,14 @@ pub fn apply(controls: &mut StemControls, part: StemPart, trigger: Trigger) -> b
         StemPart::Filter => level(controls.filter)
             .map(|v| controls.filter = v)
             .is_some(),
+        StemPart::FilterEngaged => level(controls.filter)
+            .map(|v| {
+                controls.filter = v;
+                if engages_filter(v) {
+                    controls.filter_on = true;
+                }
+            })
+            .is_some(),
         StemPart::FxAmount => level(controls.fx_send)
             .map(|v| controls.fx_send = v)
             .is_some(),
@@ -71,6 +79,14 @@ pub fn apply(controls: &mut StemControls, part: StemPart, trigger: Trigger) -> b
         StemPart::FilterOn => flip(&mut controls.filter_on),
         StemPart::FxOn => flip(&mut controls.fx_on),
     }
+}
+
+/// How far from centre a filter knob moves before it switches the filter
+/// on, so that the first reading of a knob at rest does not.
+const FILTER_ENGAGE: f32 = 0.03;
+
+fn engages_filter(amount: f32) -> bool {
+    (amount - 0.5).abs() > FILTER_ENGAGE
 }
 
 pub fn is_stem_file(path: &Path) -> bool {
@@ -275,6 +291,20 @@ mod tests {
         assert!(c.filter_on);
         assert!(apply(&mut c, StemPart::FilterOn, Trigger::Set(1.0)));
         assert!(c.filter_on, "a value switches on, it does not flip");
+    }
+
+    #[test]
+    fn an_engaged_filter_switches_on_once_moved_off_centre() {
+        let mut c = StemControls::default();
+        assert!(apply(&mut c, StemPart::FilterEngaged, Trigger::Set(0.51)));
+        assert!(!c.filter_on, "a knob at rest stays off");
+        assert!(apply(&mut c, StemPart::FilterEngaged, Trigger::Set(0.8)));
+        assert!(c.filter_on && (c.filter - 0.8).abs() < f32::EPSILON);
+        assert!(apply(&mut c, StemPart::FilterEngaged, Trigger::Set(0.5)));
+        assert!(c.filter_on, "back at centre it stays on");
+        let mut c = StemControls::default();
+        assert!(apply(&mut c, StemPart::Filter, Trigger::Set(0.8)));
+        assert!(!c.filter_on, "the plain filter never switches on");
     }
 
     #[test]

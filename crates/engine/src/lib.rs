@@ -698,6 +698,7 @@ impl Renderer {
             beat: clock_from,
             beat_end: clock.clock_beat,
         };
+        self.fx.set_clock(clock_ctx);
         let mut contexts = [clock_ctx; DECKS];
         let len = 2 * frames;
         if let Some(feed) = &mut self.input {

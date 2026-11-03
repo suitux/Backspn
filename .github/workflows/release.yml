@@ -36,10 +36,16 @@ jobs:
         include:
           - os: macos-latest
             formats: app
+            platform: apple
+            arch: universal
           - os: windows-latest
             formats: nsis
+            platform: windows
+            arch: x86_64
           - os: ubuntu-24.04
             formats: deb,appimage
+            platform: linux
+            arch: x86_64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
@@ -51,6 +57,9 @@ jobs:
             pkg-config cmake libclang-dev libasound2-dev libudev-dev \
             libxkbcommon-dev libwayland-dev libgl1-mesa-dev libx11-dev \
             libfuse2t64
+      - name: Intel target
+        if: runner.os == 'macOS'
+        run: rustup target add x86_64-apple-darwin
       - uses: Swatinem/rust-cache@v2
       - name: Packager
         run: cargo install cargo-packager --locked --version 0.11.8
@@ -63,10 +72,20 @@ jobs:
       - name: Sign and make the disk image
         if: runner.os == 'macOS'
         run: |
+          export BACKSPN_VERSION="${GITHUB_REF_NAME#v}"
+          packaging/macos/universal.sh target/packages/Backspn.app
           brew install create-dmg
           codesign --force --deep --sign - target/packages/Backspn.app
           codesign --verify --deep --strict target/packages/Backspn.app
           packaging/macos/dmg/make-dmg.sh target/packages/Backspn.app target/packages/Backspn.dmg
+      - name: Name the packages
+        working-directory: target/packages
+        shell: bash
+        run: |
+          name="Backspn_${GITHUB_REF_NAME#v}_${{ matrix.platform }}_${{ matrix.arch }}"
+          for f in *.dmg *.exe *.deb *.AppImage; do
+            if [ -e "$f" ]; then mv "$f" "$name.${f##*.}"; fi
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: backspn-${{ runner.os }}
@@ -83,6 +102,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Release notes
+        run: |
+          previous=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)
+          git log --no-merges --format='- %s' "${previous:+$previous..}$GITHUB_REF_NAME" \
+            | { grep -vE '^- Release v[0-9]' || true; } > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
       - uses: actions/download-artifact@v4
         with:
           path: packages
@@ -91,5 +119,29 @@ jobs:
         with:
           prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
           make_latest: ${{ needs.version.outputs.prerelease == 'true' && 'false' || 'true' }}
-          generate_release_notes: true
+          body_path: ${{ runner.temp }}/notes.md
           files: packages/*
+
+  discord:
+    needs: [version, release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Announce on Discord
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "::warning::DISCORD_WEBHOOK_URL is not set, skipping"
+            exit 0
+          fi
+          release=$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json name,url,body)
+          name=$(jq -r '.name // empty' <<<"$release")
+          url=$(jq -r '.url' <<<"$release")
+          body=$(jq -r '.body // ""' <<<"$release")
+          title="🚀 Backspn ${name:-$GITHUB_REF_NAME}"
+          if [ "$PRERELEASE" = "true" ]; then title="$title (pre-release)"; fi
+          jq -n --arg t "$title" --arg u "$url" --arg d "${body:0:4000}" \
+            '{username: "Backspn Releases", embeds: [{title: $t, url: $u, description: $d, color: 5814783}]}' \
+          | curl -sSf -H "Content-Type: application/json" -d @- "$WEBHOOK"

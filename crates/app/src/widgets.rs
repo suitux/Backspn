@@ -573,6 +573,17 @@ pub fn step_row(
     clicked
 }
 
+/// Adds a slider whose rail stands out from the panel: the rail takes the
+/// control fill, which is nearly the panel colour in the dark themes.
+pub fn rail_slider(ui: &mut Ui, slider: eframe::egui::Slider<'_>) -> Response {
+    ui.scope(|ui| {
+        let t = theme::get(ui.ctx());
+        ui.visuals_mut().widgets.inactive.bg_fill = t.border;
+        ui.add(slider)
+    })
+    .inner
+}
+
 pub fn dot(ui: &mut Ui, on: bool, color: Color32, hint: &str) -> Response {
     let (rect, response) = ui.allocate_exact_size(vec2(14.0, 14.0), Sense::click());
     let t = theme::get(ui.ctx());

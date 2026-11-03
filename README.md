@@ -27,7 +27,8 @@ play 74 effects on the beat. Backspn is written in Rust, runs on macOS,
 Windows and Linux, and is released under the GPL.
 
 > **Status: public beta.** Every feature below is finished. Download a build
-> for macOS (`.dmg`), Windows (`.exe`) or Linux (`.deb`, AppImage) from
+> for macOS 12 or later (`.dmg`, Apple Silicon and Intel; generating stems
+> needs macOS 13.4), Windows (`.exe`) or Linux (`.deb`, AppImage) from
 > [Releases](https://github.com/suitux/Backspn/releases), or build it from
 > source (see [Building](#building)). Please report what breaks in
 > [Issues](https://github.com/suitux/Backspn/issues); testers with a
@@ -235,13 +236,29 @@ Settings.
 
 ## Controllers
 
-| Kind | Models |
-|---|---|
-| Native drivers (HID) | Kontrol S4 MK3 (tested on hardware); Kontrol S4 MK2, S2 MK3, S2 MK2, S3, MX2 and Z1 (untested) |
-| MIDI profiles | DDJ series (Pioneer DJ), Denon DJ MC7000, Hercules DJControl Inpulse 200/300/500, Numark Mixtrack Pro FX and Platinum FX, Reloop READY and Buddy |
-| Anything else | MIDI learn and keyboard mappings |
+| Kind | Brand | Models |
+|---|---|---|
+| Native drivers (HID and USB) | Native Instruments | Kontrol S4 MK3\*, S4 MK2, S4 MK1, S8, S5, D2, S2 MK3, S2 MK2, S3, MX2, X1 MK2, X1 MK3, F1, Z1, Z2 |
+| MIDI profiles | AlphaTheta | DDJ-FLX2, DDJ-FLX4, DDJ-GRV6 |
+| | Pioneer DJ | DDJ-200, DDJ-400, DDJ-800, DDJ-1000, DDJ-ERGO, DDJ-FLX6, DDJ-RB, DDJ-REV5, DDJ-RR, DDJ-RX, DDJ-RZ, DDJ-RZX, DDJ-SB, DDJ-SB2, DDJ-SP1, DDJ-SR, DDJ-SX, DDJ-SX2, DDJ-SZ, DDJ-WeGO, DDJ-WeGO2, DDJ-WeGO3, DDJ-WeGO4, DDJ-XP1, DDJ-XP2 |
+| | Denon DJ | MC7000 |
+| | Hercules | DJControl Inpulse 200, 300, 500 |
+| | Numark | Mixtrack Pro FX, Mixtrack Platinum FX |
+| | Reloop | Buddy, Ready |
+| Anything else | | MIDI learn and keyboard mappings |
 
-The S4 MK3 driver draws its own screens, with four layouts to pick from:
+<sub>\* Only the Kontrol S4 MK3 is tested on hardware so far. The others should
+work, but they have not been tried on the real device yet and may have bugs.
+If you own one, please [report](https://github.com/suitux/Backspn/issues) what
+works and what doesn't.</sub>
+
+The drivers draw their own screens. On the 320 × 240 screens of the S4 MK3 you
+pick Standard, Classic, Waveform or Big Numbers (below), or one of the booth
+layouts: Phrase (beat, bar and phrase, bars to the next cue and to the end),
+Mix (both decks stacked with tempo, phase and key against each other), Cues
+(every hotcue and the bars until it) and Stems. The 480 × 272 screens of the
+S8 and D2 add Wide Deck, Wide Waveform and Wide Mix, which also name what the
+faders, knobs and buttons under the screen are doing.
 
 <p align="center">
   <img src="docs/images/s4-screens.webp" alt="The four screen layouts for the Kontrol S4 MK3: Standard, Classic, Waveform and Big Numbers">
@@ -267,6 +284,12 @@ apps or after a restart, so repeat this if the screens stay blank.
 - **Linux**: the manufacturer ships no services for Linux, so there is nothing
   to stop.
 
+**S4 MK1**: it talks raw USB, not HID, so Backspn reaches it only while no
+other driver holds it. On macOS and Windows, the manufacturer's driver and its
+hardware service keep it (quit `NIHardwareAgent` as above; on Windows it also
+needs the WinUSB driver on its control interface). On Linux, Backspn takes the
+control interface from the kernel driver while it runs. Untested.
+
 **Linux**: to reach HID controllers and the S4 MK3 screens without `sudo`,
 install the udev rules and plug the controller in again:
 
@@ -275,10 +298,33 @@ sudo cp packaging/linux/99-backspn.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger
 ```
 
-**Windows**: buttons, lights and audio work with the manufacturer's driver.
-The S4 MK3 screens use raw USB and need the WinUSB driver on the device's
-interface 4 (for example, with Zadig), installed with the manufacturer's
-hardware service closed. Untested.
+**Windows**: buttons, lights and audio work without anything extra. The
+screens (S4 MK3, S8, S5, D2) use raw USB, so their USB interface needs the
+WinUSB driver that comes with Windows instead of the manufacturer's one, which
+Windows may install on its own. When that is the case, the controller's
+section in Preferences shows **Enable screens**: press it, accept the
+administrator prompt and the screens light up a few seconds later. It changes
+only the screens' interface (audio, buttons and lights keep their drivers);
+the manufacturer's software can no longer use those screens until you undo it
+in Device Manager (the screens' interface, for example *Traktor Kontrol S4 MK3
+BD*, then Driver › Roll Back Driver, or Uninstall device and plug the
+controller in again). The button runs
+[`screen_driver.ps1`](crates/control/src/screen_driver.ps1).
+
+To do the same by hand: in Device Manager, open the screens' interface (the
+S4 MK3's is interface 4, `USB\VID_17CC&PID_1720&MI_04`), choose Update driver ›
+Browse my computer › Let me pick, clear *Show compatible hardware* and pick
+*WinUsb Device*. Then, in an administrator PowerShell, register the interface
+and restart it (replace the instance ID with the one Device Manager shows under
+Details › Device instance path):
+
+```powershell
+$id = 'USB\VID_17CC&PID_1720&MI_04\<instance>'
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Enum\$id\Device Parameters" `
+  -Name DeviceInterfaceGUIDs -PropertyType MultiString `
+  -Value @('{9C236364-BB55-4FBB-A44E-6B19DB09F530}') -Force
+pnputil /restart-device "$id"
+```
 
 ## Building
 
@@ -300,6 +346,10 @@ git clone https://github.com/suitux/Backspn
 cd Backspn
 cargo run --release -p backspn-app             # optionally pass up to 4 audio files to load
 ```
+
+On macOS, generating stems loads ONNX Runtime from a library next to the
+binary: fetch it once with `packaging/macos/onnxruntime.sh target/release`
+(or point `ORT_DYLIB_PATH` at a copy).
 
 Settings live in `settings.json` in your system's data folder (override with
 `BACKSPN_SETTINGS`): `~/Library/Application Support/Backspn` on macOS,

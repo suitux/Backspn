@@ -49,11 +49,13 @@ pub struct Controls {
     repeat_at: std::time::Instant,
     ports_checked: std::time::Instant,
     audio_offer: Option<backspn_control::profile::Audio>,
+    dropouts: backspn_control::feedback::DropoutWatch,
     seen_inputs: Vec<String>,
     profiles: Vec<backspn_control::profile::Profile>,
     cards_offered: Vec<&'static str>,
     calibration: Option<calibrate::Calibration>,
     calibration_outcome: Option<calibrate::Outcome>,
+    calibration_device: Option<&'static str>,
 }
 
 impl Controls {
@@ -101,11 +103,13 @@ impl Controls {
             repeat_at: std::time::Instant::now(),
             ports_checked: std::time::Instant::now(),
             audio_offer: None,
+            dropouts: backspn_control::feedback::DropoutWatch::default(),
             seen_inputs: Vec::new(),
             profiles: backspn_control::profile::all(),
             cards_offered: Vec::new(),
             calibration: None,
             calibration_outcome: None,
+            calibration_device: None,
         };
         let (user, errors) = backspn_control::profile::read_dir(&profiles::user_dir());
         controls.profiles = backspn_control::profile::with_user(user);
@@ -150,11 +154,13 @@ impl Controls {
             repeat_at: std::time::Instant::now(),
             ports_checked: std::time::Instant::now(),
             audio_offer: None,
+            dropouts: backspn_control::feedback::DropoutWatch::default(),
             seen_inputs: Vec::new(),
             profiles: backspn_control::profile::all(),
             cards_offered: Vec::new(),
             calibration: None,
             calibration_outcome: None,
+            calibration_device: None,
         }
     }
 
@@ -284,6 +290,11 @@ impl Controls {
             deck.live = live;
         }
         feedback.microphone = app.microphone;
+        feedback.audio_overloaded = app.audio_overloaded;
+        feedback.fx_units = app.fx_units;
+        feedback.audio_dropout = self
+            .dropouts
+            .update(app.audio_dropouts, std::time::Instant::now());
         for (unit, (steps, cells)) in feedback.fx.iter_mut().zip(app.pattern_steps) {
             unit.pattern_steps = steps;
             unit.pattern_cells = cells;
@@ -485,6 +496,7 @@ impl Controls {
         for line in device.status() {
             ui.label(RichText::new(line).weak());
         }
+        screen_driver_setup(ui, device.as_ref());
         if ui
             .button(tr("Restore default mapping"))
             .on_hover_text(tr(
@@ -591,6 +603,10 @@ pub struct AppFeedback {
     pub tempo_ranges: [u8; DECKS],
     pub loop_sizes: [u8; DECKS],
     pub microphone: bool,
+    pub audio_overloaded: bool,
+    pub fx_units: u8,
+    /// The engine's dropout count so far.
+    pub audio_dropouts: u64,
     pub pattern_steps: [(u16, u8); backspn_control::feedback::FX_UNITS],
     pub stems: [Option<[StemFeedback; STEMS]>; DECKS],
     pub sample_deck: [Option<backspn_control::feedback::SampleFeedback>; DECKS],
@@ -695,6 +711,54 @@ fn feedback(state: &EngineState, quantize: bool, turntable: [bool; DECKS]) -> Fe
         });
     }
     f
+}
+
+/// The button that sets up a controller's screen interface when Windows
+/// gives it to another driver, and how the last setup went.
+fn screen_driver_setup(ui: &mut Ui, device: &dyn Controller) {
+    use backspn_control::screen_driver::{self, Failure, Setup};
+    let Some(interface) = device
+        .screens()
+        .and_then(backspn_control::controller::ScreenSink::missing_driver)
+    else {
+        return;
+    };
+    let state = screen_driver::state();
+    let note = match state {
+        Setup::Idle => None,
+        Setup::Running => Some(tr("Setting up the screens: accept the Windows prompt.")),
+        Setup::Done => Some(tr("Screens set up; they light up in a few seconds.")),
+        Setup::Failed(Failure::Declined) => Some(tr(
+            "The screens were not set up: the administrator prompt was declined.",
+        )),
+        Setup::Failed(Failure::Absent) => Some(tr(
+            "The screens were not set up: the controller is not plugged in.",
+        )),
+        Setup::Failed(Failure::Driver) => Some(tr(
+            "Windows did not install the WinUSB driver for the screens.",
+        )),
+        Setup::Failed(Failure::Register) => {
+            Some(tr("Windows did not register the screens' interface."))
+        }
+        Setup::Failed(Failure::Other) => Some(tr("The screens could not be set up.")),
+    };
+    if let Some(note) = note {
+        ui.label(RichText::new(note).weak());
+    }
+    let running = state == Setup::Running;
+    if ui
+        .add_enabled(!running, egui::Button::new(tr("Enable screens")))
+        .on_hover_text(tr(
+            "Puts the WinUSB driver that comes with Windows on the screens' USB interface; Windows asks for administrator rights",
+        ))
+        .clicked()
+    {
+        screen_driver::start(interface);
+    }
+    if running {
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_millis(500));
+    }
 }
 
 #[cfg(test)]

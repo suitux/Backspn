@@ -85,6 +85,7 @@ struct Loading {
     request: LoadRequest,
     events: Receiver<LoadEvent>,
     decoded: bool,
+    analysing: bool,
 }
 
 struct Loaded {
@@ -114,6 +115,8 @@ pub enum DeckSize {
     Advanced,
     ParallelSlim,
     ParallelFull,
+    ParallelSlimAdvanced,
+    ParallelFullAdvanced,
 }
 
 impl DeckSize {
@@ -124,16 +127,26 @@ impl DeckSize {
             Self::Full => Self::Advanced,
             Self::Advanced => Self::Micro,
             Self::ParallelSlim => Self::ParallelFull,
-            Self::ParallelFull => Self::ParallelSlim,
+            Self::ParallelFull => Self::ParallelSlimAdvanced,
+            Self::ParallelSlimAdvanced => Self::ParallelFullAdvanced,
+            Self::ParallelFullAdvanced => Self::ParallelSlim,
         }
     }
 
     pub fn parallel_wave(self) -> Option<f32> {
         match self {
-            Self::ParallelSlim => Some(35.0),
-            Self::ParallelFull => Some(91.0),
+            Self::ParallelSlim | Self::ParallelSlimAdvanced => Some(35.0),
+            Self::ParallelFull | Self::ParallelFullAdvanced => Some(91.0),
             _ => None,
         }
+    }
+
+    /// Sizes that show the Move/Cue/Grid panel under the deck.
+    pub fn advanced(self) -> bool {
+        matches!(
+            self,
+            Self::Advanced | Self::ParallelSlimAdvanced | Self::ParallelFullAdvanced
+        )
     }
 
     fn without_wave(self) -> bool {
@@ -435,10 +448,11 @@ impl DeckView {
         let (tx, rx) = mpsc::channel();
         let path = request.path.clone();
         let cover = request.cover.clone();
-        let options = request.analysis;
-        let (stems, output_rate) = (request.stems.clone(), request.output_rate);
         let missing =
             request.grid.is_none() || request.key_text.is_none() || request.lufs.is_none();
+        let options = request.analysis.filter(|_| missing);
+        let analysing = options.is_some();
+        let (stems, output_rate) = (request.stems.clone(), request.output_rate);
         let auto_cue = self
             .auto_cue_db
             .filter(|_| request.cue_s.is_none() && request.duplicate_of.is_none());
@@ -473,7 +487,7 @@ impl DeckView {
             {
                 return;
             }
-            if let Some(options) = options.filter(|_| missing) {
+            if let Some(options) = options {
                 let analysis = backspn_analysis::analyze(&track, &options);
                 drop(tx.send(LoadEvent::Analyzed(Box::new(analysis))));
             }
@@ -485,6 +499,7 @@ impl DeckView {
             request,
             events: rx,
             decoded: false,
+            analysing,
         });
     }
 
@@ -686,6 +701,13 @@ impl DeckView {
         self.loading.as_ref().is_some_and(|l| !l.decoded)
     }
 
+    /// The track is playable and its analysis on load is still running.
+    pub fn is_analysing(&self) -> bool {
+        self.loading
+            .as_ref()
+            .is_some_and(|l| l.decoded && l.analysing)
+    }
+
     pub fn is_busy(&self) -> bool {
         self.loading.is_some()
     }
@@ -724,12 +746,18 @@ impl DeckView {
     pub fn poll(&mut self, out: &mut Vec<Command>) -> Vec<DeckEvent> {
         let mut events = std::mem::take(&mut self.events);
         while let Some(loading) = &mut self.loading {
-            let Ok(event) = loading.events.try_recv() else {
-                return events;
+            let event = match loading.events.try_recv() {
+                Ok(event) => event,
+                Err(mpsc::TryRecvError::Empty) => return events,
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    self.loading = None;
+                    return events;
+                }
             };
             match event {
                 LoadEvent::Decoded(track, peaks, cover, stems, auto_cue_s) => {
                     loading.decoded = true;
+                    let analysing = loading.analysing;
                     let request = loading.request.clone();
                     let cues = CueList::new(&request.cues);
                     let audio = Arc::clone(&track);
@@ -759,9 +787,6 @@ impl DeckView {
                             from,
                         });
                     }
-                    let complete = request.grid.is_some()
-                        && request.key_text.is_some()
-                        && request.lufs.is_some();
                     self.loaded = Some(Loaded {
                         name: request.name,
                         title: request.title,
@@ -779,7 +804,7 @@ impl DeckView {
                         audio,
                         path: request.path,
                     });
-                    if complete {
+                    if !analysing {
                         self.loading = None;
                     }
                 }
@@ -873,7 +898,7 @@ impl DeckView {
                 if self.show_pads && !self.compact {
                     self.hotcue_row(ui, state, out);
                 }
-                if let Some(tab) = self.panel.filter(|_| !self.compact) {
+                if let Some(tab) = self.panel {
                     self.advanced_panel(ui, state, tab, out);
                 }
             }
@@ -964,7 +989,7 @@ impl DeckView {
             self.last_tab = tab;
         }
         self.size = size;
-        self.panel = (size == DeckSize::Advanced).then_some(self.last_tab);
+        self.panel = size.advanced().then_some(self.last_tab);
     }
 
     pub fn zoom_s(&self) -> f64 {
@@ -1006,6 +1031,20 @@ fn key_adjust(current: f32, trigger: backspn_control::Trigger) -> Option<f32> {
         _ => return None,
     };
     Some(semitones.clamp(-max, max))
+}
+
+/// Status text while decks analyse the track they just loaded.
+pub fn analysing_text(decks: &[char]) -> Option<String> {
+    let letters = decks
+        .iter()
+        .map(char::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    match decks.len() {
+        0 => None,
+        1 => Some(format!("{} {letters}", crate::i18n::tr("Analyzing deck"))),
+        _ => Some(format!("{} {letters}", crate::i18n::tr("Analyzing decks"))),
+    }
 }
 
 #[cfg(test)]
@@ -1117,6 +1156,16 @@ mod tests {
     }
 
     #[test]
+    fn analysing_text_names_the_decks() {
+        assert_eq!(analysing_text(&[]), None);
+        assert_eq!(analysing_text(&['B']).as_deref(), Some("Analyzing deck B"));
+        assert_eq!(
+            analysing_text(&['A', 'C']).as_deref(),
+            Some("Analyzing decks A, C")
+        );
+    }
+
+    #[test]
     fn header_clock() {
         assert_eq!(clock(0.0), "00:00");
         assert_eq!(clock(316.9), "05:16");
@@ -1135,6 +1184,25 @@ mod tests {
         assert_eq!((deck.size(), deck.panel), (DeckSize::Micro, None));
         deck.set_size(DeckSize::Advanced);
         assert_eq!(deck.panel, Some(PanelTab::Grid), "remembers the tab");
+    }
+
+    #[test]
+    fn parallel_advanced_keeps_the_parallel_wave_and_shows_the_panel() {
+        let mut deck = DeckView::new(0);
+        deck.set_size(DeckSize::ParallelFull);
+        assert_eq!(deck.panel, None);
+        deck.set_size(deck.size().next());
+        assert_eq!(deck.size(), DeckSize::ParallelSlimAdvanced);
+        assert_eq!(deck.panel, Some(PanelTab::Cue));
+        deck.set_size(deck.size().next());
+        assert_eq!(deck.size(), DeckSize::ParallelFullAdvanced);
+        assert_eq!(
+            deck.size().parallel_wave(),
+            DeckSize::ParallelFull.parallel_wave()
+        );
+        assert_eq!(deck.panel, Some(PanelTab::Cue));
+        deck.set_size(deck.size().next());
+        assert_eq!((deck.size(), deck.panel), (DeckSize::ParallelSlim, None));
     }
 
     #[test]

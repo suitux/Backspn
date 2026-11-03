@@ -185,6 +185,8 @@ pub struct Switch {
     pub name: &'static str,
     pub byte: usize,
     pub bit: u8,
+    /// How many bits the switch takes: 2 for a three-way switch, 1 for a flag.
+    pub bits: u8,
 }
 
 const fn sw(name: &'static str, byte: usize, bit: u8) -> Switch {
@@ -192,6 +194,7 @@ const fn sw(name: &'static str, byte: usize, bit: u8) -> Switch {
         name,
         byte: byte + 1,
         bit,
+        bits: 2,
     }
 }
 
@@ -202,6 +205,32 @@ const SWITCHES: &[Switch] = &[
     sw("Mixer.D.Xfader Assign", 17, 0),
     sw("Mixer.Xfader Curve", 18, 0),
 ];
+
+/// An endless knob that reports where it points, 0 to 999 around the turn,
+/// as a little-endian u16 in the analog report. It turns as an encoder.
+#[derive(Debug)]
+pub struct Erp {
+    pub name: &'static str,
+    pub byte: usize,
+}
+
+/// Readings in one turn of an endless knob, and the encoder steps it gives.
+const ERP_POSITIONS: i32 = 1000;
+const ERP_STEPS_PER_TURN: i32 = 32;
+
+/// Encoder steps for a move of an endless knob from `before` to `now`, keeping
+/// the part of a step left over in `rest`. Readings past the turn are ignored.
+pub fn erp_steps(now: u16, before: u16, rest: &mut i32) -> i32 {
+    let (now, before) = (i32::from(now), i32::from(before));
+    if now >= ERP_POSITIONS || before >= ERP_POSITIONS {
+        return 0;
+    }
+    let delta = (now - before + ERP_POSITIONS / 2).rem_euclid(ERP_POSITIONS) - ERP_POSITIONS / 2;
+    let total = *rest + delta * ERP_STEPS_PER_TURN;
+    let steps = total / ERP_POSITIONS;
+    *rest = total - steps * ERP_POSITIONS;
+    steps
+}
 
 #[derive(Debug)]
 pub struct Jog {
@@ -224,6 +253,88 @@ const JOGS: [Jog; 2] = [
 ];
 
 pub const JOG_STEPS_PER_TURN: f64 = 2880.0;
+
+/// A touch strip split in two halves, one per side. A finger drives the jog
+/// of the half it lands on until it lifts, even if it slides across.
+#[derive(Debug, Clone, Copy)]
+pub struct TouchStrip {
+    pub report: u8,
+    /// First byte of the finger positions: one little-endian u16 per finger,
+    /// 0 when that finger is off the strip.
+    pub byte: usize,
+    pub fingers: usize,
+    /// Where the halves meet, and how far either side of it a landing finger
+    /// is ignored.
+    pub centre: u16,
+    pub gap: u16,
+    /// The readings at the left and right ends.
+    pub first: u16,
+    pub last: u16,
+    pub bar: Option<crate::strip::Bar>,
+    /// A strip that belongs whole to one side, instead of being split in two
+    /// halves.
+    pub side: Option<usize>,
+}
+
+pub const STRIP_TOUCH: [&str; 2] = ["Left.Jog.Touch", "Right.Jog.Touch"];
+pub const STRIP_TURN: [&str; 2] = ["Left.Jog.Turn", "Right.Jog.Turn"];
+/// Where a finger driving a half is along that half, 0 to 1.
+pub const STRIP_HALF_POSITION: [&str; 2] = ["Left.Strip.Position", "Right.Strip.Position"];
+/// Any finger on the strip, gap included, and where the first one is along
+/// the whole strip.
+pub const STRIP_ANY_TOUCH: &str = "Strip.Touch";
+pub const STRIP_ANY_POSITION: &str = "Strip.Position";
+
+pub fn strip_controls() -> impl Iterator<Item = &'static str> {
+    STRIP_TOUCH
+        .into_iter()
+        .chain(STRIP_TURN)
+        .chain(STRIP_HALF_POSITION)
+        .chain([STRIP_ANY_TOUCH, STRIP_ANY_POSITION])
+}
+/// Sent by the strip when it has no reading.
+const STRIP_INVALID: u16 = 0xFFFF;
+const STRIP_FINGERS: usize = 2;
+
+impl TouchStrip {
+    fn share(at: u16, from: u16, to: u16) -> f32 {
+        let span = f32::from(to.saturating_sub(from).max(1));
+        ((f32::from(at) - f32::from(from)) / span).clamp(0.0, 1.0)
+    }
+
+    fn along(&self, at: u16) -> f32 {
+        Self::share(at, self.first, self.last)
+    }
+
+    fn along_half(&self, side: usize, at: u16) -> f32 {
+        if self.side.is_some() {
+            self.along(at)
+        } else if side == 0 {
+            Self::share(at, self.first, self.centre)
+        } else {
+            Self::share(at, self.centre, self.last)
+        }
+    }
+
+    fn landing(&self, at: u16) -> Finger {
+        if let Some(side) = self.side {
+            Finger::On(side)
+        } else if at.abs_diff(self.centre) <= self.gap {
+            Finger::Gap
+        } else {
+            Finger::On(usize::from(at > self.centre))
+        }
+    }
+}
+
+/// A touch-strip finger: off the strip, landed in the gap (ignored until it
+/// lifts), or driving a side.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Finger {
+    Off,
+    Gap,
+    On(usize),
+}
 
 #[derive(Debug)]
 pub struct Analog {
@@ -310,6 +421,15 @@ pub fn is_encoder(name: &str) -> bool {
 
 pub type Shifted = Option<Option<(Action, Interaction)>>;
 pub type ShiftFn = fn(&str) -> Shifted;
+/// For devices whose own buttons switch layers kept in the mapping
+/// modifiers: the SHIFT layer and the LEDs that depend on them.
+#[derive(Debug, Clone, Copy)]
+pub struct ModifierHooks {
+    /// Replaces `Layout::shifted`.
+    pub shifted: fn(&str, &crate::modifier::Modifiers) -> Shifted,
+    /// Runs after every other LED hook.
+    pub leds: fn(&Feedback, &Decoder, &crate::modifier::Modifiers, &mut Leds),
+}
 
 const CALIBRATION: [crate::calibration::Group; 2] = [
     crate::calibration::Group {
@@ -331,6 +451,7 @@ pub struct SoundCard {
     pub master: (u16, u16),
     pub monitor: (u16, u16),
     pub buffer_frames: u32,
+    pub inputs: crate::profile::Inputs,
 }
 
 #[derive(Debug)]
@@ -344,6 +465,8 @@ pub struct Layout {
     pub switches: &'static [Switch],
     pub analogs: &'static [Analog],
     pub encoders: &'static [Encoder],
+    /// Endless knobs, read from the analog report.
+    pub erps: &'static [Erp],
     pub jogs: &'static [Jog],
     pub jog_steps_per_turn: f64,
     pub analog_report: u8,
@@ -357,7 +480,7 @@ pub struct Layout {
     pub calibration: &'static [crate::calibration::Group],
     pub stored_calibration: Option<&'static crate::poti::StoredCalibration>,
     pub rings: bool,
-    pub screens: bool,
+    pub screens: Option<&'static screen::Panel>,
     pub tempo_leds: Option<[usize; 2]>,
     pub wheel_leds: Option<[[usize; 8]; 2]>,
     pub strip_leds: Option<[[usize; 6]; 2]>,
@@ -366,15 +489,24 @@ pub struct Layout {
     pub deck_leds: Option<DeckLeds>,
     pub default_mappings: fn() -> Vec<Mapping>,
     pub shifted: ShiftFn,
+    pub modifier_hooks: Option<ModifierHooks>,
     pub upgrade: Option<fn(&Mapping) -> Option<Mapping>>,
     pub jog_button_toggles_touch: bool,
     pub samples_button_stems: bool,
     pub samples_button_toggles: bool,
     pub fx_select_toggles: bool,
     pub mx2_transport: bool,
+    /// One SHIFT button acts on both sides.
+    pub shared_shift: bool,
+    /// Output reports written once on connect, before anything else.
+    pub connect_reports: &'static [&'static [u8]],
+    pub touch_strips: &'static [TouchStrip],
+    /// Output reports that draw the device's displays.
+    pub displays: Option<DisplayFn>,
 }
 
 pub type DeckLeds = fn(&Feedback, &Decoder, [usize; 2], &mut Leds);
+pub type DisplayFn = fn(&Feedback, [usize; 2], &crate::modifier::Modifiers) -> Vec<Vec<u8>>;
 
 impl Layout {
     pub fn led_len(&self) -> usize {
@@ -386,7 +518,9 @@ impl Layout {
             || self.switches.iter().any(|s| s.name == name)
             || self.analogs.iter().any(|a| a.name == name)
             || self.encoders.iter().any(|e| e.name == name)
+            || self.erps.iter().any(|e| e.name == name)
             || self.jogs.iter().any(|j| j.name == name)
+            || (!self.touch_strips.is_empty() && strip_controls().any(|n| n == name))
     }
 
     pub fn has_input(&self, mapping: &Mapping) -> bool {
@@ -407,6 +541,7 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
         switches: SWITCHES,
         analogs: ANALOGS,
         encoders: ENCODERS,
+        erps: &[],
         jogs: &JOGS,
         jog_steps_per_turn: JOG_STEPS_PER_TURN,
         analog_report: 0x02,
@@ -423,9 +558,10 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
             master: (0, 1),
             monitor: (2, 3),
             buffer_frames: 256,
+            inputs: crate::profile::Inputs::NONE,
         }),
         rings: true,
-        screens: true,
+        screens: Some(&screen::S4_PANEL),
         tempo_leds: Some(driver::TEMPO_LED),
         wheel_leds: None,
         strip_leds: None,
@@ -434,12 +570,17 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
         deck_leds: None,
         default_mappings,
         shifted,
+        modifier_hooks: None,
         upgrade: Some(driver::upgraded),
         jog_button_toggles_touch: false,
         samples_button_stems: false,
         samples_button_toggles: false,
         fx_select_toggles: false,
         mx2_transport: false,
+        shared_shift: false,
+        connect_reports: &[],
+        touch_strips: &[],
+        displays: None,
     }
 });
 
@@ -447,6 +588,8 @@ pub struct Decoder {
     layout: &'static Layout,
     previous: HashMap<u8, Vec<u8>>,
     potis: Vec<Option<crate::poti::Poti>>,
+    fingers: Vec<[Finger; STRIP_FINGERS]>,
+    erp_rest: Vec<i32>,
 }
 
 impl Default for Decoder {
@@ -461,6 +604,8 @@ impl Decoder {
             layout,
             previous: HashMap::new(),
             potis: vec![None; layout.analogs.len()],
+            fingers: vec![[Finger::Off; STRIP_FINGERS]; layout.touch_strips.len()],
+            erp_rest: vec![0; layout.erps.len()],
         };
         if let Some(stored) = layout.stored_calibration {
             decoder.set_potis(&stored.defaults());
@@ -517,6 +662,9 @@ impl Decoder {
             self.decode_encoders(report, prev, &mut out);
         }
         if id == self.layout.analog_report {
+            if let Some(prev) = previous.as_deref() {
+                self.decode_erps(report, prev, &mut out);
+            }
             self.decode_analogs(id, report, previous.as_deref(), &mut out);
         }
         if id == self.layout.jog_report
@@ -524,15 +672,104 @@ impl Decoder {
         {
             self.decode_jogs(report, prev, &mut out);
         }
+        for (i, &strip) in self.layout.touch_strips.iter().enumerate() {
+            if id == strip.report {
+                self.decode_strip(i, strip, report, previous.as_deref(), &mut out);
+            }
+        }
         out
+    }
+
+    fn decode_strip(
+        &mut self,
+        index: usize,
+        strip: TouchStrip,
+        report: &[u8],
+        prev: Option<&[u8]>,
+        out: &mut Vec<InputEvent>,
+    ) {
+        let read = |r: &[u8], finger: usize| {
+            let at = strip.byte + 2 * finger;
+            r.get(at..at + 2).map(|v| u16::from_le_bytes([v[0], v[1]]))
+        };
+        let fingers = strip.fingers.min(STRIP_FINGERS);
+        let now: Vec<u16> = (0..fingers).filter_map(|f| read(report, f)).collect();
+        if now.len() < fingers || now.iter().all(|&v| v == STRIP_INVALID) {
+            return;
+        }
+        let touched = |fingers: &[Finger]| [0, 1].map(|side| fingers.contains(&Finger::On(side)));
+        let anywhere = |fingers: &[Finger]| fingers.iter().any(|f| *f != Finger::Off);
+        let mine = &mut self.fingers[index];
+        let before_touch = touched(&mine[..]);
+        let before_anywhere = anywhere(&mine[..]);
+        let mut turns = [0i32; 2];
+        let mut half_at: [Option<u16>; 2] = [None; 2];
+        let mut first_at = None;
+        for (f, &at) in now.iter().enumerate() {
+            let at = if at == STRIP_INVALID { 0 } else { at };
+            let before = prev
+                .and_then(|p| read(p, f))
+                .filter(|&v| v != STRIP_INVALID)
+                .unwrap_or(0);
+            match (mine[f], at) {
+                (_, 0) => mine[f] = Finger::Off,
+                (Finger::Off, at) => mine[f] = strip.landing(at),
+                (Finger::On(side), at) if before != 0 => {
+                    turns[side] += i32::from(at) - i32::from(before);
+                }
+                (Finger::On(_) | Finger::Gap, _) => {}
+            }
+            if at != 0 && at != before {
+                first_at = first_at.or(Some(at));
+                if let Finger::On(side) = mine[f] {
+                    half_at[side] = half_at[side].or(Some(at));
+                }
+            }
+        }
+        let after_touch = touched(&mine[..]);
+        let after_anywhere = anywhere(&mine[..]);
+        // A strip of its own side has no whole-strip gestures.
+        let whole = strip.side.is_none();
+        if whole && after_anywhere && !before_anywhere {
+            out.push(event(STRIP_ANY_TOUCH, 1.0, 0, Some(true)));
+        }
+        if let Some(at) = first_at.filter(|_| whole) {
+            out.push(event(STRIP_ANY_POSITION, strip.along(at), 0, None));
+        }
+        for side in 0..2 {
+            if after_touch[side] && !before_touch[side] {
+                out.push(event(STRIP_TOUCH[side], 1.0, 0, Some(true)));
+            }
+            if let Some(at) = half_at[side] {
+                let share = strip.along_half(side, at);
+                out.push(event(STRIP_HALF_POSITION[side], share, 0, None));
+            }
+            if turns[side] != 0 {
+                let raw = (turns[side].clamp(-64, 63) as i8 as u8) & 0x7F;
+                out.push(event(STRIP_TURN[side], turns[side] as f32, raw, None));
+            }
+            if before_touch[side] && !after_touch[side] {
+                out.push(event(STRIP_TOUCH[side], 0.0, 0, Some(false)));
+            }
+        }
+        if whole && before_anywhere && !after_anywhere {
+            out.push(event(STRIP_ANY_TOUCH, 0.0, 0, Some(false)));
+        }
     }
 
     fn decode_buttons(&self, report: &[u8], previous: Option<&[u8]>, out: &mut Vec<InputEvent>) {
         for switch in self.layout.switches {
-            let read = |r: &[u8]| r.get(switch.byte).map(|v| (v >> switch.bit) & 0x03);
+            let mask = (1u8 << switch.bits.clamp(1, 2)) - 1;
+            let read = |r: &[u8]| r.get(switch.byte).map(|v| (v >> switch.bit) & mask);
             let Some(now) = read(report) else { continue };
             if previous.and_then(read) != Some(now) {
-                out.push(event(switch.name, f32::from(now.min(2)) / 2.0, now, None));
+                let top = mask.min(2);
+                out.push(event(
+                    switch.name,
+                    f32::from(now.min(top)) / f32::from(top),
+                    now,
+                    None,
+                ));
             }
         }
         let Some(prev) = previous else { return };
@@ -549,6 +786,22 @@ impl Decoder {
                     0,
                     Some(now),
                 ));
+            }
+        }
+    }
+
+    fn decode_erps(&mut self, report: &[u8], prev: &[u8], out: &mut Vec<InputEvent>) {
+        for (erp, rest) in self.layout.erps.iter().zip(&mut self.erp_rest) {
+            let read = |r: &[u8]| {
+                r.get(erp.byte..erp.byte + 2)
+                    .map(|v| u16::from_le_bytes([v[0], v[1]]))
+            };
+            if let (Some(now), Some(before)) = (read(report), read(prev)) {
+                let steps = erp_steps(now, before, rest);
+                if steps != 0 {
+                    let raw = (steps.clamp(-64, 63) as i8 as u8) & 0x7F;
+                    out.push(event(erp.name, steps as f32, raw, None));
+                }
             }
         }
     }
@@ -812,8 +1065,9 @@ pub struct Device {
     rings: Sender<[JogRing; 2]>,
     motors: Sender<motor::Settings>,
     calibration: Sender<Vec<[u8; crate::calibration::REPORT_LEN + 1]>>,
+    reports: Sender<Vec<Vec<u8>>>,
     running: Arc<AtomicBool>,
-    connected: Arc<AtomicBool>,
+    link: Arc<LinkStatus>,
 }
 
 impl std::fmt::Debug for Device {
@@ -836,14 +1090,25 @@ impl Device {
         events: Sender<(String, InputEvent)>,
         wake: impl Fn() + Send + 'static,
     ) -> Result<Self, String> {
+        Self::start_on(layout, events, wake, supervise)
+    }
+
+    /// Starts the device over its own link instead of HID.
+    pub(crate) fn start_on(
+        layout: &'static Layout,
+        events: Sender<(String, InputEvent)>,
+        wake: impl Fn() + Send + 'static,
+        link: Link,
+    ) -> Result<Self, String> {
         let (led_tx, led_rx) = std::sync::mpsc::channel::<Leds>();
         let (meter_tx, meter_rx) = std::sync::mpsc::channel::<Meters>();
         let (ring_tx, ring_rx) = std::sync::mpsc::channel::<[JogRing; 2]>();
         let (motor_tx, motor_rx) = std::sync::mpsc::channel::<motor::Settings>();
         let (calibration_tx, calibration_rx) = std::sync::mpsc::channel();
+        let (reports_tx, reports_rx) = std::sync::mpsc::channel();
         let running = Arc::new(AtomicBool::new(true));
-        let connected = Arc::new(AtomicBool::new(false));
-        let (alive, online) = (Arc::clone(&running), Arc::clone(&connected));
+        let link_status = Arc::new(LinkStatus::default());
+        let (alive, online) = (Arc::clone(&running), Arc::clone(&link_status));
         std::thread::Builder::new()
             .name(layout.source.to_ascii_lowercase().replace(' ', ""))
             .spawn(move || {
@@ -853,8 +1118,9 @@ impl Device {
                     rings: ring_rx,
                     motors: motor_rx,
                     calibration: calibration_rx,
+                    reports: reports_rx,
                 };
-                supervise(layout, &events, &outputs, &alive, &online, &wake);
+                link(layout, &events, &outputs, &alive, &online, &wake);
             })
             .map_err(|e| e.to_string())?;
         Ok(Self {
@@ -864,13 +1130,24 @@ impl Device {
             rings: ring_tx,
             motors: motor_tx,
             calibration: calibration_tx,
+            reports: reports_tx,
             running,
-            connected,
+            link: link_status,
         })
     }
 
     pub fn connected(&self) -> bool {
-        self.connected.load(Ordering::Relaxed)
+        self.link.connected.load(Ordering::Relaxed)
+    }
+
+    /// The device's link, for the pieces that follow whether it is connected.
+    pub(crate) fn link(&self) -> Arc<LinkStatus> {
+        Arc::clone(&self.link)
+    }
+
+    /// Why the device can't be reached, while it is present but held.
+    pub fn problem(&self) -> Option<&'static str> {
+        self.link.problem()
     }
 
     pub fn layout(&self) -> &'static Layout {
@@ -893,6 +1170,10 @@ impl Device {
         let _ = self.motors.send(settings);
     }
 
+    pub fn send_reports(&self, reports: Vec<Vec<u8>>) {
+        drop(self.reports.send(reports));
+    }
+
     pub fn calibrate(
         &self,
         group: &crate::calibration::Group,
@@ -906,13 +1187,54 @@ impl Device {
     }
 }
 
-struct Outputs {
-    leds: Receiver<Leds>,
+pub(crate) struct Outputs {
+    pub(crate) leds: Receiver<Leds>,
     meters: Receiver<Meters>,
     rings: Receiver<[JogRing; 2]>,
     motors: Receiver<motor::Settings>,
     calibration: Receiver<Vec<[u8; crate::calibration::REPORT_LEN + 1]>>,
+    reports: Receiver<Vec<Vec<u8>>>,
 }
+
+impl Outputs {
+    /// Drops what a link without those outputs never sends.
+    pub(crate) fn drain_unused(&self) {
+        self.meters.try_iter().for_each(drop);
+        self.rings.try_iter().for_each(drop);
+        self.motors.try_iter().for_each(drop);
+        self.calibration.try_iter().for_each(drop);
+        self.reports.try_iter().for_each(drop);
+    }
+}
+
+/// Whether the device is connected, and why not when something stops it.
+#[derive(Debug, Default)]
+pub(crate) struct LinkStatus {
+    pub(crate) connected: AtomicBool,
+    problem: std::sync::Mutex<Option<&'static str>>,
+}
+
+impl LinkStatus {
+    pub(crate) fn set_problem(&self, problem: Option<&'static str>) {
+        if let Ok(mut p) = self.problem.lock() {
+            *p = problem;
+        }
+    }
+
+    fn problem(&self) -> Option<&'static str> {
+        self.problem.lock().ok().and_then(|p| *p)
+    }
+}
+
+/// The thread that keeps a device connected and moves its reports.
+pub(crate) type Link = fn(
+    &'static Layout,
+    &Sender<(String, InputEvent)>,
+    &Outputs,
+    &AtomicBool,
+    &LinkStatus,
+    &dyn Fn(),
+);
 
 #[derive(Default)]
 struct Sent {
@@ -920,20 +1242,22 @@ struct Sent {
     meters: Option<Meters>,
     rings: Option<[JogRing; 2]>,
     motors: Option<motor::Settings>,
+    reports: Option<Vec<Vec<u8>>>,
 }
 
 const INITIAL_REPORTS: [(u8, usize); 2] = [(0x01, 26), (0x02, 79)];
 
-const RETRY: Duration = Duration::from_secs(2);
+pub(crate) const RETRY: Duration = Duration::from_secs(2);
 
 fn supervise(
     layout: &'static Layout,
     events: &Sender<(String, InputEvent)>,
     outputs: &Outputs,
     running: &AtomicBool,
-    connected: &AtomicBool,
+    status: &LinkStatus,
     wake: &dyn Fn(),
 ) {
+    let connected = &status.connected;
     let Ok(mut api) = hidapi::HidApi::new() else {
         return;
     };
@@ -980,6 +1304,9 @@ fn run(
     if let Some(settings) = last.motors {
         motors.set(settings);
     }
+    for report in layout.connect_reports {
+        drop(device.write(report));
+    }
     let mut buf = [0u8; 512];
     for &(id, len) in layout.initial_reports {
         let mut report = vec![0u8; len];
@@ -995,6 +1322,7 @@ fn run(
     wake();
     let (mut leds_dirty, mut rings_dirty) = (last.leds.is_some(), last.rings.is_some());
     let mut meters_dirty = last.meters.is_some();
+    let mut reports_dirty = last.reports.is_some();
     while running.load(Ordering::Relaxed) {
         if let Some(latest) = outputs.leds.try_iter().last() {
             last.leds = Some(latest);
@@ -1016,6 +1344,16 @@ fn run(
             for report in batch {
                 drop(device.write(&report));
             }
+        }
+        if let Some(latest) = outputs.reports.try_iter().last() {
+            last.reports = Some(latest);
+            reports_dirty = true;
+        }
+        if reports_dirty && let Some(reports) = &last.reports {
+            for report in reports {
+                drop(device.write(report));
+            }
+            reports_dirty = false;
         }
         if leds_dirty && let Some(state) = &last.leds {
             for (id, bytes) in state.reports(layout) {
@@ -1446,6 +1784,10 @@ pub(crate) mod tests {
         names.extend(l.encoders.iter().map(|e| e.name.to_owned()));
         names.extend(l.switches.iter().map(|s| s.name.to_owned()));
         names.extend(l.jogs.iter().map(|j| j.name.to_owned()));
+        names.extend(l.erps.iter().map(|e| e.name.to_owned()));
+        if !l.touch_strips.is_empty() {
+            names.extend(strip_controls().map(str::to_owned));
+        }
         names
     }
 
@@ -1475,6 +1817,21 @@ pub(crate) mod tests {
                 m.input
             );
         }
+    }
+
+    #[test]
+    fn endless_knobs_step_across_the_top_and_keep_the_rest() {
+        let mut rest = 0;
+        assert_eq!(erp_steps(40, 10, &mut rest), 0, "under a step");
+        assert_eq!(rest, 960);
+        assert_eq!(erp_steps(50, 40, &mut rest), 1, "the rest adds up");
+        assert_eq!(erp_steps(10, 980, &mut rest), 1);
+        let mut rest = 0;
+        assert_eq!(erp_steps(10, 980, &mut rest), 0, "30 forward across 0");
+        assert_eq!(rest, 960);
+        let mut rest = 0;
+        assert_eq!(erp_steps(900, 100, &mut rest), -6, "the short way back");
+        assert_eq!(erp_steps(1200, 100, &mut rest), 0, "no reading");
     }
 
     #[test]

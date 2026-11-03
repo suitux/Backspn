@@ -487,7 +487,7 @@ impl App {
         ui.label(tr("Its firmware calibrates the knobs, a group at a time."));
         ui.add_space(6.0);
         if let Some(controls) = &mut self.controls {
-            controls.calibration_section(ui);
+            controls.calibration_section(ui, None);
         }
     }
 

@@ -171,6 +171,7 @@ pub struct Rack {
     rate: f64,
     block: u64,
     last_channel: usize,
+    clock: Option<Context>,
 }
 
 const IDLE_S: f64 = 10.0;
@@ -223,6 +224,7 @@ impl Rack {
             rate,
             block: 0,
             last_channel: usize::MAX,
+            clock: None,
         }
     }
 
@@ -511,6 +513,10 @@ impl Rack {
         }
     }
 
+    pub fn set_clock(&mut self, ctx: Context) {
+        self.clock = Some(ctx);
+    }
+
     pub fn process(&mut self, channel: usize, buf: &mut [f32], ctx: &Context) {
         if self.last_channel == usize::MAX || channel <= self.last_channel {
             self.block += 1;
@@ -558,6 +564,7 @@ impl Rack {
             return;
         }
         let block = self.block;
+        let ctx = &self.clock.unwrap_or(*ctx);
         let patterns = &mut self.units[u].patterns;
         if !patterns[channel].idle() {
             if !patterns[channel].running(block) && patterns[channel].on() {

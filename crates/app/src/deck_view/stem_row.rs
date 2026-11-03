@@ -48,6 +48,12 @@ impl DeckView {
         })
     }
 
+    /// All four stems for the screens, once the track has them.
+    pub fn stem_overlays(&self) -> Option<[crate::screen::StemOverlay; 4]> {
+        let all: Vec<_> = (0..4).filter_map(|stem| self.stem_overlay(stem)).collect();
+        <[crate::screen::StemOverlay; 4]>::try_from(all).ok()
+    }
+
     pub(super) fn stem_row(&mut self, ui: &mut Ui, out: &mut Vec<Command>) {
         let Some(info) = self.loaded.as_ref().and_then(|l| l.stems.clone()) else {
             return;

@@ -43,10 +43,15 @@ pub enum Outcome {
 }
 
 impl Controls {
-    fn calibratable(&self) -> Option<(&'static str, Vec<&'static str>)> {
+    /// The connected controller that can calibrate: `only` that model, or the first.
+    fn calibratable(&self, only: Option<&str>) -> Option<(&'static str, Vec<&'static str>)> {
         self.devices
             .iter()
-            .find(|d| d.connected() && !d.calibration_groups().is_empty())
+            .find(|d| {
+                d.connected()
+                    && !d.calibration_groups().is_empty()
+                    && only.is_none_or(|name| d.name() == name)
+            })
             .map(|d| {
                 let names = d.calibration_groups().iter().map(|g| g.name).collect();
                 (d.name(), names)
@@ -54,15 +59,15 @@ impl Controls {
     }
 
     pub fn can_calibrate(&self) -> bool {
-        self.calibratable().is_some()
+        self.calibratable(None).is_some()
     }
 
     fn send_calibration(&self, group: usize, steps: &[Step]) -> bool {
-        let Some(device) = self
-            .devices
-            .iter()
-            .find(|d| d.connected() && !d.calibration_groups().is_empty())
-        else {
+        let Some(device) = self.devices.iter().find(|d| {
+            d.connected()
+                && !d.calibration_groups().is_empty()
+                && self.calibration_device.is_none_or(|name| d.name() == name)
+        }) else {
             return false;
         };
         steps.iter().all(|&s| device.calibrate(group, s))
@@ -75,8 +80,12 @@ impl Controls {
         }
     }
 
-    pub fn calibration_section(&mut self, ui: &mut Ui) {
-        let Some((device, groups)) = self.calibratable() else {
+    /// The calibration steps for `only` that model, or the first that can calibrate.
+    pub fn calibration_section(&mut self, ui: &mut Ui, only: Option<&'static str>) {
+        if self.calibration.is_some() && only.is_some() && self.calibration_device != only {
+            self.cancel_calibration();
+        }
+        let Some((device, groups)) = self.calibratable(only) else {
             if self.calibration.take().is_some() {
                 self.calibration_outcome = Some(Outcome::NotConnected);
             }
@@ -95,6 +104,7 @@ impl Controls {
                             .clicked()
                         {
                             self.calibration = Some(Calibration::start(i));
+                            self.calibration_device = Some(device);
                             self.calibration_outcome = None;
                         }
                     }

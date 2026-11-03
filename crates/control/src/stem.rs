@@ -8,6 +8,8 @@ pub enum StemPart {
     Filter,
     FxOn,
     FxAmount,
+    /// The filter amount, switching the filter on once moved off centre.
+    FilterEngaged,
 }
 
 impl StemPart {
@@ -28,6 +30,7 @@ impl StemPart {
             Self::Filter => "Filter",
             Self::FxOn => "FX On",
             Self::FxAmount => "FX Amount",
+            Self::FilterEngaged => "Filter (switches on)",
         }
     }
 
@@ -39,6 +42,7 @@ impl StemPart {
             Self::Filter => 249,
             Self::FxOn => 239,
             Self::FxAmount => 232,
+            Self::FilterEngaged => 0,
         }
     }
 
@@ -47,7 +51,10 @@ impl StemPart {
     }
 
     pub fn is_continuous(self) -> bool {
-        matches!(self, Self::Volume | Self::Filter | Self::FxAmount)
+        matches!(
+            self,
+            Self::Volume | Self::Filter | Self::FxAmount | Self::FilterEngaged
+        )
     }
 }
 

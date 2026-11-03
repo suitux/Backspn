@@ -22,6 +22,7 @@ pub struct S4Mk3 {
     meters: Option<Meters>,
     rings: Option<[JogRing; 2]>,
     motors: Option<motor::Settings>,
+    displays: Option<Vec<Vec<u8>>>,
 }
 
 impl std::fmt::Debug for S4Mk3 {
@@ -42,18 +43,38 @@ pub fn start_with(
     events: EventSender,
     wake: Waker,
 ) -> Result<Box<dyn Controller>, String> {
-    let device = Device::start(layout, events, wake)?;
-    Ok(Box::new(S4Mk3 {
+    Ok(start_device(layout, Device::start(layout, events, wake)?))
+}
+
+/// A controller whose device runs over its own link instead of HID.
+pub(crate) fn start_on(
+    layout: &'static Layout,
+    events: EventSender,
+    wake: Waker,
+    link: super::Link,
+) -> Result<Box<dyn Controller>, String> {
+    Ok(start_device(
+        layout,
+        Device::start_on(layout, events, wake, link)?,
+    ))
+}
+
+fn start_device(layout: &'static Layout, device: Device) -> Box<dyn Controller> {
+    let screens = layout
+        .screens
+        .map(|panel| Screens::start_on(panel, Some(device.link())));
+    Box::new(S4Mk3 {
         layout,
         device,
         decoder: Decoder::new(layout),
-        screens: layout.screens.then(Screens::start),
+        screens,
         state: S4State::for_layout(layout),
         leds: None,
         meters: None,
         rings: None,
         motors: None,
-    }))
+        displays: None,
+    })
 }
 
 impl Controller for S4Mk3 {
@@ -158,9 +179,31 @@ impl Controller for S4Mk3 {
         if let Some(deck_leds) = self.layout.deck_leds {
             deck_leds(feedback, &self.decoder, self.state.layer, &mut leds);
         }
+        if let Some(hooks) = self.layout.modifier_hooks {
+            (hooks.leds)(
+                feedback,
+                &self.decoder,
+                &self.state.source.modifiers,
+                &mut leds,
+            );
+        }
+        if let Some(bar) = self.layout.touch_strips.first().and_then(|s| s.bar) {
+            let levels = self
+                .state
+                .strip
+                .bar(feedback, self.state.layer, bar.positions);
+            crate::strip::write_bar(&levels, bar, &mut leds.0);
+        }
         if self.leds.as_ref() != Some(&leds) {
             self.device.send_leds(leds.clone());
             self.leds = Some(leds);
+        }
+        if let Some(displays) = self.layout.displays {
+            let reports = displays(feedback, self.state.layer, &self.state.source.modifiers);
+            if self.displays.as_ref() != Some(&reports) {
+                self.device.send_reports(reports.clone());
+                self.displays = Some(reports);
+            }
         }
         if let Some(meters) = self.layout.meters {
             let meters = meters(feedback);
@@ -200,6 +243,7 @@ impl Controller for S4Mk3 {
             master: c.master,
             monitor: c.monitor,
             buffer_frames: Some(c.buffer_frames),
+            inputs: c.inputs,
         })
     }
 
@@ -211,7 +255,12 @@ impl Controller for S4Mk3 {
     }
 
     fn status(&self) -> Vec<String> {
-        match &self.screens {
+        let device = self
+            .device
+            .problem()
+            .filter(|_| !self.device.connected())
+            .map(|p| format!("Controller: {p}."));
+        let screens = match &self.screens {
             None => Vec::new(),
             Some(Ok(s)) if s.connected() => vec!["Screens: showing the decks.".into()],
             Some(Ok(s)) => s
@@ -219,7 +268,8 @@ impl Controller for S4Mk3 {
                 .map(|p| vec![format!("Screens: {p}.")])
                 .unwrap_or_default(),
             Some(Err(e)) => vec![format!("Screens: {e}.")],
-        }
+        };
+        device.into_iter().chain(screens).collect()
     }
 }
 
@@ -550,6 +600,7 @@ struct S4State {
     click: [Option<PendingClick>; 2],
     platter: [u16; 2],
     shifted: super::ShiftFn,
+    modifier_hooks: Option<super::ModifierHooks>,
     jog_toggle: bool,
     scratch_on_touch: [bool; 2],
     samples_is_stems: bool,
@@ -558,6 +609,7 @@ struct S4State {
     fx_selected: Option<usize>,
     mixer_fx_on: [bool; DECKS],
     mx2: bool,
+    shared_shift: bool,
     mode_held: bool,
     keylock_held: [bool; 2],
     keylock_engaged: [bool; 2],
@@ -566,6 +618,10 @@ struct S4State {
     stutter: [Vec<u8>; DECKS],
     source: crate::relative::Source,
     shown: Feedback,
+    has_strip: bool,
+    strip: crate::strip::Strip,
+    /// A press the strip took, whose release it swallows too.
+    strip_took: Option<Input>,
 }
 
 impl Default for S4State {
@@ -589,6 +645,7 @@ impl Default for S4State {
             tempo_prev: [None; 2],
             click: [None, None],
             shifted: super::shifted,
+            modifier_hooks: None,
             jog_toggle: false,
             scratch_on_touch: [true; 2],
             samples_is_stems: false,
@@ -597,6 +654,7 @@ impl Default for S4State {
             fx_selected: None,
             mixer_fx_on: [false; DECKS],
             mx2: false,
+            shared_shift: false,
             mode_held: false,
             keylock_held: [false; 2],
             keylock_engaged: [false; 2],
@@ -605,6 +663,9 @@ impl Default for S4State {
             stutter: std::array::from_fn(|_| Vec::new()),
             source: crate::relative::Source::default(),
             shown: Feedback::default(),
+            has_strip: false,
+            strip: crate::strip::Strip::default(),
+            strip_took: None,
         }
     }
 }
@@ -613,11 +674,14 @@ impl S4State {
     fn for_layout(layout: &Layout) -> Self {
         Self {
             shifted: layout.shifted,
+            modifier_hooks: layout.modifier_hooks,
             jog_toggle: layout.jog_button_toggles_touch,
             samples_is_stems: layout.samples_button_stems,
             samples_toggles: layout.samples_button_toggles,
             fx_select_toggle: layout.fx_select_toggles,
             mx2: layout.mx2_transport,
+            shared_shift: layout.shared_shift,
+            has_strip: !layout.touch_strips.is_empty(),
             ..Self::default()
         }
     }
@@ -1319,8 +1383,103 @@ fn map_table(state: &mut S4State, set: &MappingSet, event: &InputEvent) -> Vec<(
     set.map_source(event, &mut state.source, &state.shown, &|_| None)
 }
 
-#[allow(clippy::too_many_lines)]
 fn translate(state: &mut S4State, set: &MappingSet, event: &InputEvent) -> Vec<(Action, Trigger)> {
+    if !state.has_strip {
+        return translate_controls(state, set, event);
+    }
+    if let Some(triggers) = strip_input(state, set, event) {
+        return triggers;
+    }
+    let triggers = translate_controls(state, set, event);
+    strip_takes(state, event, triggers)
+}
+
+/// The strip's own inputs, and the release of a press it took.
+fn strip_input(
+    state: &mut S4State,
+    set: &MappingSet,
+    event: &InputEvent,
+) -> Option<Vec<(Action, Trigger)>> {
+    use crate::s4mk3::{
+        STRIP_ANY_POSITION, STRIP_ANY_TOUCH, STRIP_HALF_POSITION, STRIP_TOUCH, STRIP_TURN,
+    };
+    if event.pressed == Some(false) && state.strip_took.as_ref() == Some(&event.input) {
+        state.strip_took = None;
+        return Some(Vec::new());
+    }
+    let Input::Hid(name) = &event.input else {
+        return None;
+    };
+    if set.overrides(&event.input) {
+        return None;
+    }
+    let name = name.as_str();
+    let side_of = |names: [&str; 2]| names.iter().position(|&n| n == name);
+    let mapped_deck = |state: &mut S4State| {
+        map_table(state, set, event)
+            .into_iter()
+            .find_map(|(mut a, _)| a.deck_mut().map(|d| *d))
+    };
+    if name == STRIP_ANY_TOUCH {
+        Some(state.strip.touch(event.pressed == Some(true)))
+    } else if name == STRIP_ANY_POSITION {
+        Some(state.strip.position(event.value))
+    } else if let Some(side) = side_of(STRIP_HALF_POSITION) {
+        Some(state.strip.half_position(side, event.value))
+    } else if let Some(side) = side_of(STRIP_TOUCH) {
+        let Some(deck) = mapped_deck(state) else {
+            return Some(Vec::new());
+        };
+        let playing = state.shown.decks.get(deck).is_some_and(|d| d.playing);
+        let down = event.pressed == Some(true);
+        Some(
+            state
+                .strip
+                .half_touch(side, deck, down, state.shift[side], playing),
+        )
+    } else if let Some(side) = side_of(STRIP_TURN) {
+        let Some(deck) = mapped_deck(state) else {
+            return Some(Vec::new());
+        };
+        Some(state.strip.half_turn(side, deck, event.value))
+    } else {
+        None
+    }
+}
+
+/// A press of a loop or effect control that hands the strip over or back.
+fn strip_takes(
+    state: &mut S4State,
+    event: &InputEvent,
+    triggers: Vec<(Action, Trigger)>,
+) -> Vec<(Action, Trigger)> {
+    use crate::strip::Target;
+    if event.pressed != Some(true) || state.shift.contains(&true) {
+        return triggers;
+    }
+    let target = triggers.iter().find_map(|&(a, _)| match a {
+        Action::FastLoop { deck }
+        | Action::LoopActive { deck }
+        | Action::FastLoopSize { deck, .. }
+        | Action::LoopSize { deck, .. } => Some(Target::Loop { deck }),
+        Action::FxButton { unit, button } => Some(Target::Fx { unit, slot: button }),
+        _ => None,
+    });
+    match target.and_then(|t| state.strip.press(t)) {
+        Some(out) => {
+            state.strip_took = Some(event.input.clone());
+            out
+        }
+        None => triggers,
+    }
+}
+
+#[allow(clippy::too_many_lines)]
+fn translate_controls(
+    state: &mut S4State,
+    set: &MappingSet,
+    event: &InputEvent,
+) -> Vec<(Action, Trigger)> {
     let Input::Hid(name) = &event.input else {
         return map_table(state, set, event);
     };
@@ -1338,7 +1497,12 @@ fn translate(state: &mut S4State, set: &MappingSet, event: &InputEvent) -> Vec<(
         let control = &name[name.find('.').map_or(0, |i| i + 1)..];
         match control {
             "Shift" => {
-                state.shift[side] = event.pressed == Some(true);
+                let held = event.pressed == Some(true);
+                if state.shared_shift {
+                    state.shift = [held; 2];
+                } else {
+                    state.shift[side] = held;
+                }
                 return Vec::new();
             }
             "Jog Mode.Grid" => {
@@ -1389,7 +1553,10 @@ fn translate(state: &mut S4State, set: &MappingSet, event: &InputEvent) -> Vec<(
             Interaction::Relative,
         )))
     } else if shift_held {
-        (state.shifted)(name)
+        match state.modifier_hooks {
+            Some(hooks) => (hooks.shifted)(name, &state.source.modifiers),
+            None => (state.shifted)(name),
+        }
     } else {
         None
     };
@@ -2038,6 +2205,7 @@ mod tests {
             meters: None,
             rings: None,
             motors: None,
+            displays: None,
         };
         let set = s4_set();
         let half = turn(
@@ -2468,6 +2636,127 @@ mod tests {
             go(&mut st, "Left.Master", false),
             [(Action::Master { deck: 0 }, Trigger::Press)]
         );
+    }
+
+    #[test]
+    fn a_shared_shift_reaches_both_sides() {
+        let layout = &crate::kontrol::x1mk2::LAYOUT;
+        let set = MappingSet {
+            mappings: (layout.default_mappings)(),
+            ..MappingSet::default()
+        };
+        let mut st = S4State::for_layout(layout);
+        let go = |st: &mut S4State, name, down| translate(st, &set, &hid(name, Some(down)));
+        go(&mut st, "Left.Shift", true);
+        assert_eq!(
+            go(&mut st, "Right.Cue", true),
+            [(Action::ReturnToStart { deck: 1 }, Trigger::Press)]
+        );
+        go(&mut st, "Right.Cue", false);
+        go(&mut st, "Left.Shift", false);
+        assert!(st.shift.iter().all(|&held| !held));
+    }
+
+    fn x1mk2() -> (S4State, MappingSet) {
+        let layout = &crate::kontrol::x1mk2::LAYOUT;
+        let set = MappingSet {
+            mappings: (layout.default_mappings)(),
+            ..MappingSet::default()
+        };
+        (S4State::for_layout(layout), set)
+    }
+
+    fn at(name: &str, value: f32) -> InputEvent {
+        InputEvent {
+            input: Input::Hid(name.into()),
+            value,
+            raw: 0,
+            pressed: None,
+        }
+    }
+
+    #[test]
+    fn the_strip_follows_the_deck_and_shift() {
+        let (mut st, set) = x1mk2();
+        let go = |st: &mut S4State, e: InputEvent| translate(st, &set, &e);
+        st.shown.decks[0].playing = true;
+        assert_eq!(go(&mut st, hid("Left.Jog.Touch", Some(true))), []);
+        assert_eq!(
+            go(&mut st, at("Left.Jog.Turn", 0.1)),
+            [(Action::JogTurn { deck: 0 }, Trigger::Delta(0.1))],
+            "a playing deck bends"
+        );
+        go(&mut st, hid("Left.Jog.Touch", Some(false)));
+        go(&mut st, hid("Left.Shift", Some(true)));
+        assert_eq!(
+            go(&mut st, hid("Left.Jog.Touch", Some(true))),
+            [(Action::JogTouch { deck: 0 }, Trigger::Press)],
+            "SHIFT scratches a playing deck"
+        );
+        assert_eq!(
+            go(&mut st, at("Left.Jog.Turn", 0.1)),
+            [(Action::JogTurn { deck: 0 }, Trigger::Delta(0.1))],
+            "not a search"
+        );
+        go(&mut st, hid("Left.Jog.Touch", Some(false)));
+        go(&mut st, hid("Right.Jog.Touch", Some(true)));
+        assert_eq!(
+            go(&mut st, at("Right.Strip.Position", 0.75)),
+            [(Action::Seek { deck: 1 }, Trigger::Set(0.75))],
+            "SHIFT seeks a stopped deck"
+        );
+    }
+
+    #[test]
+    fn a_loop_push_with_a_finger_on_the_strip_takes_it() {
+        let (mut st, set) = x1mk2();
+        let go = |st: &mut S4State, e: InputEvent| translate(st, &set, &e);
+        assert_eq!(
+            go(&mut st, hid("Right.Loop.Push", Some(true))),
+            [(Action::FastLoop { deck: 1 }, Trigger::Press)],
+            "without a finger it is the encoder's"
+        );
+        go(&mut st, hid("Right.Loop.Push", Some(false)));
+        go(&mut st, hid("Strip.Touch", Some(true)));
+        assert_eq!(go(&mut st, hid("Right.Loop.Push", Some(true))), []);
+        assert_eq!(go(&mut st, hid("Right.Loop.Push", Some(false))), []);
+        assert_eq!(
+            go(&mut st, at("Strip.Position", 0.5)),
+            [(
+                Action::LoopSize {
+                    deck: 1,
+                    beats: 1.0
+                },
+                Trigger::Press
+            )]
+        );
+        assert_eq!(go(&mut st, at("Left.Jog.Turn", 0.1)), [], "the halves wait");
+        assert_eq!(
+            go(&mut st, hid("Strip.Touch", Some(false))),
+            [(Action::LoopActive { deck: 1 }, Trigger::Press)]
+        );
+        assert_eq!(go(&mut st, hid("Right.Loop.Push", Some(true))), []);
+        assert_eq!(st.strip.mode(), crate::strip::Mode::Transport);
+    }
+
+    #[test]
+    fn an_effect_button_with_a_finger_on_the_strip_takes_it() {
+        let (mut st, set) = x1mk2();
+        let go = |st: &mut S4State, e: InputEvent| translate(st, &set, &e);
+        go(&mut st, hid("Strip.Touch", Some(true)));
+        assert_eq!(
+            go(&mut st, hid("Left.FX.Button 3", Some(true))),
+            [(Action::FxButton { unit: 0, button: 1 }, Trigger::Set(1.0))]
+        );
+        assert_eq!(
+            go(&mut st, at("Strip.Position", 0.5)),
+            [(Action::FxKnob { unit: 0, knob: 1 }, Trigger::Set(0.5))]
+        );
+        let mut leds = Leds::for_layout(&crate::kontrol::x1mk2::LAYOUT);
+        let bar = crate::kontrol::x1mk2::LAYOUT.touch_strips[0].bar.unwrap();
+        let levels = st.strip.bar(&st.shown, st.layer, bar.positions);
+        crate::strip::write_bar(&levels, bar, &mut leds.0);
+        assert_ne!(leds.0[bar.first], 0, "the bar shows the value");
     }
 
     #[test]

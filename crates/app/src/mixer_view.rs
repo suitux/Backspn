@@ -92,6 +92,15 @@ impl ChannelControls {
     }
 }
 
+/// A press flips an on/off state; a latched switch on the controller sets it.
+fn latch(current: bool, trigger: Trigger) -> Option<bool> {
+    match trigger {
+        Trigger::Press => Some(!current),
+        Trigger::Set(v) => Some(v > 0.5),
+        Trigger::Release | Trigger::Delta(_) | Trigger::Reset => None,
+    }
+}
+
 pub(crate) fn level(current: f32, trigger: Trigger) -> Option<f32> {
     match trigger {
         Trigger::Set(v) => Some(v.clamp(0.0, 1.0)),
@@ -193,7 +202,7 @@ impl MixerLock {
     pub fn locks(self, action: Action) -> bool {
         match action {
             Action::Volume { .. } | Action::Balance { .. } | Action::Crossfader => self.channel,
-            Action::Gain { .. } | Action::Eq { .. } => self.eq_gain,
+            Action::Gain { .. } | Action::Eq { .. } | Action::EqKill { .. } => self.eq_gain,
             Action::MasterVolume => self.master,
             Action::Filter { .. } | Action::MixerFxOn { .. } | Action::MixerFxSelect { .. } => {
                 self.fx
@@ -306,6 +315,7 @@ impl MixerView {
             fader: self.channels.map(|c| c.fader),
             gain: self.channels.map(|c| c.gain),
             eq: self.channels.map(|c| c.eq),
+            kill: self.channels.map(|c| c.kill),
             filter: self.channels.map(|c| f32::midpoint(c.filter, 1.0)),
             crossfader: self.crossfader,
             master: self.master,
@@ -827,6 +837,11 @@ impl MixerView {
                         self.fx_commands(channel, out);
                     }
                 }
+                // A latched switch on the controller says where it is.
+                Trigger::Set(v) => {
+                    self.channels[channel].filter_on = v > 0.5;
+                    self.fx_commands(channel, out);
+                }
                 _ => {}
             },
             Action::MixerFxSelect { slot } if slot <= 4 => {
@@ -891,8 +906,32 @@ impl MixerView {
         true
     }
 
+    /// A press flips the band's cut; a switch sets it.
+    fn apply_kill(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
+        let Action::EqKill { channel, band } = action else {
+            return false;
+        };
+        let Some(c) = self.channels.get_mut(channel).filter(|_| band < 4) else {
+            return false;
+        };
+        let kill = match trigger {
+            Trigger::Press => !c.kill[band],
+            Trigger::Set(v) => v > 0.5,
+            _ => return true,
+        };
+        c.kill[band] = kill;
+        out.push(Command::Mixer(MixerCommand::Eq(
+            channel,
+            BANDS[band],
+            c.eq_sent(band),
+        )));
+        true
+    }
+
     pub fn apply(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
-        self.lock.locks(action) || self.apply_unlocked(action, trigger, out)
+        self.lock.locks(action)
+            || self.apply_kill(action, trigger, out)
+            || self.apply_unlocked(action, trigger, out)
     }
 
     fn apply_unlocked(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
@@ -931,9 +970,9 @@ impl MixerView {
                 }
             }
             Action::MonitorCue { channel } if channel < 4 => {
-                if trigger == Trigger::Press {
-                    self.channels[channel].cue = !self.channels[channel].cue;
-                    send(MixerCommand::Cue(channel, self.channels[channel].cue));
+                if let Some(on) = latch(self.channels[channel].cue, trigger) {
+                    self.channels[channel].cue = on;
+                    send(MixerCommand::Cue(channel, on));
                 }
             }
             Action::Crossfader => {
@@ -1141,6 +1180,53 @@ mod tests {
     }
 
     #[test]
+    fn latched_switches_set_cue_and_filter() {
+        let mut m = MixerView::new();
+        let mut out = Vec::new();
+        m.apply(
+            Action::MonitorCue { channel: 1 },
+            Trigger::Set(1.0),
+            &mut out,
+        );
+        m.apply(
+            Action::MonitorCue { channel: 1 },
+            Trigger::Set(1.0),
+            &mut out,
+        );
+        m.apply(
+            Action::MonitorCue { channel: 1 },
+            Trigger::Set(0.0),
+            &mut out,
+        );
+        assert_eq!(
+            mixer(&out),
+            [
+                MixerCommand::Cue(1, true),
+                MixerCommand::Cue(1, true),
+                MixerCommand::Cue(1, false)
+            ]
+        );
+        m.apply(
+            Action::MixerFxOn { channel: 2 },
+            Trigger::Set(0.0),
+            &mut out,
+        );
+        assert!(!m.channels[2].filter_on);
+        m.apply(
+            Action::MixerFxOn { channel: 2 },
+            Trigger::Set(1.0),
+            &mut out,
+        );
+        assert!(m.channels[2].filter_on);
+        m.apply(
+            Action::MixerFxOn { channel: 2 },
+            Trigger::Set(1.0),
+            &mut out,
+        );
+        assert!(m.channels[2].filter_on, "a switch sets, it does not toggle");
+    }
+
+    #[test]
     fn cue_toggles_and_presses_only() {
         let mut m = MixerView::new();
         let mut out = Vec::new();
@@ -1179,6 +1265,33 @@ mod tests {
                 MixerCommand::Assign(3, Assign::A),
                 MixerCommand::CrossfaderCurve(0.5),
             ]
+        );
+    }
+
+    #[test]
+    fn eq_kill_toggles_and_follows_a_switch() {
+        let mut m = MixerView::new();
+        let mut out = Vec::new();
+        let kill = Action::EqKill {
+            channel: 0,
+            band: 0,
+        };
+        assert!(m.apply(kill, Trigger::Press, &mut out));
+        assert_eq!(mixer(&out), [MixerCommand::Eq(0, Band::Low, 0.0)]);
+        assert!(m.knobs().kill[0][0]);
+        out.clear();
+        m.apply(kill, Trigger::Set(0.0), &mut out);
+        assert_eq!(mixer(&out), [MixerCommand::Eq(0, Band::Low, 0.5)]);
+        assert!(!m.knobs().kill[0][0]);
+        out.clear();
+        m.apply(kill, Trigger::Release, &mut out);
+        assert!(out.is_empty());
+        assert!(
+            MixerLock {
+                eq_gain: true,
+                ..MixerLock::default()
+            }
+            .locks(kill)
         );
     }
 

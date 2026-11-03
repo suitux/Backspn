@@ -67,9 +67,10 @@ impl DeckView {
                 DragValue::new(&mut bpm)
                     .speed(0.01)
                     .fixed_decimals(3)
-                    .range(1.0..=999.0),
+                    .range(1.0..=999.0)
+                    .clamp_existing_to_range(false),
             );
-            if field.changed() {
+            if editable && field.changed() {
                 events.push(grid(GridEdit::SetBpm(bpm)));
             }
             for (label, edit, hint) in [

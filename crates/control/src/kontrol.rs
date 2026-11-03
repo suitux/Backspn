@@ -1,13 +1,22 @@
 use crate::s4mk3::{Analog, Button, Encoder, Jog, Layout, Shifted};
 use crate::{Action, Input, Interaction, Mapping};
 
+pub mod d2;
+pub mod f1;
 pub mod loop_display;
+pub mod mono;
 pub mod mx2;
 pub mod s2mk2;
 pub mod s2mk3;
 pub mod s3;
+pub mod s4mk1;
 pub mod s4mk2;
+pub mod s5;
+pub mod s8;
+pub mod x1mk2;
+pub mod x1mk3;
 pub mod z1;
+pub mod z2;
 
 fn button(
     name: impl Into<String>,
@@ -147,15 +156,68 @@ fn common_shifted(name: &str) -> Shifted {
     }))
 }
 
-pub fn layouts() -> [&'static Layout; 6] {
+pub fn layouts() -> [&'static Layout; 14] {
     [
         &s2mk3::LAYOUT,
         &s3::LAYOUT,
         &mx2::LAYOUT,
         &z1::LAYOUT,
         &s4mk2::LAYOUT,
+        &s4mk1::LAYOUT,
         &s2mk2::LAYOUT,
+        &x1mk2::LAYOUT,
+        &x1mk3::LAYOUT,
+        &f1::LAYOUT,
+        &z2::LAYOUT,
+        &s8::LAYOUT,
+        &s5::LAYOUT,
+        &d2::LAYOUT,
     ]
+}
+
+/// What a native controller has that its settings page can offer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "one flag per hardware feature"
+)]
+pub struct Features {
+    pub jogs: bool,
+    pub tempo_fader: bool,
+    pub motors: bool,
+    pub screens: bool,
+    pub displays: bool,
+    pub calibration: bool,
+    pub stored_calibration: bool,
+    pub touch_strip: bool,
+    pub sound_card: bool,
+}
+
+impl Features {
+    pub fn of(layout: &Layout) -> Self {
+        Self {
+            jogs: !layout.jogs.is_empty(),
+            tempo_fader: layout.has("Left.Tempo") || layout.has("Right.Tempo"),
+            motors: layout.motors,
+            screens: layout.screens.is_some(),
+            displays: layout.displays.is_some(),
+            calibration: !layout.calibration.is_empty(),
+            stored_calibration: layout.stored_calibration.is_some(),
+            touch_strip: !layout.touch_strips.is_empty(),
+            sound_card: layout.sound_card.is_some(),
+        }
+    }
+}
+
+/// The layout of a native controller by its model name, the S4 MK3 included.
+pub fn layout(name: &str) -> Option<&'static Layout> {
+    std::iter::once(&*crate::s4mk3::S4)
+        .chain(layouts())
+        .find(|l| l.name == name)
+}
+
+pub fn features(name: &str) -> Option<Features> {
+    layout(name).map(Features::of)
 }
 
 #[cfg(test)]
@@ -164,14 +226,27 @@ mod tests {
     use crate::s4mk3::Decoder;
 
     #[test]
+    fn every_model_has_features_and_they_follow_the_hardware() {
+        for m in crate::controller::models() {
+            assert!(features(m.name).is_some(), "{}", m.name);
+        }
+        let s4 = features(crate::s4mk3::NAME).expect("S4");
+        assert!(s4.jogs && s4.tempo_fader && s4.motors && s4.screens && s4.calibration);
+        let x1 = features(x1mk2::NAME).expect("X1 MK2");
+        assert!(x1.touch_strip && !x1.jogs && !x1.tempo_fader && !x1.motors);
+        assert!(features(x1mk3::NAME).expect("X1 MK3").displays);
+        assert!(features(z2::NAME).expect("Z2").sound_card);
+        assert!(features(z1::NAME).expect("Z1").stored_calibration);
+        assert_eq!(features("Unknown"), None);
+    }
+
+    #[test]
     fn layouts_are_consistent() {
         for l in layouts() {
             crate::s4mk3::tests::check_layout(l);
-            assert!(
-                l.has("Mixer.A.Volume") && l.has("Mixer.Xfader"),
-                "{}",
-                l.name
-            );
+            if l.has("Mixer.A.Volume") {
+                assert!(l.has("Mixer.Xfader"), "{}", l.name);
+            }
             if !l.jogs.is_empty() {
                 assert!(l.has("Left.Play") && l.has("Right.Play"), "{}", l.name);
                 assert!(l.jogs.len() == 2 && l.encoders.len() >= 6, "{}", l.name);
@@ -183,12 +258,8 @@ mod tests {
     fn reports_decode_to_named_controls() {
         for l in layouts() {
             let mut d = Decoder::new(l);
-            let name = if l.has("Left.Play") {
-                "Left.Play"
-            } else {
-                "Mixer.A.Cue"
-            };
-            let play = l.buttons.iter().find(|b| b.name == name).expect(name);
+            let play = &l.buttons[0];
+            let name = play.name.as_str();
             let mut r = vec![0u8; 64];
             r[0] = 0x01;
             assert!(d.decode(&r).iter().all(|e| e.pressed.is_none()));
@@ -201,21 +272,35 @@ mod tests {
             assert_eq!(events.len(), 1, "{}: {events:?}", l.name);
             assert_eq!(events[0].input, Input::Hid(name.into()));
             assert_eq!(events[0].pressed, Some(true));
-            let volume = l
-                .analogs
-                .iter()
-                .find(|a| a.name == "Mixer.A.Volume")
-                .expect("volume");
+            let analog = &l.analogs[0];
             let mut r = vec![0u8; 80];
             r[0] = l.analog_report;
-            r[volume.byte] = 0xFF;
-            r[volume.byte + 1] = 0x0F;
+            r[analog.byte] = 0xFF;
+            r[analog.byte + 1] = 0x0F;
             let events = d.decode(&r);
             let v = events
                 .iter()
-                .find(|e| e.input == Input::Hid("Mixer.A.Volume".into()))
-                .expect("volume event");
+                .find(|e| e.input == Input::Hid(analog.name.into()))
+                .expect("analog event");
             assert!((v.value - 1.0).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn led_numbers_start_after_the_report_id() {
+        for (layout, name, byte, len) in [
+            (&*s2mk3::LAYOUT, "Left.Play", 0x0B, 0x3D),
+            (&*s3::LAYOUT, "Left.Play", 0x10, 267),
+            (&*mx2::LAYOUT, "Left.Play", 0x1D, 0x69),
+            (&*z1::LAYOUT, "Mixer.Mode", 0x12, 0x15),
+        ] {
+            let d = Decoder::new(layout);
+            let mut leds = crate::s4mk3::Leds::for_layout(layout);
+            leds.set(&d, name, crate::s4mk3::colour::WHITE, true);
+            let (_, bytes) = leds.reports(layout).next().expect("a report");
+            assert_eq!(bytes.len(), len, "{}", layout.name);
+            let lit: Vec<usize> = (0..bytes.len()).filter(|&i| bytes[i] != 0).collect();
+            assert_eq!(lit, [byte], "{}", layout.name);
         }
     }
 

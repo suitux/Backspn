@@ -42,10 +42,32 @@ impl EnergyRule {
     }
 }
 
+/// Which tempo of the master track the suggestions are matched against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum TempoSource {
+    /// The tempo the master deck is playing at, after pitch changes.
+    #[default]
+    Playing,
+    /// The track's own tempo, ignoring the deck's pitch.
+    Original,
+}
+
+impl TempoSource {
+    /// The reference tempo, falling back to the track's tempo when the deck
+    /// has none.
+    pub fn pick(self, playing: Option<f64>, original: Option<f64>) -> Option<f64> {
+        match self {
+            Self::Playing => playing.or(original),
+            Self::Original => original,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Criteria {
     pub bpm_tolerance: f64,
+    pub tempo: TempoSource,
     pub key: KeyRule,
     pub energy: EnergyRule,
     pub energy_range: f64,
@@ -58,6 +80,7 @@ impl Default for Criteria {
     fn default() -> Self {
         Self {
             bpm_tolerance: 0.06,
+            tempo: TempoSource::Playing,
             key: KeyRule::Compatible,
             energy: EnergyRule::Similar,
             energy_range: 2.0,
@@ -284,6 +307,20 @@ mod tests {
             None,
             "neighbour of the other mode"
         );
+    }
+
+    #[test]
+    fn tempo_source_picks_playing_or_original_tempo() {
+        assert_eq!(
+            TempoSource::Playing.pick(Some(130.0), Some(128.0)),
+            Some(130.0)
+        );
+        assert_eq!(TempoSource::Playing.pick(None, Some(128.0)), Some(128.0));
+        assert_eq!(
+            TempoSource::Original.pick(Some(130.0), Some(128.0)),
+            Some(128.0)
+        );
+        assert_eq!(TempoSource::Original.pick(Some(130.0), None), None);
     }
 
     #[test]
