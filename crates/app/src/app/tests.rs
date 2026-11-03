@@ -1036,3 +1036,70 @@ fn advanced_decks_keep_their_panel_in_two_rows() {
     assert!(h.app.decks[0].compact);
     assert!(h.app.decks[0].min_height() > full);
 }
+
+fn click_wav(dir: &Path, name: &str, bpm: u32, seconds: u32) -> PathBuf {
+    let path = dir.join(format!("{name}.wav"));
+    let rate = 44_100u32;
+    let frames = (rate * seconds) as usize;
+    let period = (rate * 60 / bpm) as usize;
+    let mut samples = vec![0i16; frames * 2];
+    for beat in (0..frames.saturating_sub(400)).step_by(period) {
+        for i in 0..400 {
+            let v = if i % 2 == 0 { 20_000 } else { -20_000 };
+            samples[2 * (beat + i)..2 * (beat + i) + 2].fill(v);
+        }
+    }
+    let data: Vec<u8> = samples.iter().flat_map(|s| s.to_le_bytes()).collect();
+    let size = u32::try_from(data.len()).unwrap();
+    let mut wav = Vec::new();
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&(36 + size).to_le_bytes());
+    wav.extend_from_slice(b"WAVEfmt ");
+    wav.extend_from_slice(&16u32.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes());
+    wav.extend_from_slice(&2u16.to_le_bytes());
+    wav.extend_from_slice(&rate.to_le_bytes());
+    wav.extend_from_slice(&(rate * 4).to_le_bytes());
+    wav.extend_from_slice(&4u16.to_le_bytes());
+    wav.extend_from_slice(&16u16.to_le_bytes());
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&size.to_le_bytes());
+    wav.extend_from_slice(&data);
+    std::fs::write(&path, wav).unwrap();
+    path
+}
+
+#[test]
+fn the_grid_panel_keeps_the_grid_found_when_an_unanalysed_track_loads() {
+    use crate::deck_view::{DeckSize, PanelTab};
+    let mut h = Harness::new("grid-panel-load");
+    let file = click_wav(&h.dir, "clicks", 120, 12);
+    let id = h.app.browser.add_files(std::slice::from_ref(&file))[0];
+    let tag_tempo = backspn_library::AnalysisUpdate {
+        bpm: Some(120.0),
+        ..Default::default()
+    };
+    h.app
+        .browser
+        .library()
+        .unwrap()
+        .save_analysis(id, &tag_tempo)
+        .unwrap();
+    h.app.settings.auto_analyze_on_load = true;
+    h.app.decks[0].set_size(DeckSize::Advanced);
+    h.app.decks[0].panel = Some(PanelTab::Grid);
+    h.frame();
+    h.app.load_from_library(0, id);
+    h.until_engine("the analysis sets the grid", |s| s.decks[0].grid.is_some());
+    for _ in 0..10 {
+        h.frame();
+    }
+    let bpm = h.app.engine_state().decks[0].grid.map(|g| g.bpm);
+    assert!(bpm.is_some_and(|b| (b - 120.0).abs() < 0.5), "{bpm:?}");
+    let row = h.app.browser.library().unwrap().track(id).unwrap().unwrap();
+    assert!(
+        row.bpm.is_some_and(|b| (b - 120.0).abs() < 0.5),
+        "{:?}",
+        row.bpm
+    );
+}
