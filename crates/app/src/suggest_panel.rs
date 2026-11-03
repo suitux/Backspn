@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use backspn_library::TrackRow;
 use backspn_library::energy;
-use backspn_library::suggest::{Criteria, EnergyRule, KeyRule, Reference, Suggestion, suggest};
+use backspn_library::suggest::{
+    Criteria, EnergyRule, KeyRule, Reference, Suggestion, TempoSource, suggest,
+};
 use eframe::egui::{self, ComboBox, DragValue, RichText, ScrollArea, Ui};
 
 use crate::browser::{BrowserAction, TrackDrag, free_deck};
@@ -72,7 +74,7 @@ impl SuggestPanel {
                 .map(|(m, t)| {
                     let reference = Reference {
                         track_id: Some(t.id),
-                        bpm: m.bpm.or(t.bpm),
+                        bpm: self.criteria.tempo.pick(m.bpm, t.bpm),
                         key: t.musical_key,
                         energy: energy::estimate(t),
                         genre: t.genre.clone(),
@@ -190,6 +192,20 @@ fn criteria_ui(ui: &mut Ui, c: &mut Criteria) {
                 c.bpm_tolerance = percent / 100.0;
             }
             ui.end_row();
+            ui.label(tr("Tempo reference"));
+            ComboBox::from_id_salt("suggest-tempo")
+                .width(120.0)
+                .selected_text(tr(tempo_source_name(c.tempo)))
+                .show_ui(ui, |ui| {
+                    for source in [TempoSource::Playing, TempoSource::Original] {
+                        ui.selectable_value(&mut c.tempo, source, tr(tempo_source_name(source)));
+                    }
+                })
+                .response
+                .on_hover_text(tr(
+                    "Match the tempo the master deck is playing at, or the master track's original tempo",
+                ));
+            ui.end_row();
             ui.label(tr("Key"));
             ComboBox::from_id_salt("suggest-key")
                 .width(120.0)
@@ -245,6 +261,9 @@ fn summary(c: &Criteria) -> String {
         format!("BPM ±{:.1}%", c.bpm_tolerance * 100.0),
         format!("{} {}", tr("Key"), tr(key_rule_name(c.key))),
     ];
+    if c.tempo == TempoSource::Original {
+        parts.push(tr("Original tempo").to_owned());
+    }
     if c.energy != EnergyRule::Any {
         parts.push(format!(
             "{} {} ±{:.1}",
@@ -257,6 +276,13 @@ fn summary(c: &Criteria) -> String {
         parts.push(tr("Same genre").to_owned());
     }
     parts.join(" · ")
+}
+
+fn tempo_source_name(source: TempoSource) -> &'static str {
+    match source {
+        TempoSource::Playing => "Master tempo",
+        TempoSource::Original => "Original tempo",
+    }
 }
 
 fn energy_rule_name(rule: EnergyRule) -> &'static str {

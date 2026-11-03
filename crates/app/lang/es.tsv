@@ -875,6 +875,10 @@ Configure	Configurar
 Choose how the next tracks are picked	Elige cómo se escogen las siguientes pistas
 Next Tracks Settings	Ajustes de siguientes pistas
 Tempo range	Margen de tempo
+Tempo reference	Tempo de referencia
+Master tempo	Tempo del master
+Original tempo	Tempo original
+Match the tempo the master deck is playing at, or the master track's original tempo	Compara con el tempo al que suena el deck master o con el tempo original de su pista
 Energy	Energía
 Energy range	Margen de energía
 Largest energy change allowed, on a scale of 1 to 10. A comment such as "Energy 7" sets a track's energy.	Cambio de energía máximo permitido, en una escala de 1 a 10. Un comentario como "Energy 7" fija la energía de una pista.
