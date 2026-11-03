@@ -114,6 +114,8 @@ pub enum DeckSize {
     Advanced,
     ParallelSlim,
     ParallelFull,
+    ParallelSlimAdvanced,
+    ParallelFullAdvanced,
 }
 
 impl DeckSize {
@@ -124,16 +126,26 @@ impl DeckSize {
             Self::Full => Self::Advanced,
             Self::Advanced => Self::Micro,
             Self::ParallelSlim => Self::ParallelFull,
-            Self::ParallelFull => Self::ParallelSlim,
+            Self::ParallelFull => Self::ParallelSlimAdvanced,
+            Self::ParallelSlimAdvanced => Self::ParallelFullAdvanced,
+            Self::ParallelFullAdvanced => Self::ParallelSlim,
         }
     }
 
     pub fn parallel_wave(self) -> Option<f32> {
         match self {
-            Self::ParallelSlim => Some(35.0),
-            Self::ParallelFull => Some(91.0),
+            Self::ParallelSlim | Self::ParallelSlimAdvanced => Some(35.0),
+            Self::ParallelFull | Self::ParallelFullAdvanced => Some(91.0),
             _ => None,
         }
+    }
+
+    /// Sizes that show the Move/Cue/Grid panel under the deck.
+    pub fn advanced(self) -> bool {
+        matches!(
+            self,
+            Self::Advanced | Self::ParallelSlimAdvanced | Self::ParallelFullAdvanced
+        )
     }
 
     fn without_wave(self) -> bool {
@@ -958,7 +970,7 @@ impl DeckView {
             self.last_tab = tab;
         }
         self.size = size;
-        self.panel = (size == DeckSize::Advanced).then_some(self.last_tab);
+        self.panel = size.advanced().then_some(self.last_tab);
     }
 
     pub fn zoom_s(&self) -> f64 {
@@ -1129,6 +1141,25 @@ mod tests {
         assert_eq!((deck.size(), deck.panel), (DeckSize::Micro, None));
         deck.set_size(DeckSize::Advanced);
         assert_eq!(deck.panel, Some(PanelTab::Grid), "remembers the tab");
+    }
+
+    #[test]
+    fn parallel_advanced_keeps_the_parallel_wave_and_shows_the_panel() {
+        let mut deck = DeckView::new(0);
+        deck.set_size(DeckSize::ParallelFull);
+        assert_eq!(deck.panel, None);
+        deck.set_size(deck.size().next());
+        assert_eq!(deck.size(), DeckSize::ParallelSlimAdvanced);
+        assert_eq!(deck.panel, Some(PanelTab::Cue));
+        deck.set_size(deck.size().next());
+        assert_eq!(deck.size(), DeckSize::ParallelFullAdvanced);
+        assert_eq!(
+            deck.size().parallel_wave(),
+            DeckSize::ParallelFull.parallel_wave()
+        );
+        assert_eq!(deck.panel, Some(PanelTab::Cue));
+        deck.set_size(deck.size().next());
+        assert_eq!((deck.size(), deck.panel), (DeckSize::ParallelSlim, None));
     }
 
     #[test]

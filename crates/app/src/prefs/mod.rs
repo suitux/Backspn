@@ -678,17 +678,19 @@ fn deck_letter(deck: usize) -> String {
 
 pub(crate) fn deck_size_combo(ui: &mut Ui, deck: usize, size: &mut crate::deck_view::DeckSize) {
     use crate::deck_view::DeckSize;
-    const SIZES: [(DeckSize, &str); 6] = [
+    const SIZES: [(DeckSize, &str); 8] = [
         (DeckSize::Micro, "Micro"),
         (DeckSize::Essential, "Essential"),
         (DeckSize::Full, "Full"),
         (DeckSize::Advanced, "Advanced"),
         (DeckSize::ParallelSlim, "Parallel Slim"),
         (DeckSize::ParallelFull, "Parallel Full"),
+        (DeckSize::ParallelSlimAdvanced, "Parallel Slim Advanced"),
+        (DeckSize::ParallelFullAdvanced, "Parallel Full Advanced"),
     ];
     let name = SIZES.iter().find(|(s, _)| s == size).map_or("", |(_, n)| n);
     egui::ComboBox::from_id_salt(("deck size", deck))
-        .width(110.0)
+        .width(150.0)
         .selected_text(name)
         .show_ui(ui, |ui| {
             for (value, label) in SIZES {
