@@ -47,6 +47,7 @@ mod sample_capture;
 mod sample_view;
 mod screen;
 mod search_combo;
+mod select;
 mod selection;
 mod set_folder;
 mod slip_roll;

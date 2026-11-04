@@ -5,11 +5,12 @@ use backspn_library::energy;
 use backspn_library::suggest::{
     Criteria, EnergyRule, KeyRule, Reference, Suggestion, TempoSource, suggest,
 };
-use eframe::egui::{self, ComboBox, DragValue, RichText, ScrollArea, Ui};
+use eframe::egui::{self, DragValue, RichText, ScrollArea, Ui};
 
 use crate::browser::{BrowserAction, TrackDrag, free_deck};
 use crate::covers::{self, CoverCache};
 use crate::i18n::tr;
+use crate::select::select;
 use crate::theme::{self, WindowExt};
 
 pub const WIDTH: f32 = 320.0;
@@ -193,43 +194,42 @@ fn criteria_ui(ui: &mut Ui, c: &mut Criteria) {
             }
             ui.end_row();
             ui.label(tr("Tempo reference"));
-            ComboBox::from_id_salt("suggest-tempo")
+            select("suggest-tempo", tr(tempo_source_name(c.tempo)))
                 .width(120.0)
-                .selected_text(tr(tempo_source_name(c.tempo)))
-                .show_ui(ui, |ui| {
-                    for source in [TempoSource::Playing, TempoSource::Original] {
-                        ui.selectable_value(&mut c.tempo, source, tr(tempo_source_name(source)));
-                    }
-                })
-                .response
+                .options(
+                    ui,
+                    &mut c.tempo,
+                    [TempoSource::Playing, TempoSource::Original]
+                        .map(|s| (s, tr(tempo_source_name(s)))),
+                )
                 .on_hover_text(tr(
                     "Match the tempo the master deck is playing at, or the master track's original tempo",
                 ));
             ui.end_row();
             ui.label(tr("Key"));
-            ComboBox::from_id_salt("suggest-key")
+            select("suggest-key", tr(key_rule_name(c.key)))
                 .width(120.0)
-                .selected_text(tr(key_rule_name(c.key)))
-                .show_ui(ui, |ui| {
-                    for rule in [KeyRule::Compatible, KeyRule::Same, KeyRule::Any] {
-                        ui.selectable_value(&mut c.key, rule, tr(key_rule_name(rule)));
-                    }
-                });
+                .options(
+                    ui,
+                    &mut c.key,
+                    [KeyRule::Compatible, KeyRule::Same, KeyRule::Any]
+                        .map(|r| (r, tr(key_rule_name(r)))),
+                );
             ui.end_row();
             ui.label(tr("Energy"));
-            ComboBox::from_id_salt("suggest-energy")
+            select("suggest-energy", tr(energy_rule_name(c.energy)))
                 .width(120.0)
-                .selected_text(tr(energy_rule_name(c.energy)))
-                .show_ui(ui, |ui| {
-                    for rule in [
+                .options(
+                    ui,
+                    &mut c.energy,
+                    [
                         EnergyRule::Similar,
                         EnergyRule::Up,
                         EnergyRule::Down,
                         EnergyRule::Any,
-                    ] {
-                        ui.selectable_value(&mut c.energy, rule, tr(energy_rule_name(rule)));
-                    }
-                });
+                    ]
+                    .map(|r| (r, tr(energy_rule_name(r)))),
+                );
             ui.end_row();
             ui.label(tr("Energy range"));
             ui.add_enabled(

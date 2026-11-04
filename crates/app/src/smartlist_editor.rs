@@ -1,8 +1,9 @@
 use backspn_formats::nml::MusicalKey;
 use backspn_library::smart::{self, Attribute, Kind, Op, Query, Term};
-use eframe::egui::{self, ComboBox, RichText, Ui};
+use eframe::egui::{self, RichText, Ui};
 
 use crate::i18n::tr;
+use crate::select::select;
 use crate::theme::WindowExt;
 use crate::{search_combo, theme};
 
@@ -322,14 +323,13 @@ impl SmartlistEditor {
                     *row = Row::new(a);
                 }
                 let choices = smart::choices(row.attribute.kind());
-                ComboBox::from_id_salt(("smart-op", i))
+                select(("smart-op", i), row.choice().label)
                     .width(150.0)
-                    .selected_text(row.choice().label)
-                    .show_ui(ui, |ui| {
-                        for (n, c) in choices.iter().enumerate() {
-                            ui.selectable_value(&mut row.choice, n, c.label);
-                        }
-                    });
+                    .options(
+                        ui,
+                        &mut row.choice,
+                        choices.iter().enumerate().map(|(n, c)| (n, c.label)),
+                    );
                 value_ui(ui, i, row);
                 if ui
                     .small_button("−")
@@ -367,31 +367,24 @@ fn value_ui(ui: &mut Ui, i: usize, row: &mut Row) {
     };
     match row.attribute.kind() {
         Kind::Bool => {
-            ComboBox::from_id_salt(("smart-bool", i))
-                .selected_text(if row.value == "FALSE" {
-                    "False"
-                } else {
-                    "True"
-                })
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut row.value, "TRUE".to_owned(), "True");
-                    ui.selectable_value(&mut row.value, "FALSE".to_owned(), "False");
-                });
+            let shown = if row.value == "FALSE" {
+                "False"
+            } else {
+                "True"
+            };
+            select(("smart-bool", i), shown).options(
+                ui,
+                &mut row.value,
+                [("TRUE".to_owned(), "True"), ("FALSE".to_owned(), "False")],
+            );
         }
         Kind::Rating => {
-            ComboBox::from_id_salt(("smart-rating", i))
-                .selected_text(crate::columns::stars(
-                    row.value.parse::<u8>().unwrap_or(0) * 51,
-                ))
-                .show_ui(ui, |ui| {
-                    for n in 0..=5u8 {
-                        ui.selectable_value(
-                            &mut row.value,
-                            n.to_string(),
-                            crate::columns::stars(n * 51),
-                        );
-                    }
-                });
+            let shown = crate::columns::stars(row.value.parse::<u8>().unwrap_or(0) * 51);
+            select(("smart-rating", i), shown).options(
+                ui,
+                &mut row.value,
+                (0..=5u8).map(|n| (n.to_string(), crate::columns::stars(n * 51))),
+            );
         }
         Kind::Key => {
             let key = row
@@ -399,38 +392,34 @@ fn value_ui(ui: &mut Ui, i: usize, row: &mut Row) {
                 .parse::<u8>()
                 .ok()
                 .and_then(MusicalKey::from_value);
-            ComboBox::from_id_salt(("smart-key", i))
-                .selected_text(key.map_or_else(String::new, |k| format!("{k} ({})", k.open_key())))
-                .show_ui(ui, |ui| {
-                    for v in 0..24u8 {
-                        let k = MusicalKey::from_value(v).expect("in range");
-                        ui.selectable_value(
-                            &mut row.value,
-                            v.to_string(),
-                            format!("{k} ({})", k.open_key()),
-                        );
-                    }
-                });
+            let shown = key.map_or_else(String::new, |k| format!("{k} ({})", k.open_key()));
+            select(("smart-key", i), shown).options(
+                ui,
+                &mut row.value,
+                (0..24u8).map(|v| {
+                    let k = MusicalKey::from_value(v).expect("in range");
+                    (v.to_string(), format!("{k} ({})", k.open_key()))
+                }),
+            );
         }
         Kind::Date if row.choice().relative => {
             ui.add(egui::TextEdit::singleline(&mut row.value).desired_width(50.0));
-            ComboBox::from_id_salt(("smart-unit", i))
+            select(("smart-unit", i), UNITS[row.unit].0)
                 .width(80.0)
-                .selected_text(UNITS[row.unit].0)
-                .show_ui(ui, |ui| {
-                    for (n, (name, _)) in UNITS.iter().enumerate() {
-                        ui.selectable_value(&mut row.unit, n, *name);
-                    }
-                });
+                .options(
+                    ui,
+                    &mut row.unit,
+                    UNITS.iter().enumerate().map(|(n, (name, _))| (n, *name)),
+                );
         }
         Kind::Choice => {
-            ComboBox::from_id_salt(("smart-color", i))
-                .selected_text(row.value.clone())
-                .show_ui(ui, |ui| {
-                    for name in backspn_library::smart::COLOR_NAMES {
-                        ui.selectable_value(&mut row.value, name.to_owned(), name);
-                    }
-                });
+            select(("smart-color", i), row.value.clone()).options(
+                ui,
+                &mut row.value,
+                backspn_library::smart::COLOR_NAMES
+                    .iter()
+                    .map(|name| ((*name).to_owned(), *name)),
+            );
         }
         Kind::Date => text(ui, &mut row.value, "YYYY/MM/DD"),
         Kind::Duration => text(ui, &mut row.value, "mm:ss"),

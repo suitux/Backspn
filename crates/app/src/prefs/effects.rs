@@ -1,9 +1,10 @@
 use backspn_engine::{EffectKind, FxRouting};
-use eframe::egui::{self, ComboBox, RichText, ScrollArea, Ui};
+use eframe::egui::{self, RichText, ScrollArea, Ui};
 
 use super::search;
 use super::{Prefs, Settings};
 use crate::i18n::tr;
+use crate::select::select;
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn pick_list<T: Copy + PartialEq>(
@@ -146,10 +147,9 @@ impl Prefs {
     pub(super) fn effects(&mut self, ui: &mut Ui, s: &mut Settings) {
         search::heading(ui, "FX unit routing");
         unit_grid(ui, "fx-routing", s.fx_units, |ui, u| {
-            ComboBox::from_id_salt(("fx-routing", u))
+            select(("fx-routing", u), routing_name(s.fx_routing[u]))
                 .width(110.0)
-                .selected_text(routing_name(s.fx_routing[u]))
-                .show_ui(ui, |ui| {
+                .show(ui, |ui| {
                     for r in [FxRouting::Send, FxRouting::Insert, FxRouting::PostFader] {
                         ui.selectable_value(&mut s.fx_routing[u], r, routing_name(r))
                             .on_hover_text(routing_help(r));

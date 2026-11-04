@@ -9,6 +9,7 @@ use crate::fx_view::resolution_label;
 use crate::i18n::tr;
 use crate::kits::{EXTENSION, Kit, KitLibrary, OLD_EXTENSION};
 use crate::modal::{self, Ask};
+use crate::select::select;
 use crate::{theme, widgets};
 
 #[derive(Debug, Default)]
@@ -78,17 +79,14 @@ impl Prefs {
                     .as_ref()
                     .and_then(|id| kits.find(id))
                     .map_or_else(|| "—".to_owned(), |k| k.kit.name.clone());
-                egui::ComboBox::from_id_salt("kit-pick")
-                    .width(180.0)
-                    .selected_text(current)
-                    .show_ui(ui, |ui| {
-                        for k in kits.kits() {
-                            let on = self.kit.selected.as_ref() == Some(&k.id);
-                            if ui.selectable_label(on, &k.kit.name).clicked() {
-                                self.kit.selected = Some(k.id.clone());
-                            }
+                select("kit-pick", current).width(180.0).show(ui, |ui| {
+                    for k in kits.kits() {
+                        let on = self.kit.selected.as_ref() == Some(&k.id);
+                        if ui.selectable_label(on, &k.kit.name).clicked() {
+                            self.kit.selected = Some(k.id.clone());
                         }
-                    });
+                    }
+                });
                 if ui.button(tr("New")).clicked() {
                     self.kit.selected = Some(kits.create("New kit")?);
                 }
@@ -269,16 +267,17 @@ impl Prefs {
                         steps.bits = 0;
                     }
                     let mut per_beat = steps.per_beat;
-                    egui::ComboBox::from_id_salt(("kit-resolution", &sound.file, n))
-                        .width(56.0)
-                        .selected_text(resolution_label(per_beat))
-                        .show_ui(ui, |ui| {
-                            for r in RESOLUTIONS {
-                                ui.selectable_value(&mut per_beat, r, resolution_label(r));
-                            }
-                        })
-                        .response
-                        .on_hover_text(tr("Steps of a beat: the grid and what ROLL repeats at"));
+                    select(
+                        ("kit-resolution", &sound.file, n),
+                        resolution_label(per_beat),
+                    )
+                    .width(56.0)
+                    .options(
+                        ui,
+                        &mut per_beat,
+                        RESOLUTIONS.map(|r| (r, resolution_label(r))),
+                    )
+                    .on_hover_text(tr("Steps of a beat: the grid and what ROLL repeats at"));
                     if per_beat != steps.per_beat {
                         *steps = steps.rescaled(per_beat);
                     }

@@ -1,9 +1,10 @@
 use backspn_formats::nml::MusicalKey;
 use backspn_library::TrackRow;
-use eframe::egui::{self, ComboBox, DragValue, RichText, Ui};
+use eframe::egui::{self, DragValue, RichText, Ui};
 
 use crate::columns::{stars, track_colour};
 use crate::i18n::tr;
+use crate::select::select;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TrackFilter {
@@ -50,20 +51,15 @@ impl TrackFilter {
                 .key
                 .and_then(MusicalKey::from_value)
                 .map_or_else(|| "Any".to_owned(), |k| format!("{k} ({})", k.open_key()));
-            ComboBox::from_id_salt("filter-key")
-                .width(90.0)
-                .selected_text(shown)
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.key, None, tr("Any"));
-                    for v in 0..24u8 {
-                        let k = MusicalKey::from_value(v).expect("in range");
-                        ui.selectable_value(
-                            &mut self.key,
-                            Some(v),
-                            format!("{k} ({})", k.open_key()),
-                        );
-                    }
-                });
+            let keys = (0..24u8).map(|v| {
+                let k = MusicalKey::from_value(v).expect("in range");
+                (Some(v), format!("{k} ({})", k.open_key()))
+            });
+            select("filter-key", shown).width(90.0).options(
+                ui,
+                &mut self.key,
+                std::iter::once((None, tr("Any").to_owned())).chain(keys),
+            );
             ui.separator();
             ui.label(tr("Rating"));
             for n in (0..=5u8).rev() {

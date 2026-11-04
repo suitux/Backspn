@@ -12,12 +12,13 @@ use backspn_engine::{
 };
 use backspn_formats::nml::{SampleSet, SetCell, SetSlot};
 use backspn_library::{SampleSetRow, TrackRow};
-use eframe::egui::{self, Align, Color32, ComboBox, Layout, RichText, Sense, Ui, vec2};
+use eframe::egui::{self, Align, Color32, Layout, RichText, Sense, Ui, vec2};
 use serde::{Deserialize, Serialize};
 
 use crate::browser::{SetDrag, TrackDrag};
 use crate::i18n::tr;
 use crate::screen::{SampleScreen, ScreenCell, SlotOverlay};
+use crate::select::select;
 use crate::{theme, widgets};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -631,10 +632,9 @@ impl SampleView {
                 ui.label(RichText::new("•").color(t.accent));
             }
             let mut load = None;
-            ComboBox::from_id_salt(("sample_deck set", self.deck))
-                .selected_text(tr("Load…"))
+            select(("sample_deck set", self.deck), tr("Load…"))
                 .width(80.0)
-                .show_ui(ui, |ui| {
+                .show(ui, |ui| {
                     for (id, title) in &self.library_sets {
                         if ui.selectable_label(false, title).clicked() {
                             load = Some(*id);
@@ -708,14 +708,13 @@ impl SampleView {
                 }));
             }
             let mut index = self.set.quant_index as usize;
-            ComboBox::from_id_salt(("sample_deck quant", self.deck))
-                .selected_text(quantize_label(index))
+            select(("sample_deck quant", self.deck), quantize_label(index))
                 .width(52.0)
-                .show_ui(ui, |ui| {
-                    for i in 0..QUANTIZE_BEATS.len() {
-                        ui.selectable_value(&mut index, i, quantize_label(i));
-                    }
-                });
+                .options(
+                    ui,
+                    &mut index,
+                    (0..QUANTIZE_BEATS.len()).map(|i| (i, quantize_label(i))),
+                );
             if index != self.set.quant_index as usize {
                 self.set.quant_index = index as u32;
                 self.modified = true;
@@ -874,14 +873,13 @@ impl SampleView {
                 self.alter_size(slot, None, out);
             }
             let mut step = self.size_steps[slot];
-            ComboBox::from_id_salt(("sample_deck size", self.deck, slot))
-                .selected_text(size_label(step))
+            select(("sample_deck size", self.deck, slot), size_label(step))
                 .width(56.0)
-                .show_ui(ui, |ui| {
-                    for s in 0..backspn_engine::SAMPLE_SIZE_STEPS {
-                        ui.selectable_value(&mut step, s, size_label(s));
-                    }
-                });
+                .options(
+                    ui,
+                    &mut step,
+                    (0..backspn_engine::SAMPLE_SIZE_STEPS).map(|s| (s, size_label(s))),
+                );
             if step != self.size_steps[slot] {
                 self.set_size_step(slot, step, out);
             }

@@ -2,6 +2,7 @@ use backspn_engine::{Command, EngineState, MAX_CLOCK_BPM, MIN_CLOCK_BPM, SyncCom
 use eframe::egui::{self, Align, DragValue, FontId, Layout, RichText, TextStyle, Ui, vec2};
 
 use crate::i18n::tr;
+use crate::select::select;
 use crate::{App, key_view, midi_clock, suggest_panel, theme, widgets};
 
 const GLOBAL_BLOCK: f32 = 380.0;
@@ -86,10 +87,9 @@ impl App {
         );
         let mut picked = None;
         let mut manage = false;
-        egui::ComboBox::from_id_salt("layout-selector")
-            .selected_text(shown)
+        select("layout-selector", shown)
             .width(150.0)
-            .show_ui(ui, |ui| {
+            .show(ui, |ui| {
                 for (i, layout) in self.settings.layouts.iter().enumerate() {
                     if ui
                         .selectable_label(active == Some(i), &layout.name)

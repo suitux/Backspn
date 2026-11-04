@@ -3,9 +3,10 @@ use backspn_control::output::OutMapping;
 use backspn_control::relative::Encoder;
 use backspn_control::state::{Control as StateControl, StateCondition};
 use backspn_control::{Action, Input, Interaction, Mapping, MidiKind, deck_letter, midi};
-use eframe::egui::{self, ComboBox, RichText, Ui};
+use eframe::egui::{self, RichText, Ui};
 
 use crate::i18n::tr;
+use crate::select::select;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum ControllerType {
@@ -169,31 +170,27 @@ pub(super) fn assignment(ui: &mut Ui, action: &mut Action, focus: &mut bool) -> 
         ui.label(tr("Assignment"));
         let label = super::assignment_label(*action, *focus);
         if action.has_deck() {
-            ComboBox::from_id_salt("cm-assignment")
-                .selected_text(label)
-                .show_ui(ui, |ui| {
-                    if ui.selectable_label(*focus, "Device Target").clicked() {
-                        *focus = true;
+            select("cm-assignment", label).show(ui, |ui| {
+                if ui.selectable_label(*focus, "Device Target").clicked() {
+                    *focus = true;
+                }
+                for d in 0..backspn_engine::DECKS {
+                    let current = !*focus && *action == action.on_deck(d);
+                    if ui
+                        .selectable_label(current, format!("Deck {}", deck_letter(d)))
+                        .clicked()
+                    {
+                        *focus = false;
+                        *action = action.on_deck(d);
                     }
-                    for d in 0..backspn_engine::DECKS {
-                        let current = !*focus && *action == action.on_deck(d);
-                        if ui
-                            .selectable_label(current, format!("Deck {}", deck_letter(d)))
-                            .clicked()
-                        {
-                            *focus = false;
-                            *action = action.on_deck(d);
-                        }
-                    }
-                });
+                }
+            });
         } else if let Some(unit) = action.unit_mut() {
-            ComboBox::from_id_salt("cm-assignment")
-                .selected_text(label)
-                .show_ui(ui, |ui| {
-                    for u in 0..backspn_engine::DECKS {
-                        ui.selectable_value(unit, u, format!("FX Unit {}", u + 1));
-                    }
-                });
+            select("cm-assignment", label).options(
+                ui,
+                unit,
+                (0..backspn_engine::DECKS).map(|u| (u, format!("FX Unit {}", u + 1))),
+            );
         } else {
             ui.label(label);
         }
@@ -213,13 +210,11 @@ pub(super) fn in_details(ui: &mut Ui, m: &mut Mapping) -> bool {
         ui.label(tr("Type of Controller"));
         if ControllerType::editable(m) {
             let mut chosen = kind;
-            ComboBox::from_id_salt("cm-type")
-                .selected_text(kind.label())
-                .show_ui(ui, |ui| {
-                    for t in ControllerType::ALL {
-                        ui.selectable_value(&mut chosen, t, t.label());
-                    }
-                });
+            select("cm-type", kind.label()).options(
+                ui,
+                &mut chosen,
+                ControllerType::ALL.map(|t| (t, t.label())),
+            );
             chosen.apply(m);
         } else {
             ui.label(kind.label());
@@ -230,13 +225,13 @@ pub(super) fn in_details(ui: &mut Ui, m: &mut Mapping) -> bool {
         ui.label(tr("Interaction Mode"));
         let mode = Mode::of(m);
         let mut chosen = mode;
-        ComboBox::from_id_salt("cm-mode")
-            .selected_text(mode.label())
-            .show_ui(ui, |ui| {
-                for o in Mode::offered(kind, m.action) {
-                    ui.selectable_value(&mut chosen, o, o.label());
-                }
-            });
+        select("cm-mode", mode.label()).options(
+            ui,
+            &mut chosen,
+            Mode::offered(kind, m.action)
+                .into_iter()
+                .map(|o| (o, o.label())),
+        );
         if chosen != mode {
             chosen.apply(m);
         }
@@ -274,14 +269,12 @@ fn encoder_options(ui: &mut Ui, m: &mut Mapping) {
     ui.horizontal(|ui| {
         ui.label(RichText::new(tr("Rotary Encoder")).weak());
         ui.label(tr("Enc.-Mode"));
-        ComboBox::from_id_salt("cm-encoder")
-            .selected_text(label(m.encoder))
-            .show_ui(ui, |ui| {
-                for e in [Encoder::TwosComplement, Encoder::Offset, Encoder::Rotary] {
-                    ui.selectable_value(&mut m.encoder, e, label(e));
-                }
-            })
-            .response
+        select("cm-encoder", label(m.encoder))
+            .options(
+                ui,
+                &mut m.encoder,
+                [Encoder::TwosComplement, Encoder::Offset, Encoder::Rotary].map(|e| (e, label(e))),
+            )
             .on_hover_text(tr("How the encoder sends its turns"));
         ui.label(tr("Rotary Sensitivity"));
         ui.add(
@@ -438,20 +431,18 @@ fn state_editor(ui: &mut Ui, c: &mut StateCondition) {
         (Some(d), false) => deck_letter(d).to_string(),
     };
     let unit = c.control.on_unit();
-    ComboBox::from_id_salt("channel")
-        .selected_text(channel_label(c.channel, unit))
-        .show_ui(ui, |ui| {
-            for channel in std::iter::once(None).chain((0..4).map(Some)) {
-                ui.selectable_value(&mut c.channel, channel, channel_label(channel, unit));
-            }
-        });
-    ComboBox::from_id_salt("control")
-        .selected_text(c.control.label())
-        .show_ui(ui, |ui| {
-            for control in StateControl::all() {
-                ui.selectable_value(&mut c.control, control, control.label());
-            }
-        });
+    select("channel", channel_label(c.channel, unit)).options(
+        ui,
+        &mut c.channel,
+        std::iter::once(None)
+            .chain((0..4).map(Some))
+            .map(|channel| (channel, channel_label(channel, unit))),
+    );
+    select("control", c.control.label()).options(
+        ui,
+        &mut c.control,
+        StateControl::all().map(|control| (control, control.label())),
+    );
     let (lo, hi) = c.control.range();
     ui.label("=");
     ui.add(egui::DragValue::new(&mut c.value).range(lo..=hi));

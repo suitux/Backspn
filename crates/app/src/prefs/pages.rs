@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use backspn_engine::{EqModel, FilterModel, LimiterModel, MixerFx, StreamInfo};
-use eframe::egui::{self, ComboBox, RichText, Ui};
+use eframe::egui::{self, RichText, Ui};
 
 use crate::columns::{BrowserColumn, ColumnLayout};
 use crate::deck_view::TEMPO_RANGES;
@@ -12,6 +12,7 @@ use crate::waveform::{WaveMode, WavePalette};
 use super::search;
 use super::settings::settings_path;
 use super::{Monitor, Prefs, RecordingSource, Settings};
+use crate::select::select;
 
 pub(super) fn input_routing(ui: &mut Ui, s: &mut Settings, audio: Option<&StreamInfo>) {
     let inputs = audio.map_or(0, |a| a.inputs);
@@ -29,10 +30,9 @@ pub(super) fn input_routing(ui: &mut Ui, s: &mut Settings, audio: Option<&Stream
                         |c| format!("{}: Input {}", c + 1, c + 1),
                     )
                 };
-                ComboBox::from_id_salt((id, side))
+                select((id, side), format!("{name} {}", label(current)))
                     .width(110.0)
-                    .selected_text(format!("{name} {}", label(current)))
-                    .show_ui(ui, |ui| {
+                    .show(ui, |ui| {
                         for c in std::iter::once(None).chain((0..inputs).map(Some)) {
                             if ui.selectable_label(current == c, label(c)).clicked() {
                                 *routing = match (c, *routing) {
@@ -108,20 +108,20 @@ pub fn monitor_combo(ui: &mut Ui, s: &mut Settings, channels: u16) -> bool {
         Monitor::Channels(l, r) => format!("{}/{}", l + 1, r + 1),
     };
     let mut changed = false;
-    ComboBox::from_id_salt("monitor")
+    let mut options = vec![Monitor::Auto, Monitor::None];
+    options.extend(
+        (2..channels.saturating_sub(1))
+            .step_by(2)
+            .map(|l| Monitor::Channels(l, l + 1)),
+    );
+    changed |= select("monitor", label(s.monitor))
         .width(200.0)
-        .selected_text(label(s.monitor))
-        .show_ui(ui, |ui| {
-            let mut options = vec![Monitor::Auto, Monitor::None];
-            options.extend(
-                (2..channels.saturating_sub(1))
-                    .step_by(2)
-                    .map(|l| Monitor::Channels(l, l + 1)),
-            );
-            for m in options {
-                changed |= ui.selectable_value(&mut s.monitor, m, label(m)).changed();
-            }
-        });
+        .options(
+            ui,
+            &mut s.monitor,
+            options.into_iter().map(|m| (m, label(m))),
+        )
+        .changed();
     changed
 }
 
@@ -163,14 +163,13 @@ fn external_outputs(ui: &mut Ui, s: &mut Settings, channels: u16) {
         .show(ui, |ui| {
             for (title, pair) in rows {
                 search::title(ui, &title);
-                ComboBox::from_id_salt(&title)
-                    .width(120.0)
-                    .selected_text(pair_label(*pair))
-                    .show_ui(ui, |ui| {
-                        for option in output_pairs(channels) {
-                            ui.selectable_value(pair, option, pair_label(option));
-                        }
-                    });
+                select(&title, pair_label(*pair)).width(120.0).options(
+                    ui,
+                    pair,
+                    output_pairs(channels)
+                        .into_iter()
+                        .map(|o| (o, pair_label(o))),
+                );
                 ui.end_row();
             }
         });
@@ -249,13 +248,11 @@ pub(super) fn analyze_options(ui: &mut Ui, s: &mut Settings) {
     ui.add_space(8.0);
     ui.horizontal(|ui| {
         search::title(ui, "BPM range");
-        ComboBox::from_id_salt("bpm-range")
-            .selected_text(bpm_range_name(s.bpm_range_mode))
-            .show_ui(ui, |ui| {
-                for mode in [9, 0, 1, 2, 3, 4, 5, 6, 7, 8] {
-                    ui.selectable_value(&mut s.bpm_range_mode, mode, bpm_range_name(mode));
-                }
-            });
+        select("bpm-range", bpm_range_name(s.bpm_range_mode)).options(
+            ui,
+            &mut s.bpm_range_mode,
+            [9, 0, 1, 2, 3, 4, 5, 6, 7, 8].map(|m| (m, bpm_range_name(m))),
+        );
     });
 }
 
@@ -266,13 +263,11 @@ pub(super) fn transport(ui: &mut Ui, s: &mut Settings, s4: bool) {
         .spacing([12.0, 8.0])
         .show(ui, |ui| {
             search::title(ui, "Default tempo range");
-            ComboBox::from_id_salt("range")
-                .selected_text(format!("±{:.0}%", s.tempo_range * 100.0))
-                .show_ui(ui, |ui| {
-                    for r in TEMPO_RANGES {
-                        ui.selectable_value(&mut s.tempo_range, r, format!("±{:.0}%", r * 100.0));
-                    }
-                });
+            select("range", format!("±{:.0}%", s.tempo_range * 100.0)).options(
+                ui,
+                &mut s.tempo_range,
+                TEMPO_RANGES.map(|r| (r, format!("±{:.0}%", r * 100.0))),
+            );
             ui.end_row();
             search::title(ui, "Tempo bend sensitivity");
             ui.add(egui::Slider::new(&mut s.bend_sensitivity, 0.0..=100.0).suffix("%"));
@@ -282,24 +277,19 @@ pub(super) fn transport(ui: &mut Ui, s: &mut Settings, s4: bool) {
                 .on_hover_text(tr("When the time left starts flashing red"));
             ui.end_row();
             search::title(ui, "Keylock range");
-            ComboBox::from_id_salt("keylock range")
-                .selected_text(if s.keylock_scratch_range {
-                    "Scratch"
-                } else {
-                    "Normal"
-                })
-                .show_ui(ui, |ui| {
-                    ui.selectable_value(
-                        &mut s.keylock_scratch_range,
-                        false,
-                        tr("Normal (up to 2×)"),
-                    );
-                    ui.selectable_value(
-                        &mut s.keylock_scratch_range,
-                        true,
-                        tr("Scratch (0.7–1.5×)"),
-                    );
-                });
+            let shown = if s.keylock_scratch_range {
+                "Scratch"
+            } else {
+                "Normal"
+            };
+            select("keylock range", shown).options(
+                ui,
+                &mut s.keylock_scratch_range,
+                [
+                    (false, tr("Normal (up to 2×)")),
+                    (true, tr("Scratch (0.7–1.5×)")),
+                ],
+            );
             ui.end_row();
             search::title(ui, "Slip on pause");
             crate::widgets::check(
@@ -449,14 +439,12 @@ fn eq_model_name(model: EqModel) -> &'static str {
 
 pub(super) fn eq_model(ui: &mut Ui, s: &mut Settings) {
     search::heading(ui, "EQ");
-    ComboBox::from_id_salt("eq-model")
-        .selected_text(eq_model_name(s.eq_model))
-        .show_ui(ui, |ui| {
-            for (model, name, hover) in EQ_MODELS {
-                ui.selectable_value(&mut s.eq_model, model, name)
-                    .on_hover_text(hover);
-            }
-        });
+    select("eq-model", eq_model_name(s.eq_model)).show(ui, |ui| {
+        for (model, name, hover) in EQ_MODELS {
+            ui.selectable_value(&mut s.eq_model, model, name)
+                .on_hover_text(hover);
+        }
+    });
 }
 
 pub(super) fn headroom(ui: &mut Ui, s: &mut Settings) {
@@ -575,13 +563,11 @@ pub(super) fn mixer_fx_slots(ui: &mut Ui, s: &mut Settings) {
         .show(ui, |ui| {
             for (n, slot) in s.mixer_fx_slots.iter_mut().enumerate() {
                 search::title(ui, &format!("Mixer FX slot {}", n + 1));
-                egui::ComboBox::from_id_salt(("mixer-fx-slot", n))
-                    .selected_text(slot.name())
-                    .show_ui(ui, |ui| {
-                        for fx in MixerFx::ALL {
-                            ui.selectable_value(slot, fx, fx.name());
-                        }
-                    });
+                select(("mixer-fx-slot", n), slot.name()).options(
+                    ui,
+                    slot,
+                    MixerFx::ALL.map(|fx| (fx, fx.name())),
+                );
                 ui.end_row();
             }
         });
@@ -687,10 +673,9 @@ pub(super) fn palette_select(ui: &mut Ui, s: &mut Settings) {
     ui.horizontal(|ui| {
         swatch(ui, s.wave_palette);
         let mut chosen = s.wave_palette;
-        ComboBox::from_id_salt("palette")
-            .selected_text(s.wave_palette.name())
+        select("palette", s.wave_palette.name())
             .width(130.0)
-            .show_ui(ui, |ui| {
+            .show(ui, |ui| {
                 for palette in WavePalette::ALL {
                     ui.horizontal(|ui| {
                         swatch(ui, palette);
@@ -909,17 +894,14 @@ pub(super) fn sample_decks(ui: &mut Ui, s: &mut Settings) {
 pub fn theme_combo(ui: &mut Ui, s: &mut Settings) -> bool {
     theme_swatch(ui, s.theme);
     let mut chosen = s.theme;
-    ComboBox::from_id_salt("theme")
-        .selected_text(s.theme.name())
-        .width(130.0)
-        .show_ui(ui, |ui| {
-            for id in ThemeId::ALL {
-                ui.horizontal(|ui| {
-                    theme_swatch(ui, id);
-                    ui.selectable_value(&mut chosen, id, id.name());
-                });
-            }
-        });
+    select("theme", s.theme.name()).width(130.0).show(ui, |ui| {
+        for id in ThemeId::ALL {
+            ui.horizontal(|ui| {
+                theme_swatch(ui, id);
+                ui.selectable_value(&mut chosen, id, id.name());
+            });
+        }
+    });
     let changed = chosen != s.theme;
     s.theme = chosen;
     changed
@@ -975,13 +957,11 @@ pub(super) fn global_settings(
         .on_hover_text(tr("Enables or disables the tooltips"));
     ui.horizontal(|ui| {
         search::title(ui, "Language");
-        ComboBox::from_id_salt("language")
-            .selected_text(s.language.name())
-            .show_ui(ui, |ui| {
-                for l in crate::i18n::Language::ALL {
-                    ui.selectable_value(&mut s.language, l, l.name());
-                }
-            });
+        select("language", s.language.name()).options(
+            ui,
+            &mut s.language,
+            crate::i18n::Language::ALL.map(|l| (l, l.name())),
+        );
     })
     .response
     .on_hover_text(tr("The language of the app"));
@@ -1058,24 +1038,23 @@ pub fn tags_serialization(ui: &mut Ui, s: &mut Settings) {
     ui.horizontal(|ui| {
         search::title(ui, "Tags");
         let write = s.tags_serialization == 2;
-        ComboBox::from_id_salt("tags-serialization")
-            .selected_text(tr(if write {
-                "Write all tags to files"
-            } else {
-                "Do not write any tags to files"
-            }))
-            .show_ui(ui, |ui| {
-                ui.selectable_value(
-                    &mut s.tags_serialization,
-                    0,
-                    tr("Do not write any tags to files"),
-                )
-                .on_hover_text(tr("The music files are never changed"));
-                ui.selectable_value(&mut s.tags_serialization, 2, tr("Write all tags to files"))
-                    .on_hover_text(tr(
-                        "Edits, ratings and analysis results are written into the files' tags",
-                    ));
-            });
+        let shown = tr(if write {
+            "Write all tags to files"
+        } else {
+            "Do not write any tags to files"
+        });
+        select("tags-serialization", shown).show(ui, |ui| {
+            ui.selectable_value(
+                &mut s.tags_serialization,
+                0,
+                tr("Do not write any tags to files"),
+            )
+            .on_hover_text(tr("The music files are never changed"));
+            ui.selectable_value(&mut s.tags_serialization, 2, tr("Write all tags to files"))
+                .on_hover_text(tr(
+                    "Edits, ratings and analysis results are written into the files' tags",
+                ));
+        });
     });
 }
 
@@ -1156,37 +1135,31 @@ impl Prefs {
             .spacing([12.0, 8.0])
             .show(ui, |ui| {
                 search::title(ui, "Key displayed in the app");
-                ComboBox::from_id_salt("key-notation")
-                    .selected_text(key_notation_name(s.key_notation))
-                    .show_ui(ui, |ui| {
-                        for v in [2, 1, 0] {
-                            ui.selectable_value(&mut s.key_notation, v, key_notation_name(v));
-                        }
-                    });
+                select("key-notation", key_notation_name(s.key_notation)).options(
+                    ui,
+                    &mut s.key_notation,
+                    [2, 1, 0].map(|v| (v, key_notation_name(v))),
+                );
                 ui.end_row();
                 search::title(ui, "Key written to file tags").on_hover_text(tr(
                     "The notation written into the files, for other applications",
                 ));
-                ComboBox::from_id_salt("key-notation-exported")
-                    .selected_text(key_notation_name(s.key_notation_exported))
-                    .show_ui(ui, |ui| {
-                        for v in [2, 1, 0] {
-                            ui.selectable_value(
-                                &mut s.key_notation_exported,
-                                v,
-                                key_notation_name(v),
-                            );
-                        }
-                    });
+                select(
+                    "key-notation-exported",
+                    key_notation_name(s.key_notation_exported),
+                )
+                .options(
+                    ui,
+                    &mut s.key_notation_exported,
+                    [2, 1, 0].map(|v| (v, key_notation_name(v))),
+                );
                 ui.end_row();
                 search::title(ui, "Key highlighting");
-                ComboBox::from_id_salt("key-highlight")
-                    .selected_text(s.key_highlight.name())
-                    .show_ui(ui, |ui| {
-                        for h in crate::key_view::Highlight::ALL {
-                            ui.selectable_value(&mut s.key_highlight, h, h.name());
-                        }
-                    });
+                select("key-highlight", s.key_highlight.name()).options(
+                    ui,
+                    &mut s.key_highlight,
+                    crate::key_view::Highlight::ALL.map(|h| (h, h.name())),
+                );
                 ui.end_row();
                 search::title(ui, "List row height");
                 ui.add(egui::Slider::new(&mut s.row_height, 18.0..=48.0).suffix(" pt"));
@@ -1368,17 +1341,15 @@ pub(super) fn mix_recorder(ui: &mut Ui, s: &mut Settings) {
     search::heading(ui, "Source");
     ui.horizontal(|ui| {
         search::title(ui, "Mix Recorder Source:");
-        ComboBox::from_id_salt("recording-source")
-            .selected_text(tr(recording_source_name(s.recording_source)))
-            .show_ui(ui, |ui| {
-                for source in RECORDING_SOURCES {
-                    ui.selectable_value(
-                        &mut s.recording_source,
-                        source,
-                        tr(recording_source_name(source)),
-                    );
-                }
-            });
+        select(
+            "recording-source",
+            tr(recording_source_name(s.recording_source)),
+        )
+        .options(
+            ui,
+            &mut s.recording_source,
+            RECORDING_SOURCES.map(|source| (source, tr(recording_source_name(source)))),
+        );
     });
     if s.recording_source == RecordingSource::Internal && s.external_mixer.on {
         ui.label(
@@ -1505,13 +1476,11 @@ fn auto_cue(ui: &mut Ui, s: &mut Settings) {
     });
     ui.horizontal(|ui| {
         search::title(ui, "Auto Cue level:");
-        egui::ComboBox::from_id_salt("auto-cue-level")
-            .selected_text(format!("{} dB", s.auto_cue_level_db))
-            .show_ui(ui, |ui| {
-                for db in crate::auto_cue::LEVELS_DB {
-                    ui.selectable_value(&mut s.auto_cue_level_db, db, format!("{db} dB"));
-                }
-            });
+        select("auto-cue-level", format!("{} dB", s.auto_cue_level_db)).options(
+            ui,
+            &mut s.auto_cue_level_db,
+            crate::auto_cue::LEVELS_DB.map(|db| (db, format!("{db} dB"))),
+        );
     });
     ui.label(
         RichText::new(tr(
