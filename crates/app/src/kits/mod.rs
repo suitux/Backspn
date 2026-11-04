@@ -299,8 +299,23 @@ impl KitLibrary {
     }
 
     pub fn install_factory(&mut self, replace: bool) -> usize {
+        self.install_matching(|_| true, replace)
+    }
+
+    /// Installs the factory kits added after generation `seen` (leaving any
+    /// folder already there alone) and returns the latest generation.
+    pub fn install_new_factory(&mut self, seen: u8) -> u8 {
+        self.install_matching(|f| f.since > seen, false);
+        factory::GENERATION
+    }
+
+    fn install_matching(
+        &mut self,
+        pick: impl Fn(&factory::FactoryKit) -> bool,
+        replace: bool,
+    ) -> usize {
         let mut installed = 0;
-        for f in &factory::KITS {
+        for f in factory::KITS.iter().filter(|f| pick(f)) {
             if !replace && self.folder(f.id).exists() {
                 continue;
             }
@@ -480,6 +495,26 @@ mod tests {
         );
         assert_eq!(lib.install_factory(true), factory::KITS.len());
         assert_eq!(lib.find(id).unwrap().kit.name, factory::KITS[0].name);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn later_factory_kits_reach_existing_users_once() {
+        let dir = temp_dir("factory-new");
+        let mut lib = KitLibrary::open(dir.join("Kits"));
+        let first: Vec<_> = factory::KITS.iter().filter(|f| f.since == 1).collect();
+        for f in &first {
+            lib.install_one(f).unwrap();
+        }
+        lib.delete(first[0].id).unwrap();
+        assert_eq!(lib.install_new_factory(1), factory::GENERATION);
+        assert!(lib.find(first[0].id).is_none(), "deleted kits stay deleted");
+        for f in factory::KITS.iter().filter(|f| f.since > 1) {
+            assert_eq!(lib.find(f.id).unwrap().kit, f.kit());
+        }
+        let count = lib.kits().len();
+        lib.install_new_factory(factory::GENERATION);
+        assert_eq!(lib.kits().len(), count);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

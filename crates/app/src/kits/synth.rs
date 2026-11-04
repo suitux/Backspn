@@ -14,6 +14,7 @@ const METAL: [f32; 6] = [263.0, 400.0, 421.0, 474.0, 587.0, 845.0];
 pub enum Style {
     Analog,
     Club,
+    Remix,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -89,6 +90,21 @@ struct Snare {
     snap: f32,
     body: f32,
     thwack: f32,
+    seconds: f32,
+}
+
+struct Clap {
+    center: f32,
+    width: f32,
+    body_center: f32,
+    body: f32,
+    bursts: usize,
+    gap: f32,
+    burst: f32,
+    tail: f32,
+    room: f32,
+    room_decay: f32,
+    room_center: f32,
     seconds: f32,
 }
 
@@ -169,6 +185,34 @@ fn clap(center: f32, tail: f32) -> Vec<f32> {
         .collect()
 }
 
+/// Hand claps a few milliseconds apart over a narrow body resonance, then a
+/// short tail and a darker, longer room.
+fn layered_clap(p: &Clap) -> Vec<f32> {
+    let mut noise = Noise(0x00c1_a900);
+    let mut band = Band::new(p.center / p.width, p.center * p.width);
+    let mut body = Band::new(p.body_center / 1.15, p.body_center * 1.15);
+    let mut room = Band::new(p.room_center / 1.6, p.room_center * 1.6);
+    let tail_at = p.bursts as f32 * p.gap;
+    times(p.seconds)
+        .map(|t| {
+            let bursts = (0..p.bursts)
+                .map(|k| k as f32 * p.gap)
+                .filter(|&at| t >= at)
+                .map(|at| decay(t - at, p.burst))
+                .fold(0.0f32, f32::max);
+            let after = t - tail_at;
+            let (tail, room_level) = if after >= 0.0 {
+                (decay(after, p.tail), decay(after, p.room_decay) * p.room)
+            } else {
+                (0.0, 0.0)
+            };
+            let white = noise.next();
+            let hit = band.tick(white) + body.tick(white) * p.body;
+            hit * bursts.max(tail) + room.tick(white) * room_level
+        })
+        .collect()
+}
+
 fn metal(p: &Metal) -> Vec<f32> {
     let mut noise = Noise(0x5eed_0001);
     let mut band = Band::new(p.band.0, p.band.1);
@@ -221,9 +265,48 @@ fn finish(mut samples: Vec<f32>, drive: f32) -> Vec<f32> {
     samples
 }
 
+const REMIX_KICK: Drum = Drum {
+    start: 308.5,
+    end: 49.6,
+    sweep: 0.0282,
+    decay: 0.1107,
+    seconds: 0.43,
+    drive: 1.836,
+    click: 0.698,
+};
+
+const REMIX_SNARE: Snare = Snare {
+    tones: [161.6, 245.3],
+    tone_decay: 0.024,
+    noise_decay: 0.0718,
+    noise: 0.872,
+    band: (2194.0, 9414.0),
+    snap: 0.0,
+    body: 3.505,
+    thwack: 0.375,
+    seconds: 0.455,
+};
+
+const REMIX_CLAP: Clap = Clap {
+    center: 3097.0,
+    width: 3.368,
+    body_center: 1399.0,
+    body: 5.706,
+    bursts: 4,
+    gap: 0.011_67,
+    burst: 0.016,
+    tail: 0.029_15,
+    room: 0.631,
+    room_decay: 0.1852,
+    room_center: 652.6,
+    seconds: 0.92,
+};
+
 pub fn render(style: Style, voice: Voice) -> Vec<f32> {
     let analog = style == Style::Analog;
+    let remix = style == Style::Remix;
     let samples = match voice {
+        Voice::Kick if remix => drum(&REMIX_KICK),
         Voice::Kick if analog => drum(&Drum {
             start: 160.0,
             end: 48.0,
@@ -260,6 +343,7 @@ pub fn render(style: Style, voice: Voice) -> Vec<f32> {
             drive: 1.4,
             click: 0.15,
         }),
+        Voice::Snare if remix => snare(&REMIX_SNARE),
         Voice::Snare if analog => snare(&Snare {
             tones: [175.0, 320.0],
             tone_decay: 0.08,
@@ -282,6 +366,7 @@ pub fn render(style: Style, voice: Voice) -> Vec<f32> {
             thwack: 1.2,
             seconds: 0.6,
         }),
+        Voice::Clap if remix => layered_clap(&REMIX_CLAP),
         Voice::Clap if analog => clap(1200.0, 0.1),
         Voice::Clap => clap(1500.0, 0.16),
         Voice::ClosedHat | Voice::OpenHat | Voice::Ride => metal(&metal_params(style, voice)),
@@ -299,9 +384,13 @@ fn drive(style: Style, voice: Voice) -> f32 {
         Voice::ClosedHat | Voice::OpenHat => 1.6,
         Voice::Ride => 1.3,
     };
-    match style {
-        Style::Analog => base,
-        Style::Club => base * 1.25,
+    match (style, voice) {
+        (Style::Analog, _) => base,
+        (Style::Remix, Voice::Kick) => 0.836,
+        (Style::Remix, Voice::Snare) => 3.33,
+        (Style::Remix, Voice::Clap) => 1.085,
+        (Style::Remix, Voice::ClosedHat | Voice::OpenHat) => 0.2,
+        (Style::Club | Style::Remix, _) => base * 1.25,
     }
 }
 
@@ -309,14 +398,16 @@ fn metal_params(style: Style, voice: Voice) -> Metal {
     let (scale, metal, noise, band) = match style {
         Style::Analog => (1.0, 1.0, 0.35, (6500.0, 17_000.0)),
         Style::Club => (1.3, 0.6, 0.8, (7500.0, 19_000.0)),
+        Style::Remix => (9.934, 1.303, 2.208, (6394.0, 20_300.0)),
     };
     let (decay, seconds, band) = match (voice, style) {
         (Voice::ClosedHat, Style::Analog) => (0.04, 0.25, band),
         (Voice::ClosedHat, Style::Club) => (0.05, 0.25, band),
-        (Voice::OpenHat, Style::Analog) => (0.3, 1.0, band),
+        (Voice::OpenHat, Style::Analog | Style::Remix) => (0.3, 1.0, band),
         (Voice::OpenHat, Style::Club) => (0.35, 1.0, band),
+        (Voice::ClosedHat, Style::Remix) => (0.0592, 0.2885, band),
         (_, Style::Analog) => (0.9, 2.5, (4500.0, 14_000.0)),
-        (_, Style::Club) => (1.1, 2.5, (6000.0, 16_000.0)),
+        (_, Style::Club | Style::Remix) => (1.1, 2.5, (6000.0, 16_000.0)),
     };
     Metal {
         scale,
@@ -338,7 +429,7 @@ mod tests {
 
     #[test]
     fn every_sound_is_finite_audible_and_within_full_scale() {
-        for style in [Style::Analog, Style::Club] {
+        for style in [Style::Analog, Style::Club, Style::Remix] {
             for voice in Voice::ALL {
                 let s = render(style, voice);
                 assert!(!s.is_empty(), "{style:?} {voice:?}");
@@ -365,6 +456,23 @@ mod tests {
         for voice in Voice::ALL {
             assert_ne!(
                 render(Style::Analog, voice),
+                render(Style::Club, voice),
+                "{voice:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn remix_has_its_own_kick_snare_clap_and_hats() {
+        for voice in [
+            Voice::Kick,
+            Voice::Snare,
+            Voice::Clap,
+            Voice::ClosedHat,
+            Voice::OpenHat,
+        ] {
+            assert_ne!(
+                render(Style::Remix, voice),
                 render(Style::Club, voice),
                 "{voice:?}"
             );

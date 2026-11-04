@@ -5,18 +5,31 @@ pub struct FactoryKit {
     pub id: &'static str,
     pub name: &'static str,
     pub style: Style,
+    /// Generation that added the kit: a later one reaches existing users at
+    /// their next start.
+    pub since: u8,
 }
 
-pub const KITS: [FactoryKit; 2] = [
+pub const GENERATION: u8 = 2;
+
+pub const KITS: [FactoryKit; 3] = [
     FactoryKit {
         id: "analog-kit",
         name: "Analog Kit",
         style: Style::Analog,
+        since: 1,
     },
     FactoryKit {
         id: "club-kit",
         name: "Club Kit",
         style: Style::Club,
+        since: 1,
+    },
+    FactoryKit {
+        id: "remix-kit",
+        name: "Remix Kit",
+        style: Style::Remix,
+        since: 2,
     },
 ];
 
@@ -136,10 +149,19 @@ mod tests {
 
     #[test]
     fn kits_have_distinct_ids_and_files() {
-        assert_ne!(KITS[0].id, KITS[1].id);
+        let mut ids: Vec<_> = KITS.iter().map(|k| k.id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), KITS.len());
         let mut files: Vec<_> = Voice::ALL.iter().map(|&v| file_name(v)).collect();
         files.sort_unstable();
         files.dedup();
         assert_eq!(files.len(), Voice::ALL.len());
+    }
+
+    #[test]
+    fn generation_is_the_newest_kit() {
+        assert_eq!(KITS.iter().map(|k| k.since).max(), Some(GENERATION));
+        assert!(KITS.iter().all(|k| k.since >= 1));
     }
 }

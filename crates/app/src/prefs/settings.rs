@@ -271,6 +271,9 @@ pub struct Settings {
     pub music_xml: Option<PathBuf>,
     pub import_folders_at_startup: bool,
     pub factory_kits_installed: bool,
+    /// Latest factory kit generation installed, so kits added later reach
+    /// existing users once.
+    pub factory_kits: u8,
     pub hidden_tree_nodes: Vec<crate::browser::TreeNode>,
     pub favorites: Vec<String>,
     pub show_favorites: bool,
@@ -400,6 +403,7 @@ impl Default for Settings {
             music_xml: None,
             import_folders_at_startup: true,
             factory_kits_installed: false,
+            factory_kits: 0,
             hidden_tree_nodes: Vec::new(),
             favorites: crate::favorites::defaults(),
             show_favorites: true,

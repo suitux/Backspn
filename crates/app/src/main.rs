@@ -206,10 +206,11 @@ impl App {
         let mut settings = Settings::load();
         let (engine, audio_missing) = app::start_engine(&settings.audio_config());
         let mut kits = kits::KitLibrary::open(kits::KitLibrary::default_dir());
-        if !settings.factory_kits_installed {
-            kits.install_factory(false);
-            settings.factory_kits_installed = true;
-        }
+        let seen = settings
+            .factory_kits
+            .max(u8::from(settings.factory_kits_installed));
+        settings.factory_kits = kits.install_new_factory(seen);
+        settings.factory_kits_installed = true;
         let mut browser = Browser::open(settings.music_folders.clone());
         browser.find_programs();
         if settings.import_folders_at_startup {

@@ -427,7 +427,7 @@ impl FxView {
         let mut picked = None;
         ComboBox::from_id_salt(("pattern-sound", u))
             .truncate()
-            .selected_text(RichText::new(p.sound_name()).size(12.0).strong())
+            .selected_text(RichText::new(p.sound_name()).size(12.0))
             .show_ui(ui, |ui| {
                 let sounds = p.kit.as_ref().map_or(&[][..], |(_, k)| &k.sounds[..]);
                 for (i, s) in sounds.iter().enumerate() {
