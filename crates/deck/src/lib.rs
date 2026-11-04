@@ -795,7 +795,7 @@ impl Deck {
         self.carry = wanted - n_in as f64;
         let step = self.rate_ratio();
         let looping = self.looping.unwrap_or_default();
-        let start = self.read;
+        let start = looping.wrap(self.position, self.read);
         for (l, track) in layers.iter().enumerate() {
             let mut read = start;
             let (input, _) = self.stretch_in[l].as_chunks_mut::<2>();
@@ -860,7 +860,8 @@ impl Deck {
                 if pending.then != Transport::Stopped
                     && (0.0..self.source_rate()).contains(&elapsed) =>
             {
-                self.clamp(t + elapsed)
+                let moved = self.clamp(t + elapsed);
+                self.looping.map_or(moved, |l| l.wrap(t, moved))
             }
             Some(t) => t,
             None => self.position,
@@ -1088,10 +1089,19 @@ impl Deck {
             self.looping = Some(Loop { active: false, ..l });
             return;
         }
+        if let Some(l) = self.looping.filter(|l| l.active)
+            && l.end
+                .is_some_and(|end| (l.start..=end).contains(&self.position))
+        {
+            self.resize_loop(l, l.start + len);
+            return;
+        }
         let start = match self.grid {
             Some(grid) if self.snap => {
                 let rate = self.source_rate();
-                (grid.time_of(grid.beat_at(self.position / rate).round()) * rate).max(0.0)
+                let step = beats.clamp(MIN_LOOP_BEATS, 1.0);
+                let beat = (grid.beat_at(self.position / rate) / step).round() * step;
+                (grid.time_of(beat) * rate).max(0.0)
             }
             _ => self.position,
         };
@@ -1140,7 +1150,10 @@ impl Deck {
         if factor <= 0.0 {
             return;
         }
-        let end = l.start + ((old_end - l.start) * factor).max(min);
+        self.resize_loop(l, l.start + ((old_end - l.start) * factor).max(min));
+    }
+
+    fn resize_loop(&mut self, l: Loop, end: f64) {
         self.looping = Some(Loop {
             end: Some(end),
             ..l
