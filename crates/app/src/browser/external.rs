@@ -384,12 +384,17 @@ impl Browser {
     }
 
     pub(crate) fn import_library_xml(&mut self) {
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter("Library XML", &["xml"])
-            .pick_file()
-        else {
-            return;
-        };
+        self.dialog.open(
+            || {
+                rfd::FileDialog::new()
+                    .add_filter("Library XML", &["xml"])
+                    .pick_file()
+            },
+            |b: &mut Self, path| b.show_library_xml(path),
+        );
+    }
+
+    fn show_library_xml(&mut self, path: PathBuf) {
         self.library_xml = Some(OutsideLibrary::xml(path.clone()));
         self.tree_actions
             .push(BrowserAction::LibraryXmlChanged(Some(path)));

@@ -221,11 +221,13 @@ pub(super) fn screens(
     );
     ui.horizontal(|ui| {
         search::title(ui, "Logo:");
-        if ui.button(tr("Choose…")).clicked()
-            && let Some(file) = rfd::FileDialog::new()
-                .add_filter(tr("Images"), &screen::LOGO_EXTENSIONS)
+        let choose = ui.button(tr("Choose…"));
+        let images = tr("Images");
+        if let Some(file) = crate::dialog::ask(choose.id, choose.clicked(), move || {
+            rfd::FileDialog::new()
+                .add_filter(images, &screen::LOGO_EXTENSIONS)
                 .pick_file()
-        {
+        }) {
             s.screen_logo = Some(file);
         }
         if let Some(path) = &s.screen_logo {

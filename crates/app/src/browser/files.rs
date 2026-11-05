@@ -168,13 +168,18 @@ pub fn library_path() -> PathBuf {
 impl Browser {
     pub(crate) fn import_nml(&mut self) {
         let documents = crate::dirs::home().join(backspn_formats::interop::DATA_DIR);
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter("NML collection", &["nml"])
-            .set_directory(&documents)
-            .pick_file()
-        else {
-            return;
-        };
+        self.dialog.open(
+            move || {
+                rfd::FileDialog::new()
+                    .add_filter("NML collection", &["nml"])
+                    .set_directory(&documents)
+                    .pick_file()
+            },
+            |b: &mut Self, path| b.import_nml_from(path),
+        );
+    }
+
+    fn import_nml_from(&mut self, path: PathBuf) {
         if self.rows.is_empty() {
             self.ask_nml_tags(&path, true);
         } else {
@@ -248,22 +253,25 @@ impl Browser {
     }
 
     pub(crate) fn export_collection(&mut self) {
-        let Some(path) = Self::save_path(&format!("collection.{LIBRARY_FILE}"), LIBRARY_FILTER)
-        else {
-            return;
-        };
-        let text = self.with_lib_value(|lib| lib.export_collection());
-        self.exported(&path, text.map(|t| std::fs::write(&path, t)));
+        self.save_path(
+            format!("collection.{LIBRARY_FILE}"),
+            LIBRARY_FILTER,
+            |b, path| {
+                let text = b.with_lib_value(|lib| lib.export_collection());
+                b.exported(&path, text.map(|t| std::fs::write(&path, t)));
+            },
+        );
     }
 
     pub(crate) fn import_collection(&mut self) {
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter(LIBRARY_FILTER[0].0, LIBRARY_FILTER[0].1)
-            .pick_file()
-        else {
-            return;
-        };
-        self.import_library_file(&path, None);
+        self.dialog.open(
+            || {
+                rfd::FileDialog::new()
+                    .add_filter(LIBRARY_FILTER[0].0, LIBRARY_FILTER[0].1)
+                    .pick_file()
+            },
+            |b: &mut Self, path| b.import_library_file(&path, None),
+        );
     }
 
     fn import_library_file(&mut self, path: &Path, parent: Option<i64>) {
@@ -280,44 +288,59 @@ impl Browser {
         self.refresh();
     }
 
-    pub(super) fn save_path(file_name: &str, filters: &[(&str, &[&str])]) -> Option<PathBuf> {
-        let mut dialog = rfd::FileDialog::new().set_file_name(file_name);
-        for (name, extensions) in filters {
-            dialog = dialog.add_filter(*name, extensions);
-        }
-        let path = dialog.save_file()?;
-        if is_inside_other_app_data(&path) {
-            crate::toast::warning(
-                "Refusing to write inside the other DJ application's data folder: export elsewhere and copy it in yourself.",
-            );
-            return None;
-        }
-        Some(path)
+    /// Asks where to save, then runs `then` with a path outside the other
+    /// DJ application's data folder.
+    pub(super) fn save_path(
+        &mut self,
+        file_name: String,
+        filters: &'static [(&'static str, &'static [&'static str])],
+        then: impl FnOnce(&mut Self, PathBuf) + 'static,
+    ) {
+        self.dialog.open(
+            move || {
+                let mut dialog = rfd::FileDialog::new().set_file_name(file_name);
+                for (name, extensions) in filters {
+                    dialog = dialog.add_filter(*name, extensions);
+                }
+                dialog.save_file()
+            },
+            move |b: &mut Self, path| {
+                if is_inside_other_app_data(&path) {
+                    crate::toast::warning(
+                        "Refusing to write inside the other DJ application's data folder: export elsewhere and copy it in yourself.",
+                    );
+                    return;
+                }
+                then(b, path);
+            },
+        );
     }
 
     pub(super) fn export_list(&mut self, node: Option<&Node>) {
         let name = node.map_or("Collection", |n| n.name.as_str()).to_owned();
-        let Some(path) = Self::save_path(
-            &format!("{name}.{LIBRARY_FILE}"),
+        let id = node.map(|n| n.id);
+        self.save_path(
+            format!("{name}.{LIBRARY_FILE}"),
             &[
                 ("Backspn playlist", &[LIBRARY_FILE]),
                 ("M3U playlist", &["m3u", "m3u8"]),
             ],
-        ) else {
-            return;
-        };
+            move |b, path| b.export_list_to(id, &name, &path),
+        );
+    }
+
+    fn export_list_to(&mut self, id: Option<i64>, name: &str, path: &Path) {
         let m3u = path
             .extension()
             .is_some_and(|e| e.eq_ignore_ascii_case("m3u") || e.eq_ignore_ascii_case("m3u8"));
-        let id = node.map(|n| n.id);
         let text = self.with_lib_value(|lib| {
             if m3u {
                 lib.export_list_m3u(id)
             } else {
-                lib.export_list(id, &name)
+                lib.export_list(id, name)
             }
         });
-        self.exported(&path, text.map(|t| std::fs::write(&path, t)));
+        self.exported(path, text.map(|t| std::fs::write(path, t)));
     }
 
     fn exported(&mut self, path: &Path, result: backspn_library::Result<std::io::Result<()>>) {
@@ -337,31 +360,40 @@ impl Browser {
                 .map_or_else(String::new, |n| n.name.clone()),
             _ => "Collection".to_owned(),
         };
-        let Some(path) = Self::save_path(&format!("{title}.html"), &[("Web page", &["html"])])
-        else {
-            return;
-        };
+        self.save_path(
+            format!("{title}.html"),
+            &[("Web page", &["html"])],
+            move |b, path| b.print_list_to(&title, &path),
+        );
+    }
+
+    fn print_list_to(&mut self, title: &str, path: &Path) {
         let columns = self.columns.visible();
         let rows: Vec<&TrackRow> = self.view.iter().filter_map(|&id| self.row(id)).collect();
-        let html = crate::columns::html_list(&title, &columns, &rows, self.keys);
-        match std::fs::write(&path, html) {
+        let html = crate::columns::html_list(title, &columns, &rows, self.keys);
+        match std::fs::write(path, html) {
             Ok(()) => {
                 self.message = Some(format!("Printed to {}", path.display()));
-                open_file(&path);
+                open_file(path);
             }
             Err(e) => crate::toast::error(format!("Print failed: {e}")),
         }
     }
 
     pub(super) fn import_list(&mut self, parent: Option<i64>) {
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter("Playlist", &[LIBRARY_FILE, "nml", "m3u", "m3u8"])
-            .pick_file()
-        else {
-            return;
-        };
-        if is_library_file(&path) {
-            self.import_library_file(&path, parent);
+        self.dialog.open(
+            || {
+                rfd::FileDialog::new()
+                    .add_filter("Playlist", &[LIBRARY_FILE, "nml", "m3u", "m3u8"])
+                    .pick_file()
+            },
+            move |b: &mut Self, path| b.import_list_from(&path, parent),
+        );
+    }
+
+    fn import_list_from(&mut self, path: &Path, parent: Option<i64>) {
+        if is_library_file(path) {
+            self.import_library_file(path, parent);
             return;
         }
         let nml = path
@@ -369,14 +401,14 @@ impl Browser {
             .is_some_and(|e| e.eq_ignore_ascii_case("nml"));
         let result = self.with_lib_value(|lib| {
             if nml {
-                lib.import_playlists_nml(&path, parent).map(|r| {
+                lib.import_playlists_nml(path, parent).map(|r| {
                     format!(
                         "Imported {} new tracks, {} playlists",
                         r.tracks, r.playlists
                     )
                 })
             } else {
-                lib.import_m3u(&path, parent)
+                lib.import_m3u(path, parent)
                     .map(|_| "Imported the playlist".to_owned())
             }
         });
@@ -391,23 +423,28 @@ impl Browser {
     }
 
     pub(super) fn export_history(&mut self, session: i64, name: &str) {
-        let Some(path) = Self::save_path(
-            &format!("{name}.{LIBRARY_FILE}"),
+        self.save_path(
+            format!("{name}.{LIBRARY_FILE}"),
             &[("History", &[LIBRARY_FILE])],
-        ) else {
-            return;
-        };
-        let text = self.with_lib_value(|lib| lib.export_history(session));
-        self.exported(&path, text.map(|t| std::fs::write(&path, t)));
+            move |b, path| {
+                let text = b.with_lib_value(|lib| lib.export_history(session));
+                b.exported(&path, text.map(|t| std::fs::write(&path, t)));
+            },
+        );
     }
 
     pub(super) fn import_histories(&mut self) {
-        let Some(files) = rfd::FileDialog::new()
-            .add_filter("History", &[LIBRARY_FILE, "nml"])
-            .pick_files()
-        else {
-            return;
-        };
+        self.dialog.open(
+            || {
+                rfd::FileDialog::new()
+                    .add_filter("History", &[LIBRARY_FILE, "nml"])
+                    .pick_files()
+            },
+            |b: &mut Self, files| b.import_history_files(files),
+        );
+    }
+
+    fn import_history_files(&mut self, files: Vec<PathBuf>) {
         let (mut sessions, mut entries) = (0, 0);
         for file in files {
             let imported = if is_library_file(&file) {
@@ -730,24 +767,22 @@ impl Browser {
         if tracks.is_empty() {
             return;
         }
-        let cover = if import {
-            let Some(file) = rfd::FileDialog::new()
-                .add_filter("Picture", &["jpg", "jpeg", "png"])
-                .pick_file()
-            else {
-                return;
-            };
-            match crate::covers::store(&crate::covers::store_dir(), &file) {
-                Ok(name) => name,
-                Err(e) => {
-                    crate::toast::error(e);
-                    return;
-                }
-            }
-        } else {
-            String::new()
-        };
-        self.set_cover(&tracks, &cover);
+        if !import {
+            self.set_cover(&tracks, "");
+            return;
+        }
+        self.dialog.open(
+            || {
+                rfd::FileDialog::new()
+                    .add_filter("Picture", &["jpg", "jpeg", "png"])
+                    .pick_file()
+            },
+            move |b: &mut Self, file| match crate::covers::store(&crate::covers::store_dir(), &file)
+            {
+                Ok(name) => b.set_cover(&tracks, &name),
+                Err(e) => crate::toast::error(e),
+            },
+        );
     }
 
     pub(super) fn set_cover(&mut self, tracks: &[i64], cover: &str) {

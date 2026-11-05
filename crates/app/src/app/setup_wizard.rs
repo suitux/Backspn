@@ -459,11 +459,12 @@ impl App {
             ui.label(RichText::new(tr("No folder yet.")).weak());
         }
         ui.add_space(4.0);
-        if ui.button(tr("Add folders…")).clicked()
-            && let Some(folders) = rfd::FileDialog::new()
+        let add = ui.button(tr("Add folders…"));
+        if let Some(folders) = crate::dialog::ask(add.id, add.clicked(), || {
+            rfd::FileDialog::new()
                 .set_directory(crate::dirs::user_music())
                 .pick_folders()
-        {
+        }) {
             add_new(chosen, &self.settings.music_folders, folders);
         }
         ui.add_space(8.0);

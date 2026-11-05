@@ -258,6 +258,24 @@ impl Browser {
         }
     }
 
+    fn relocate_missing(&mut self, missing: &[i64], root: &std::path::Path) {
+        let result = self.with_lib_value(|lib| lib.relocate(missing, root));
+        match result {
+            Ok(r) => {
+                self.message = Some(format!(
+                    "Relocated {} track(s); {} still missing, {} without a unique path, {} already in the collection",
+                    r.found,
+                    r.missing.len(),
+                    r.ambiguous.len(),
+                    r.duplicates.len()
+                ));
+            }
+            Err(e) => crate::toast::error(e.to_string()),
+        }
+        self.refresh();
+        self.check_consistency();
+    }
+
     pub(super) fn consistency_dialog(&mut self, ctx: &egui::Context) {
         let Some(report) = self.consistency.clone() else {
             return;
@@ -324,23 +342,11 @@ impl Browser {
             });
         match action {
             Some(true) => {
-                if let Some(root) = rfd::FileDialog::new().pick_folder() {
-                    let result = self.with_lib_value(|lib| lib.relocate(&report.missing, &root));
-                    match result {
-                        Ok(r) => {
-                            self.message = Some(format!(
-                                "Relocated {} track(s); {} still missing, {} without a unique path, {} already in the collection",
-                                r.found,
-                                r.missing.len(),
-                                r.ambiguous.len(),
-                                r.duplicates.len()
-                            ));
-                        }
-                        Err(e) => crate::toast::error(e.to_string()),
-                    }
-                    self.refresh();
-                    self.check_consistency();
-                }
+                let missing = report.missing.clone();
+                self.dialog.open(
+                    || rfd::FileDialog::new().pick_folder(),
+                    move |b: &mut Self, root| b.relocate_missing(&missing, &root),
+                );
             }
             Some(false) => {
                 self.ask = Some(Ask::yes_no(

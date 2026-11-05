@@ -54,6 +54,7 @@ pub struct Controls {
     calibration: Option<calibrate::Calibration>,
     calibration_outcome: Option<calibrate::Outcome>,
     calibration_device: Option<&'static str>,
+    dialog: crate::dialog::Then<Controls>,
 }
 
 impl Controls {
@@ -108,6 +109,7 @@ impl Controls {
             calibration: None,
             calibration_outcome: None,
             calibration_device: None,
+            dialog: crate::dialog::Then::new("controls"),
         };
         let (user, errors) = backspn_control::profile::read_dir(&profiles::user_dir());
         controls.profiles = backspn_control::profile::with_user(user);
@@ -159,6 +161,7 @@ impl Controls {
             calibration: None,
             calibration_outcome: None,
             calibration_device: None,
+            dialog: crate::dialog::Then::new("controls"),
         }
     }
 
@@ -247,6 +250,11 @@ impl Controls {
         if let Some(screens) = self.screen_device().and_then(|d| d.screens()) {
             screens.send(frames);
         }
+    }
+
+    /// Acts on the answer of a file dialog the controller pages opened.
+    pub fn finish_dialog(&mut self) {
+        crate::dialog::Then::finish(self, |c| &mut c.dialog);
     }
 
     pub fn show(
@@ -509,14 +517,19 @@ impl Controls {
 
     fn import_tsi(&mut self, _ctx: &egui::Context) {
         let documents = crate::dirs::home().join(backspn_formats::interop::DATA_DIR);
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter("Settings / mappings", &["tsi"])
-            .set_directory(&documents)
-            .pick_file()
-        else {
-            return;
-        };
-        let tsi = match backspn_formats::tsi::Tsi::from_path(&path) {
+        self.dialog.open(
+            move || {
+                rfd::FileDialog::new()
+                    .add_filter("Settings / mappings", &["tsi"])
+                    .set_directory(&documents)
+                    .pick_file()
+            },
+            |c: &mut Self, path| c.import_tsi_from(&path),
+        );
+    }
+
+    fn import_tsi_from(&mut self, path: &std::path::Path) {
+        let tsi = match backspn_formats::tsi::Tsi::from_path(path) {
             Ok(tsi) => tsi,
             Err(e) => {
                 self.message = Some(format!("Cannot read {}: {e}", path.display()));

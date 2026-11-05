@@ -859,26 +859,14 @@ pub(super) fn sample_decks(ui: &mut Ui, s: &mut Settings) {
     search::title(ui, "Samples Folder");
     ui.horizontal(|ui| {
         ui.label(RichText::new(s.samples_dir.display().to_string()).monospace());
-        if ui.button(tr("Choose…")).clicked()
-            && let Some(dir) = rfd::FileDialog::new()
-                .set_directory(&s.samples_dir)
-                .pick_folder()
-        {
-            s.samples_dir = dir;
-        }
+        choose_folder(ui, &mut s.samples_dir);
     });
     ui.label(RichText::new(tr("Where captured samples are written.")).weak());
     ui.add_space(8.0);
     search::title(ui, "Sample Sets Folder");
     ui.horizontal(|ui| {
         ui.label(RichText::new(s.sets_dir.display().to_string()).monospace());
-        if ui.button(tr("Choose…")).clicked()
-            && let Some(dir) = rfd::FileDialog::new()
-                .set_directory(&s.sets_dir)
-                .pick_folder()
-        {
-            s.sets_dir = dir;
-        }
+        choose_folder(ui, &mut s.sets_dir);
     });
     ui.label(RichText::new(tr("Where imported sample sets are kept.")).weak());
     ui.add_space(8.0);
@@ -1236,12 +1224,14 @@ fn music_library(ui: &mut Ui, s: &mut Settings) {
         .unwrap_or_else(crate::browser::default_music_xml);
     ui.horizontal(|ui| {
         search::title(ui, "Library XML");
-        if ui.button(tr("Choose…")).clicked()
-            && let Some(file) = rfd::FileDialog::new()
+        let choose = ui.button(tr("Choose…"));
+        let folder = current.parent().unwrap_or(&current).to_path_buf();
+        if let Some(file) = crate::dialog::ask(choose.id, choose.clicked(), move || {
+            rfd::FileDialog::new()
                 .add_filter("XML", &["xml"])
-                .set_directory(current.parent().unwrap_or(&current))
+                .set_directory(folder)
                 .pick_file()
-        {
+        }) {
             s.music_xml = Some(file);
         }
         ui.label(RichText::new(current.display().to_string()).monospace());
@@ -1250,8 +1240,18 @@ fn music_library(ui: &mut Ui, s: &mut Settings) {
     .on_hover_text(tr("The music player's exported library file"));
 }
 
+/// A "Choose…" button that replaces `dir` with the folder picked.
+fn choose_folder(ui: &mut Ui, dir: &mut PathBuf) {
+    let button = ui.button(tr("Choose…"));
+    let current = dir.clone();
+    if let Some(picked) = crate::dialog::ask(button.id, button.clicked(), move || {
+        rfd::FileDialog::new().set_directory(current).pick_folder()
+    }) {
+        *dir = picked;
+    }
+}
+
 fn stem_folders(ui: &mut Ui, s: &mut Settings) {
-    let pick = |current: &PathBuf| rfd::FileDialog::new().set_directory(current).pick_folder();
     egui::Grid::new("stem-folders")
         .num_columns(2)
         .spacing([12.0, 8.0])
@@ -1259,11 +1259,7 @@ fn stem_folders(ui: &mut Ui, s: &mut Settings) {
             search::title(ui, "Stem Files Location");
             ui.horizontal(|ui| {
                 ui.label(RichText::new(s.stems_dir.display().to_string()).monospace());
-                if ui.button(tr("Choose…")).clicked()
-                    && let Some(dir) = pick(&s.stems_dir)
-                {
-                    s.stems_dir = dir;
-                }
+                choose_folder(ui, &mut s.stems_dir);
             });
             ui.end_row();
             search::title(ui, "Also read stems from");
@@ -1274,11 +1270,7 @@ fn stem_folders(ui: &mut Ui, s: &mut Settings) {
                 }
                 if let Some(dir) = &mut s.foreign_stems_dir {
                     ui.label(RichText::new(dir.display().to_string()).monospace());
-                    if ui.button(tr("Choose…")).clicked()
-                        && let Some(picked) = pick(dir)
-                    {
-                        *dir = picked;
-                    }
+                    choose_folder(ui, dir);
                 }
             });
             ui.end_row();
@@ -1368,13 +1360,7 @@ pub(super) fn mix_recorder(ui: &mut Ui, s: &mut Settings) {
             search::title(ui, "Directory");
             ui.horizontal(|ui| {
                 ui.label(RichText::new(s.recordings_dir.display().to_string()).monospace());
-                if ui.button(tr("Choose…")).clicked()
-                    && let Some(dir) = rfd::FileDialog::new()
-                        .set_directory(&s.recordings_dir)
-                        .pick_folder()
-                {
-                    s.recordings_dir = dir;
-                }
+                choose_folder(ui, &mut s.recordings_dir);
             });
             ui.end_row();
             search::title(ui, "Prefix");

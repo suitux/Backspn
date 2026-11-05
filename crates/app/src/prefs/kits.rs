@@ -99,22 +99,28 @@ impl Prefs {
                     if ui.button(tr("Delete")).clicked() {
                         self.kit.delete_ask = Some(ask_delete(kits, &id));
                     }
-                    if ui.button(tr("Export…")).clicked()
-                        && let Some(to) = rfd::FileDialog::new()
-                            .add_filter("Kit", &[EXTENSION])
-                            .set_file_name(format!("{id}.{EXTENSION}"))
-                            .save_file()
+                    let export = ui.button(tr("Export…"));
+                    let kit = id.clone();
+                    if let Some((kit, to)) =
+                        crate::dialog::ask(export.id, export.clicked(), move || {
+                            let to = rfd::FileDialog::new()
+                                .add_filter("Kit", &[EXTENSION])
+                                .set_file_name(format!("{kit}.{EXTENSION}"))
+                                .save_file()?;
+                            Some((kit, to))
+                        })
                     {
-                        kits.export(&id, &to)?;
+                        kits.export(&kit, &to)?;
                     }
                     Ok(())
                 })
                 .inner?;
-                if ui.button(tr("Import…")).clicked()
-                    && let Some(from) = rfd::FileDialog::new()
+                let import = ui.button(tr("Import…"));
+                if let Some(from) = crate::dialog::ask(import.id, import.clicked(), || {
+                    rfd::FileDialog::new()
                         .add_filter("Kit", &[EXTENSION, OLD_EXTENSION])
                         .pick_file()
-                {
+                }) {
                     self.kit.selected = Some(kits.import(&from)?);
                 }
                 if ui
@@ -211,10 +217,14 @@ impl Prefs {
                     ui.end_row();
                 }
             });
-        if ui.button(tr("Add sounds…")).clicked()
-            && let Some(files) = rfd::FileDialog::new()
+        let add = ui.button(tr("Add sounds…"));
+        let kit_id = id.to_owned();
+        if let Some((kit_id, files)) = crate::dialog::ask(add.id, add.clicked(), move || {
+            let files = rfd::FileDialog::new()
                 .add_filter("Audio", crate::AUDIO_EXTENSIONS)
-                .pick_files()
+                .pick_files()?;
+            Some((kit_id, files))
+        }) && kit_id == id
         {
             self.add_sounds(id, kit, &files, kits);
         }

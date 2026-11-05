@@ -14,6 +14,7 @@ mod cue_list;
 mod deck_informer;
 mod deck_view;
 mod density;
+mod dialog;
 mod dirs;
 mod favorites;
 mod fx_view;
@@ -199,6 +200,7 @@ struct App {
     insights: insights::Insights,
     insights_ask: Option<modal::Ask<bool>>,
     insights_preview: Option<String>,
+    dialog: dialog::Then<App>,
 }
 
 impl App {
@@ -351,6 +353,7 @@ impl App {
             insights: insights::Insights::none(),
             insights_ask: None,
             insights_preview: None,
+            dialog: dialog::Then::new("app"),
         };
         for (deck, &range) in app.decks.iter_mut().zip(&app.settings.deck_tempo_ranges) {
             deck.set_tempo_range(range);
@@ -463,6 +466,12 @@ impl App {
         self.sample_save_dialogs(&ctx);
         self.set_import_dialog(&ctx);
         self.poll_recorder();
+        dialog::set_repaint(&ctx);
+        dialog::Then::finish(self, |app| &mut app.dialog);
+        self.browser.finish_dialog();
+        if let Some(controls) = &mut self.controls {
+            controls.finish_dialog();
+        }
 
         let t = theme::get(&ctx);
         let bar = egui::Frame::new()

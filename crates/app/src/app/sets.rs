@@ -16,10 +16,17 @@ pub(crate) struct SetImport {
 
 impl App {
     pub(crate) fn export_set(&mut self, id: i64) {
-        let Some(row) = self.browser.library_set(id) else {
+        if self.browser.library_set(id).is_none() {
             return;
-        };
-        let Some(parent) = rfd::FileDialog::new().pick_folder() else {
+        }
+        self.dialog.open(
+            || rfd::FileDialog::new().pick_folder(),
+            move |app: &mut Self, parent| app.export_set_to(id, &parent),
+        );
+    }
+
+    fn export_set_to(&mut self, id: i64, parent: &Path) {
+        let Some(row) = self.browser.library_set(id) else {
             return;
         };
         let files: Vec<Option<PathBuf>> = row
@@ -30,16 +37,20 @@ impl App {
                 Some(PathBuf::from(path.split('#').next().unwrap_or(&path)))
             })
             .collect();
-        match set_folder::export(&row.set, &files, &parent, LocalTime::now()) {
+        match set_folder::export(&row.set, &files, parent, LocalTime::now()) {
             Ok(folder) => crate::toast::info(format!("Exported to {}", folder.display())),
             Err(e) => crate::toast::error(format!("Could not export the Sample Set: {e}")),
         }
     }
 
     pub(crate) fn import_set(&mut self) {
-        let Some(folder) = rfd::FileDialog::new().pick_folder() else {
-            return;
-        };
+        self.dialog.open(
+            || rfd::FileDialog::new().pick_folder(),
+            |app: &mut Self, folder| app.import_set_from(folder),
+        );
+    }
+
+    fn import_set_from(&mut self, folder: PathBuf) {
         let set = match set_folder::read(&folder) {
             Ok((set, _)) => set,
             Err(e) => {

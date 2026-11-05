@@ -183,6 +183,7 @@ pub struct Browser {
     scroll_to_selected: bool,
     message: Option<String>,
     pub(crate) usage: crate::insights::Usage,
+    dialog: crate::dialog::Then<Browser>,
 }
 
 const PREPARATION: &str = "Preparation";
@@ -288,6 +289,7 @@ impl Browser {
             scroll_to_selected: false,
             message: None,
             usage: crate::insights::Usage::default(),
+            dialog: crate::dialog::Then::new("browser"),
         };
         browser.refresh();
         browser.show(Source::Collection);
@@ -656,6 +658,11 @@ impl Browser {
         }
         self.view = order.iter().map(|&i| source[i]).collect();
         self.view_source = order;
+    }
+
+    /// Acts on the answer of a file dialog the browser opened.
+    pub fn finish_dialog(&mut self) {
+        crate::dialog::Then::finish(self, |b| &mut b.dialog);
     }
 
     pub fn ui(

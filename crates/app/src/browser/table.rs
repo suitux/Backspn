@@ -852,12 +852,17 @@ impl Browser {
     }
 
     pub(super) fn relocate_one(&mut self, id: i64) {
-        let Some(file) = rfd::FileDialog::new()
-            .add_filter("Audio", crate::AUDIO_EXTENSIONS)
-            .pick_file()
-        else {
-            return;
-        };
+        self.dialog.open(
+            || {
+                rfd::FileDialog::new()
+                    .add_filter("Audio", crate::AUDIO_EXTENSIONS)
+                    .pick_file()
+            },
+            move |b: &mut Self, file| b.relocate_one_to(id, &file),
+        );
+    }
+
+    fn relocate_one_to(&mut self, id: i64, file: &std::path::Path) {
         let path = file.to_string_lossy().into_owned();
         let result = self.with_lib(|lib| {
             if lib.track_by_path(&path)?.is_some() {
