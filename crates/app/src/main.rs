@@ -402,6 +402,9 @@ impl Drop for App {
         if self.persist {
             self.save_status();
             self.browser.backup();
+            // Quitting from the macOS Dock ends the process right after this
+            // drop, so `main` never gets to close the log.
+            support::log::close();
         }
     }
 }
