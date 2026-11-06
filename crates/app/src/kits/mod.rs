@@ -303,10 +303,35 @@ impl KitLibrary {
     }
 
     /// Installs the factory kits added after generation `seen` (leaving any
-    /// folder already there alone) and returns the latest generation.
+    /// folder already there alone), re-renders the factory sounds changed
+    /// since then, and returns the latest generation.
     pub fn install_new_factory(&mut self, seen: u8) -> u8 {
         self.install_matching(|f| f.since > seen, false);
+        self.refresh_factory(seen);
         factory::GENERATION
+    }
+
+    /// Rewrites the factory sounds re-rendered after generation `seen`, in
+    /// kits that still use that file; other files and the kit's settings
+    /// are left as they are.
+    fn refresh_factory(&mut self, seen: u8) {
+        for r in factory::REFRESHES.iter().filter(|r| r.since > seen) {
+            let Some(f) = factory::KITS.iter().find(|f| f.id == r.kit) else {
+                continue;
+            };
+            let file = factory::file_name(r.voice);
+            let uses = self
+                .find(f.id)
+                .is_some_and(|k| k.kit.sounds.iter().any(|s| s.file == file));
+            if !uses {
+                continue;
+            }
+            let path = self.folder(f.id).join(file);
+            self.decoded.remove(&path);
+            if let Err(e) = write_mono_wav(&path, &synth::render(f.style, r.voice)) {
+                log::warn!("cannot refresh {} in kit {}: {e}", file, f.name);
+            }
+        }
     }
 
     fn install_matching(
@@ -515,6 +540,26 @@ mod tests {
         let count = lib.kits().len();
         lib.install_new_factory(factory::GENERATION);
         assert_eq!(lib.kits().len(), count);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn refreshed_factory_sounds_reach_existing_kits_once() {
+        let dir = temp_dir("factory-refresh");
+        let mut lib = KitLibrary::open(dir.join("Kits"));
+        lib.install_factory(false);
+        let r = &factory::REFRESHES[0];
+        let path = lib.folder(r.kit).join(factory::file_name(r.voice));
+        let mut edited = lib.find(r.kit).unwrap().kit.clone();
+        edited.name = "Mine".into();
+        lib.save(r.kit, &edited).unwrap();
+        std::fs::write(&path, b"old").unwrap();
+        lib.install_new_factory(r.since - 1);
+        assert_ne!(std::fs::read(&path).unwrap(), b"old", "re-rendered");
+        assert_eq!(lib.find(r.kit).unwrap().kit.name, "Mine", "kit kept");
+        std::fs::write(&path, b"old").unwrap();
+        lib.install_new_factory(factory::GENERATION);
+        assert_eq!(std::fs::read(&path).unwrap(), b"old", "only once");
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
