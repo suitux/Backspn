@@ -67,7 +67,6 @@ impl DeckView {
         let radius = if parallel { 0.0 } else { 6.0 };
         painter.rect_filled(rect, radius, t.well);
         let style = waveform::WaveStyle::get(ui.ctx());
-        self.zoom_buttons(ui, rect, &t);
         let cue_marks: Vec<(f64, CueKind)> = self
             .cues()
             .into_iter()
@@ -149,6 +148,7 @@ impl DeckView {
             t.danger,
             egui::Stroke::NONE,
         ));
+        self.zoom_buttons(ui, rect, &t);
 
         self.zoom_texture = zoom_texture;
         self.pending_save_loop |= save;
@@ -430,20 +430,24 @@ impl DeckView {
             let min = rect.right_top() + vec2(-(2.0 - i as f32) * (size.x + 2.0) - 2.0, 4.0);
             let area = Rect::from_min_size(min, size);
             let id = ui.scope_id().with(("zoom", self.index, i));
-            let response = ui.interact(area, id, Sense::click()).on_hover_text(hint);
-            let fill = if response.hovered() {
-                t.well.gamma_multiply(1.6)
+            let response = ui
+                .interact(area, id, Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand)
+                .on_hover_text(hint);
+            let (fill, ink) = if response.is_pointer_button_down_on() {
+                (t.invert.gamma_multiply(0.8), t.invert_fg)
+            } else if response.hovered() {
+                (t.invert, t.invert_fg)
             } else {
-                t.well
+                (t.well.gamma_multiply(0.9), t.text_dim)
             };
-            ui.painter()
-                .rect_filled(area, 0.0, fill.gamma_multiply(0.9));
+            ui.painter().rect_filled(area, 0.0, fill);
             ui.painter().text(
                 area.center(),
                 egui::Align2::CENTER_CENTER,
                 label,
                 egui::FontId::proportional(13.0),
-                t.text_dim,
+                ink,
             );
             if response.clicked() {
                 self.set_zoom(self.zoom_s * factor);

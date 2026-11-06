@@ -9,7 +9,9 @@ pub use backspn_deck::{
     freeze::{SLICE_SIZES, SLICES},
 };
 use backspn_fx::Rack;
-pub use backspn_fx::mixer_fx::{DEFAULT_SLOTS as MIXER_FX_SLOTS, MixerFx};
+pub use backspn_fx::mixer_fx::{
+    DEFAULT_SLOTS as MIXER_FX_SLOTS, MAX_FADE_S as MIXER_FX_MAX_FADE_S, MixerFx,
+};
 pub use backspn_fx::{
     CHANNELS as FX_CHANNELS, Command as FxCommand, DrumMachine, EffectInfo, EffectKind,
     Mode as FxMode, PATTERN_KNOBS, RackState, Routing as FxRouting, SLOTS as FX_SLOTS,

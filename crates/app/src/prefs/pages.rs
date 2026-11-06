@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use backspn_engine::{EqModel, FilterModel, LimiterModel, MixerFx, StreamInfo};
+use backspn_engine::{
+    EqModel, FilterModel, LimiterModel, MIXER_FX_MAX_FADE_S, MixerFx, StreamInfo,
+};
 use eframe::egui::{self, RichText, Ui};
 
 use crate::columns::{BrowserColumn, ColumnLayout};
@@ -571,6 +573,16 @@ pub(super) fn mixer_fx_slots(ui: &mut Ui, s: &mut Settings) {
                 ui.end_row();
             }
         });
+    search::check(ui, &mut s.mixer_fx_fade, "Fade out when switched off").on_hover_text(tr(
+        "Off: the FX button cuts the effect at once. On: it dies away over the fade time.",
+    ));
+    ui.add_enabled_ui(s.mixer_fx_fade, |ui| {
+        ui.add(
+            egui::Slider::new(&mut s.mixer_fx_fade_s, 0.1..=MIXER_FX_MAX_FADE_S)
+                .suffix(" s")
+                .text(tr("Fade time")),
+        );
+    });
     ui.label(
         RichText::new(crate::i18n::tr(
             "The channel knob drives the filter or the chosen mixer FX; the channel's FX \

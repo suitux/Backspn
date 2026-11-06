@@ -259,6 +259,7 @@ impl App {
         let mut outbox = mixer.initial_commands();
         mixer.set_curve(settings.xfader_curve, &mut outbox);
         mixer.set_mixer_fx_slots(settings.mixer_fx_slots, &mut outbox);
+        mixer.set_mixer_fx_fade(settings.mixer_fx_fade(), &mut outbox);
         let sample_rate = engine.as_ref().map_or(44_100, |e| e.info().sample_rate);
         let mut fx = FxView::new(sample_rate, kits);
         fx.selection.clone_from(&settings.fx_selection);

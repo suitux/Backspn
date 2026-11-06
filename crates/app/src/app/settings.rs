@@ -132,6 +132,8 @@ impl App {
         }
         self.mixer
             .set_mixer_fx_slots(s.mixer_fx_slots, &mut self.outbox);
+        self.mixer
+            .set_mixer_fx_fade(s.mixer_fx_fade(), &mut self.outbox);
         for u in 0..FX_UNITS {
             self.fx.set_routing(u, s.fx_routing[u], &mut self.outbox);
             self.fx.set_mode(u, s.fx_panel_mode[u], &mut self.outbox);

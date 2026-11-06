@@ -94,6 +94,8 @@ pub enum Command {
     MixerFxOn(usize, bool),
     MixerFxKnob(usize, f32),
     MixerFxParameter(f32),
+    /// Seconds the mixer FX fade out when their button goes off; 0 cuts them.
+    MixerFxFade(f32),
     SetKit {
         unit: usize,
         players: [Box<DrumMachine>; CHANNELS],
@@ -241,7 +243,8 @@ impl Rack {
             Command::MixerFxSelect(..)
             | Command::MixerFxOn(..)
             | Command::MixerFxKnob(..)
-            | Command::MixerFxParameter(_) => self.handle_mixer_fx(&command),
+            | Command::MixerFxParameter(_)
+            | Command::MixerFxFade(_) => self.handle_mixer_fx(&command),
             Command::SetMode(u, mode) if u < UNITS => {
                 self.state.units[u].mode = mode;
                 self.reapply(u);
@@ -358,6 +361,11 @@ impl Rack {
             Command::MixerFxParameter(value) => {
                 for fx in &mut self.mixer_fx {
                     fx.set_parameter(value);
+                }
+            }
+            Command::MixerFxFade(seconds) => {
+                for fx in &mut self.mixer_fx {
+                    fx.set_fade(seconds);
                 }
             }
             _ => {}

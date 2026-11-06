@@ -935,3 +935,6 @@ Windows did not register the screens' interface.	Windows no ha registrado la int
 The screens could not be set up.	No se han podido preparar las pantallas.
 Enable screens	Activar pantallas
 Puts the WinUSB driver that comes with Windows on the screens' USB interface; Windows asks for administrator rights	Pone el driver WinUSB que trae Windows en la interfaz USB de las pantallas; Windows pide permisos de administrador
+Fade out when switched off	Desvanecer al apagar
+Off: the FX button cuts the effect at once. On: it dies away over the fade time.	Desactivado: el botón FX corta el efecto al momento. Activado: se desvanece durante el tiempo de fundido.
+Fade time	Tiempo de fundido

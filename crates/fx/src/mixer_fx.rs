@@ -135,6 +135,10 @@ pub const DEFAULT_SLOTS: [MixerFx; 4] = [
 
 const DEAD_ZONE: f32 = 0.01;
 const COLOUR_HZ: f64 = 1200.0;
+/// How fast the effect comes back when switched on during a fade-out.
+const RETURN_S: f64 = 0.01;
+/// The longest fade-out the FX button can be given.
+pub const MAX_FADE_S: f32 = 10.0;
 
 pub struct ChannelFx {
     instances: Vec<Option<Box<dyn Effect>>>,
@@ -147,6 +151,10 @@ pub struct ChannelFx {
     noise: u32,
     dry: Box<[f32]>,
     rate: f64,
+    /// Frames the effect takes to fade out after its button goes off; 0 cuts it.
+    fade_frames: f32,
+    /// Linear level of the effect while it fades out (1 = full).
+    release: f32,
     /// The effects hold no sound from before: set once a faded-out effect
     /// has been cleared, so switching it back on starts from silence.
     clear: bool,
@@ -191,7 +199,33 @@ impl ChannelFx {
             noise: 0x1234_5678,
             dry: vec![0.0; 2 * MAX_BLOCK_FRAMES].into_boxed_slice(),
             rate,
+            fade_frames: 0.0,
+            release: 1.0,
             clear: true,
+        }
+    }
+
+    /// How long the effect fades out when its button goes off; 0 cuts it.
+    pub fn set_fade(&mut self, seconds: f32) {
+        self.fade_frames = (f64::from(seconds.clamp(0.0, MAX_FADE_S)) * self.rate) as f32;
+        if self.fade_frames == 0.0 {
+            self.release = 1.0;
+        }
+    }
+
+    /// Whether the effect still sounds: on, or fading out after its button.
+    fn sounding(&self) -> bool {
+        self.on || (self.fade_frames > 0.0 && self.release > 0.0)
+    }
+
+    /// What the fade level moves by each frame: up when on, down while fading.
+    fn release_step(&self) -> f32 {
+        if self.on {
+            (1.0 / (RETURN_S * self.rate)) as f32
+        } else if self.fade_frames > 0.0 {
+            -1.0 / self.fade_frames
+        } else {
+            0.0
         }
     }
 
@@ -233,8 +267,9 @@ impl ChannelFx {
 
     pub fn process(&mut self, buf: &mut [f32], ctx: &Context) {
         if let Some(kind) = self.selected.filter(|k| k.is_color()) {
-            self.gain.set(if self.on { 1.0 } else { 0.0 });
-            if !self.on && self.gain.value() == 0.0 {
+            let sounding = self.sounding();
+            self.gain.set(if sounding { 1.0 } else { 0.0 });
+            if !sounding && self.gain.value() == 0.0 {
                 self.reset();
                 return;
             }
@@ -249,20 +284,21 @@ impl ChannelFx {
             let n = buf.len().min(self.dry.len());
             self.dry[..n].copy_from_slice(&buf[..n]);
             color.process(&mut buf[..n]);
+            let step = self.release_step();
             for (frame, dry) in buf[..n]
                 .as_chunks_mut::<2>()
                 .0
                 .iter_mut()
                 .zip(self.dry[..n].as_chunks::<2>().0)
             {
-                let g = self.gain.tick();
+                let g = self.gain.tick() * ramp(&mut self.release, step);
                 for ch in 0..2 {
                     frame[ch] = dry[ch] + g * (frame[ch] - dry[ch]);
                 }
             }
             return;
         }
-        let active = self.on && self.selected.is_some() && self.knob.abs() > DEAD_ZONE;
+        let active = self.sounding() && self.selected.is_some() && self.knob.abs() > DEAD_ZONE;
         self.gain.set(if active { 1.0 } else { 0.0 });
         let Some(kind) = self.selected else {
             return;
@@ -277,6 +313,7 @@ impl ChannelFx {
         self.colour.set(COLOUR_HZ, 0.707, self.rate);
         let n = buf.len().min(self.dry.len());
         self.dry[..n].copy_from_slice(&buf[..n]);
+        let step = self.release_step();
         match (kind, &mut self.instances[kind.index()]) {
             (MixerFx::Noise, _) => {
                 for frame in buf[..n].as_chunks_mut::<2>().0 {
@@ -304,7 +341,7 @@ impl ChannelFx {
             .iter_mut()
             .zip(self.dry[..n].as_chunks::<2>().0)
         {
-            let g = self.gain.tick();
+            let g = self.gain.tick() * ramp(&mut self.release, step);
             for ch in 0..2 {
                 let wet = frame[ch] - dry[ch];
                 let (lp, hp) = self.colour.tick(ch, wet);
@@ -313,6 +350,11 @@ impl ChannelFx {
             }
         }
     }
+}
+
+fn ramp(level: &mut f32, step: f32) -> f32 {
+    *level = (*level + step).clamp(0.0, 1.0);
+    *level
 }
 
 #[cfg(test)]
@@ -429,5 +471,75 @@ mod tests {
             fx.process(&mut buf, &ctx());
             assert!(buf.iter().all(|s| s.is_finite()), "{kind:?}");
         }
+    }
+
+    /// Noise added to silence by a Noise effect switched off after a burst,
+    /// block by block (4 096 frames each).
+    fn noise_after_off(fade_s: f32, blocks: usize) -> Vec<f32> {
+        let silence = vec![0.0f32; 2 * 4096];
+        let mut fx = ChannelFx::new(48_000);
+        fx.set_fade(fade_s);
+        fx.select(Some(MixerFx::Noise));
+        fx.set_on(true);
+        fx.set_knob(0.9);
+        let mut buf = silence.clone();
+        fx.process(&mut buf, &ctx());
+        fx.set_on(false);
+        (0..blocks)
+            .map(|_| {
+                let mut buf = silence.clone();
+                fx.process(&mut buf, &ctx());
+                rms(&buf)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn without_a_fade_the_button_cuts_the_effect() {
+        let levels = noise_after_off(0.0, 2);
+        assert!(levels[0] < 0.05 && levels[1] < 1e-4, "cut: {levels:?}");
+    }
+
+    #[test]
+    fn with_a_fade_the_button_lets_the_effect_die_away() {
+        let levels = noise_after_off(1.0, 14);
+        assert!(levels[0] > 0.05, "still heard at first: {levels:?}");
+        assert!(
+            levels.windows(2).take(10).all(|w| w[1] < w[0]),
+            "falling: {levels:?}"
+        );
+        assert!(levels[13] < 1e-6, "gone after the fade: {levels:?}");
+    }
+
+    #[test]
+    fn switching_on_during_a_fade_brings_the_effect_back() {
+        let silence = vec![0.0f32; 2 * 4096];
+        let mut fx = ChannelFx::new(48_000);
+        fx.set_fade(2.0);
+        fx.select(Some(MixerFx::Noise));
+        fx.set_on(true);
+        fx.set_knob(0.9);
+        for _ in 0..2 {
+            let mut buf = silence.clone();
+            fx.process(&mut buf, &ctx());
+        }
+        let mut buf = silence.clone();
+        fx.process(&mut buf, &ctx());
+        let full = rms(&buf);
+        fx.set_on(false);
+        for _ in 0..8 {
+            let mut buf = silence.clone();
+            fx.process(&mut buf, &ctx());
+        }
+        fx.set_on(true);
+        let mut buf = silence.clone();
+        fx.process(&mut buf, &ctx());
+        let mut buf = silence;
+        fx.process(&mut buf, &ctx());
+        assert!(
+            (rms(&buf) - full).abs() < 0.1 * full,
+            "back: {} vs {full}",
+            rms(&buf)
+        );
     }
 }

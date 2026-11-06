@@ -1170,3 +1170,34 @@ fn an_unanalysed_track_frees_the_deck_when_analysis_on_load_is_off() {
     h.until("deck A is free", |app| !app.decks[0].is_busy());
     assert_eq!(h.app.engine_state().decks[0].grid, None);
 }
+
+#[test]
+fn the_mixer_fx_fade_setting_reaches_the_engine() {
+    use backspn_engine::{Command, FxCommand};
+    let mut h = Harness::new("mixerfxfade");
+    let fades = |app: &App| -> Vec<f32> {
+        app.outbox
+            .iter()
+            .filter_map(|c| match c {
+                Command::Fx(FxCommand::MixerFxFade(s)) => Some(*s),
+                _ => None,
+            })
+            .collect()
+    };
+    h.app.outbox.clear();
+    h.app.settings.mixer_fx_fade = true;
+    h.app.settings.mixer_fx_fade_s = 2.0;
+    let ctx = h.ctx.clone();
+    let prefs = |app: &mut App| {
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| app.preferences(ui.ctx()));
+        output.textures_delta.clear();
+    };
+    prefs(&mut h.app);
+    assert_eq!(fades(&h.app), vec![2.0]);
+    h.app.outbox.clear();
+    prefs(&mut h.app);
+    assert!(fades(&h.app).is_empty(), "sent once");
+    h.app.settings.mixer_fx_fade = false;
+    prefs(&mut h.app);
+    assert_eq!(fades(&h.app), vec![0.0], "off: cut");
+}

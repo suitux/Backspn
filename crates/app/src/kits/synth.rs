@@ -278,13 +278,13 @@ const REMIX_KICK: Drum = Drum {
 const REMIX_SNARE: Snare = Snare {
     tones: [161.6, 245.3],
     tone_decay: 0.024,
-    noise_decay: 0.0718,
+    noise_decay: 0.11,
     noise: 0.872,
     band: (2194.0, 9414.0),
     snap: 0.0,
     body: 3.505,
     thwack: 0.375,
-    seconds: 0.455,
+    seconds: 0.62,
 };
 
 const REMIX_CLAP: Clap = Clap {
