@@ -148,6 +148,20 @@ fn play_during_cue_preview_keeps_playing_on_release() {
 }
 
 #[test]
+fn toggle_play_during_cue_preview_keeps_playing_on_release() {
+    let mut deck = loaded();
+    deck.handle(Command::CueDown);
+    run(&mut deck, 100);
+    deck.handle(Command::TogglePlay);
+    run(&mut deck, 100);
+    assert!(deck.state().playing);
+    deck.handle(Command::CueUp);
+    run(&mut deck, 100);
+    assert!(deck.state().playing);
+    assert_near(deck.state().position_s, 0.3);
+}
+
+#[test]
 fn cup_jumps_to_cue_and_plays_on_release() {
     let mut deck = loaded();
     deck.handle(Command::Seek { seconds: 4.0 });
@@ -1099,4 +1113,118 @@ fn a_keylocked_jump_while_playing_has_no_gap() {
         })
         .1;
     assert!(quiet < rate as usize / 100, "{quiet} quiet frames");
+}
+
+#[test]
+fn snapped_short_loops_hold_the_playhead() {
+    for beats in [0.5, 0.25, 0.125, 1.0 / 16.0, 1.0 / 32.0] {
+        let mut deck = with_grid(120.0, 0.0);
+        deck.handle(Command::SetSnap(true));
+        deck.handle(Command::Seek { seconds: 2.15 });
+        deck.handle(Command::AutoLoop { beats });
+        let s = deck.state();
+        let (start, end) = (s.loop_start_s.unwrap(), s.loop_end_s.unwrap());
+        assert_near(end - start, beats * 0.5);
+        deck.handle(Command::Play);
+        run(&mut deck, 1_000);
+        let pos = deck.state().position_s;
+        assert!(
+            (start..=end).contains(&pos),
+            "{beats}: {pos} left {start}..{end}"
+        );
+    }
+}
+
+#[test]
+fn keylocked_short_loops_play_only_the_loop() {
+    let rate = 44_100;
+    for beats in [0.5, 0.25, 1.0 / 16.0] {
+        let mut deck = Deck::new(rate);
+        deck.handle(Command::Load(ramp_at(rate, 20)));
+        deck.handle(Command::SetGrid(Some(Grid {
+            bpm: 120.0,
+            anchor_s: 0.0,
+            ..Grid::FIXED
+        })));
+        deck.handle(Command::SetKeylock(true));
+        deck.handle(Command::Seek { seconds: 4.0 });
+        deck.handle(Command::Play);
+        run(&mut deck, rate as usize / 10);
+        deck.handle(Command::AutoLoop { beats });
+        let s = deck.state();
+        let (start, end) = (s.loop_start_s.unwrap(), s.loop_end_s.unwrap());
+        let out = run(&mut deck, 2 * rate as usize);
+        let heard = out[rate as usize * 2..]
+            .iter()
+            .step_by(2)
+            .map(|&l| f64::from(l) * 20.0);
+        let (lo, hi) = heard.fold((f64::MAX, f64::MIN), |(lo, hi), t| (lo.min(t), hi.max(t)));
+        assert!(
+            lo > start - 0.05 && hi < end + 0.05,
+            "{beats}: heard {lo}..{hi}, loop {start}..{end}"
+        );
+    }
+}
+
+#[test]
+fn new_size_on_an_active_loop_keeps_its_start() {
+    let mut deck = with_grid(120.0, 0.0);
+    deck.handle(Command::SetSnap(true));
+    deck.handle(Command::Seek { seconds: 2.0 });
+    deck.handle(Command::AutoLoop { beats: 8.0 });
+    deck.handle(Command::Seek { seconds: 4.6 });
+    deck.handle(Command::AutoLoop { beats: 4.0 });
+    let s = deck.state();
+    assert_eq!((s.loop_start_s, s.loop_end_s), (Some(2.0), Some(4.0)));
+    assert!(s.loop_active);
+    assert_near(s.position_s, 2.6);
+    deck.handle(Command::AutoLoop { beats: 8.0 });
+    assert_eq!(deck.state().loop_end_s, Some(6.0));
+}
+
+#[test]
+fn halving_a_tiny_loop_never_lets_go() {
+    let rate = 44_100;
+    let beat = 60.0 / 128.0;
+    for keylock in [false, true] {
+        for via_scale in [false, true] {
+            for wait in (0..20).map(|i| 200 + i * 73) {
+                let mut deck = Deck::new(rate);
+                deck.handle(Command::Load(ramp_at(rate, 20)));
+                deck.handle(Command::SetGrid(Some(Grid {
+                    bpm: 128.0,
+                    anchor_s: 0.0,
+                    ..Grid::FIXED
+                })));
+                deck.handle(Command::SetSnap(true));
+                deck.handle(Command::SetKeylock(keylock));
+                deck.handle(Command::Seek { seconds: 4.0 });
+                deck.handle(Command::Play);
+                run(&mut deck, 2_000);
+                deck.handle(Command::AutoLoop { beats: 1.0 / 8.0 });
+                run(&mut deck, wait);
+                deck.handle(if via_scale {
+                    Command::LoopScale(0.5)
+                } else {
+                    Command::AutoLoop { beats: 1.0 / 16.0 }
+                });
+                run(&mut deck, wait % 150);
+                deck.handle(if via_scale {
+                    Command::LoopScale(0.5)
+                } else {
+                    Command::AutoLoop { beats: 1.0 / 32.0 }
+                });
+                run(&mut deck, rate as usize / 4);
+                let s = deck.state();
+                let (start, end) = (s.loop_start_s.unwrap(), s.loop_end_s.unwrap());
+                assert!(s.loop_active);
+                assert!((end - start - beat / 32.0).abs() < 1e-6);
+                assert!(
+                    (start..=end).contains(&s.position_s),
+                    "keylock {keylock}, scale {via_scale}, wait {wait}: {} left {start}..{end}",
+                    s.position_s
+                );
+            }
+        }
+    }
 }

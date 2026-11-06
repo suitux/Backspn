@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use backspn_control::{MoveMode, MoveSize};
 use backspn_engine::{Command, DeckCommand, DeckState};
-use eframe::egui::{Button, ComboBox, Ui, vec2};
+use eframe::egui::{Button, Ui, vec2};
 
 use crate::i18n::tr;
 use crate::repeat;
@@ -10,6 +10,7 @@ use crate::theme;
 use crate::widgets;
 
 use super::DeckView;
+use crate::select::select;
 
 const MENU_SIZES: std::ops::RangeInclusive<u8> = 2..=11;
 
@@ -19,15 +20,13 @@ impl DeckView {
         let h = 24.0;
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 4.0;
-            ComboBox::from_id_salt(("move mode", self.index))
+            select(("move mode", self.index), self.move_mode.label())
                 .width(104.0)
-                .selected_text(self.move_mode.label())
-                .show_ui(ui, |ui| {
-                    for mode in MoveMode::ALL {
-                        ui.selectable_value(&mut self.move_mode, mode, mode.label());
-                    }
-                })
-                .response
+                .options(
+                    ui,
+                    &mut self.move_mode,
+                    MoveMode::ALL.map(|m| (m, m.label())),
+                )
                 .on_hover_text(tr(
                     "What ◀ / ▶ move: the playhead, the loop or one of its ends",
                 ));
@@ -38,19 +37,18 @@ impl DeckView {
                 self.move_size = MoveSize::FINE;
             }
             let in_menu = MENU_SIZES.contains(&self.move_size.index());
-            ComboBox::from_id_salt(("move size", self.index))
+            let shown = if in_menu {
+                self.move_size.label()
+            } else {
+                "beats".into()
+            };
+            select(("move size", self.index), shown)
                 .width(72.0)
-                .selected_text(if in_menu {
-                    self.move_size.label()
-                } else {
-                    "beats".into()
-                })
-                .show_ui(ui, |ui| {
-                    for size in MENU_SIZES.filter_map(MoveSize::new) {
-                        ui.selectable_value(&mut self.move_size, size, size.label());
-                    }
-                })
-                .response
+                .options(
+                    ui,
+                    &mut self.move_size,
+                    MENU_SIZES.filter_map(MoveSize::new).map(|s| (s, s.label())),
+                )
                 .on_hover_text(tr("Step size in beats"));
             if widgets::toggle(ui, "LOOP", self.move_size == MoveSize::LOOP, t.accent)
                 .on_hover_text(tr("Steps of the loop size"))

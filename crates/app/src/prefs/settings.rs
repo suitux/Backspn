@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use backspn_engine::{
     Config, DECKS, EffectKind, EqModel, FX_UNITS, FilterModel, FxMode, FxRouting, LimiterModel,
-    MIXER_FX_SLOTS, MixerFx,
+    MIXER_FX_MAX_FADE_S, MIXER_FX_SLOTS, MixerFx,
 };
 use serde::{Deserialize, Serialize};
 
@@ -194,6 +194,9 @@ pub struct Settings {
     pub jog_nudge_sensitivity: f64,
     pub jog_tension: u8,
     pub mixer_fx_slots: [MixerFx; 4],
+    /// The channel's FX button fades the mixer FX out instead of cutting it.
+    pub mixer_fx_fade: bool,
+    pub mixer_fx_fade_s: f32,
     pub jog_turntable: bool,
     pub tempo_fader_relative: bool,
     pub platter_45: bool,
@@ -273,6 +276,9 @@ pub struct Settings {
     pub music_xml: Option<PathBuf>,
     pub import_folders_at_startup: bool,
     pub factory_kits_installed: bool,
+    /// Latest factory kit generation installed, so kits added later reach
+    /// existing users once.
+    pub factory_kits: u8,
     pub hidden_tree_nodes: Vec<crate::browser::TreeNode>,
     pub favorites: Vec<String>,
     pub show_favorites: bool,
@@ -333,6 +339,8 @@ impl Default for Settings {
             jog_nudge_sensitivity: 0.5,
             jog_tension: 50,
             mixer_fx_slots: MIXER_FX_SLOTS,
+            mixer_fx_fade: false,
+            mixer_fx_fade_s: 1.0,
             jog_turntable: false,
             tempo_fader_relative: true,
             platter_45: false,
@@ -403,6 +411,7 @@ impl Default for Settings {
             music_xml: None,
             import_folders_at_startup: true,
             factory_kits_installed: false,
+            factory_kits: 0,
             hidden_tree_nodes: Vec::new(),
             favorites: crate::favorites::defaults(),
             show_favorites: true,
@@ -476,6 +485,15 @@ impl Settings {
 
     pub fn exists() -> bool {
         settings_path().exists()
+    }
+
+    /// Seconds the mixer FX take to fade out when switched off; 0 cuts them.
+    pub fn mixer_fx_fade(&self) -> f32 {
+        if self.mixer_fx_fade {
+            self.mixer_fx_fade_s.clamp(0.0, MIXER_FX_MAX_FADE_S)
+        } else {
+            0.0
+        }
     }
 
     pub fn load() -> Self {
@@ -565,6 +583,22 @@ pub fn needs_audio_restart(before: &Settings, after: &Settings) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn mixer_fx_cut_unless_the_fade_is_on() {
+        let mut s = super::Settings {
+            mixer_fx_fade_s: 2.5,
+            ..Default::default()
+        };
+        assert!(s.mixer_fx_fade() == 0.0, "off: cut");
+        s.mixer_fx_fade = true;
+        assert!((s.mixer_fx_fade() - 2.5).abs() < 1e-6);
+        s.mixer_fx_fade_s = 99.0;
+        assert!(
+            (s.mixer_fx_fade() - super::MIXER_FX_MAX_FADE_S).abs() < 1e-6,
+            "kept in range"
+        );
+    }
+
     use super::*;
 
     #[test]

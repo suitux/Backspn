@@ -4,7 +4,7 @@ use backspn_control::output::{self, OutMapping};
 use backspn_control::{
     Action, Input, InputEvent, Interaction, Learn, Mapping, MidiId, MidiKind, deck_letter, midi,
 };
-use eframe::egui::{self, Button, ComboBox, RichText, Ui};
+use eframe::egui::{self, Button, RichText, Ui};
 
 use super::{Controls, KEYBOARD};
 use crate::i18n::tr;
@@ -16,6 +16,7 @@ mod commands;
 pub(crate) use commands::all as all_commands;
 mod editors;
 
+use crate::select::select;
 use editors::Mode;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -712,14 +713,14 @@ impl Controls {
         let before = target;
         ui.horizontal(|ui| {
             ui.label(tr("Device Target"));
-            ComboBox::from_id_salt("cm-target")
-                .selected_text(label(target))
-                .show_ui(ui, |ui| {
-                    for t in std::iter::once(None).chain((0..backspn_engine::DECKS).map(Some)) {
-                        ui.selectable_value(&mut target, t, label(t));
-                    }
-                })
-                .response
+            select("cm-target", label(target))
+                .options(
+                    ui,
+                    &mut target,
+                    std::iter::once(None)
+                        .chain((0..backspn_engine::DECKS).map(Some))
+                        .map(|t| (t, label(t))),
+                )
                 .on_hover_text(tr(
                     "The deck of the mappings assigned to Device Target: the one with the focus, or a fixed deck",
                 ));

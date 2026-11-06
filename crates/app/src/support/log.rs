@@ -251,9 +251,15 @@ mod tests {
         assert!(!previous.closed);
         assert_eq!(previous.text, "x - >>> LOG OPEN, a\nx - boom\n");
         close();
+        close();
         let text = fs::read_to_string(&file).unwrap();
         assert!(text.starts_with("x - >>> LOG OPEN, a\nx - boom\n"));
         assert!(closed_cleanly(&text));
+        assert_eq!(
+            text.matches(CLOSE).count(),
+            1,
+            "a second close adds nothing"
+        );
         assert!(last_session(&text).contains("Starting Backspn ("));
         fs::remove_dir_all(&dir).ok();
     }

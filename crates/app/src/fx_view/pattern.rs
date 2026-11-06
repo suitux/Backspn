@@ -1,12 +1,13 @@
 use backspn_control::{Action, Trigger};
 use backspn_engine::fx_pattern::{PATTERNS, STEPS, Steps, pattern_index, pitch_semitones};
 use backspn_engine::{Command, DrumMachine, FX_CHANNELS, FX_UNITS, FxCommand, FxMode};
-use eframe::egui::{self, ComboBox, RichText, Ui};
+use eframe::egui::{self, RichText, Ui};
 
 use super::FxView;
 use crate::i18n::tr;
 use crate::kits::Kit;
 use crate::modal::{self, Ask};
+use crate::select::select;
 use crate::theme;
 use crate::widgets::{self, knob};
 
@@ -400,23 +401,24 @@ impl FxView {
             .as_ref()
             .map(|(id, k)| (id.clone(), k.name.clone()));
         let mut picked = None;
-        ComboBox::from_id_salt(("pattern-kit", u))
-            .width(width)
-            .truncate()
-            .selected_text(
-                RichText::new(current.as_ref().map_or("No kit", |(_, n)| n.as_str())).size(12.0),
-            )
-            .show_ui(ui, |ui| {
-                if self.kits.kits().is_empty() {
-                    ui.label(RichText::new(tr("No kits: make one in Preferences.")).weak());
+        select(
+            ("pattern-kit", u),
+            current.as_ref().map_or("No kit", |(_, n)| n.as_str()),
+        )
+        .width(width)
+        .truncate()
+        .compact()
+        .show(ui, |ui| {
+            if self.kits.kits().is_empty() {
+                ui.label(RichText::new(tr("No kits: make one in Preferences.")).weak());
+            }
+            for k in self.kits.kits() {
+                let on = current.as_ref().is_some_and(|(id, _)| *id == k.id);
+                if ui.selectable_label(on, &k.kit.name).clicked() {
+                    picked = Some(k.id.clone());
                 }
-                for k in self.kits.kits() {
-                    let on = current.as_ref().is_some_and(|(id, _)| *id == k.id);
-                    if ui.selectable_label(on, &k.kit.name).clicked() {
-                        picked = Some(k.id.clone());
-                    }
-                }
-            });
+            }
+        });
         if let Some(id) = picked {
             self.load_kit(u, &id, out);
         }
@@ -425,10 +427,10 @@ impl FxView {
     fn sound_combo(&mut self, ui: &mut Ui, u: usize, out: &mut Vec<Command>) {
         let p = &self.patterns[u];
         let mut picked = None;
-        ComboBox::from_id_salt(("pattern-sound", u))
+        select(("pattern-sound", u), p.sound_name())
             .truncate()
-            .selected_text(RichText::new(p.sound_name()).size(12.0).strong())
-            .show_ui(ui, |ui| {
+            .compact()
+            .show(ui, |ui| {
                 let sounds = p.kit.as_ref().map_or(&[][..], |(_, k)| &k.sounds[..]);
                 for (i, s) in sounds.iter().enumerate() {
                     if ui.selectable_label(i == p.sound, &s.name).clicked() {

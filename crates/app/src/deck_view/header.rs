@@ -177,11 +177,12 @@ impl DeckView {
                     color,
                 );
                 widgets::hover_outline(ui, &response);
-                if response.on_hover_text(tr("Load a file…")).clicked()
-                    && let Some(path) = rfd::FileDialog::new()
+                let response = response.on_hover_text(tr("Load a file…"));
+                if let Some(path) = crate::dialog::ask(response.id, response.clicked(), || {
+                    rfd::FileDialog::new()
                         .add_filter("Audio", crate::AUDIO_EXTENSIONS)
                         .pick_file()
-                {
+                }) {
                     self.pending_open = Some(path);
                 }
             }

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use backspn_engine::{DECKS, EffectKind, StreamInfo, output_devices};
-use eframe::egui::{self, ComboBox, RichText, ScrollArea, Ui};
+use eframe::egui::{self, RichText, ScrollArea, Ui};
 
 use crate::controls::Controls;
 use crate::i18n::tr;
@@ -17,6 +17,7 @@ mod screens;
 mod search;
 mod settings;
 
+use crate::select::select;
 use pages::{
     ai_control, analyze_options, auto_fade, auto_gain, channel_filter, crossfader_curve, eq_model,
     external_mixing_mode, external_sync, file_management_page, global_settings, headroom,
@@ -468,20 +469,18 @@ impl Prefs {
                 };
 
                 search::title(ui, "Sample Rate");
-                ComboBox::from_id_salt("sample rate")
-                    .selected_text(format!("{} Hz", info.sample_rate))
-                    .show_ui(ui, |ui| {
-                        for &rate in &info.sample_rates {
-                            if ui
-                                .selectable_label(rate == info.sample_rate, format!("{rate} Hz"))
-                                .clicked()
-                                && rate != info.sample_rate
-                            {
-                                s.sample_rate = Some(rate);
-                                restart = true;
-                            }
+                select("sample rate", format!("{} Hz", info.sample_rate)).show(ui, |ui| {
+                    for &rate in &info.sample_rates {
+                        if ui
+                            .selectable_label(rate == info.sample_rate, format!("{rate} Hz"))
+                            .clicked()
+                            && rate != info.sample_rate
+                        {
+                            s.sample_rate = Some(rate);
+                            restart = true;
                         }
-                    });
+                    }
+                });
                 ui.end_row();
 
                 search::title(ui, "Buffer Size");
@@ -695,28 +694,18 @@ pub(crate) fn deck_size_combo(ui: &mut Ui, deck: usize, size: &mut crate::deck_v
         (DeckSize::ParallelFullAdvanced, "Parallel Full Advanced"),
     ];
     let name = SIZES.iter().find(|(s, _)| s == size).map_or("", |(_, n)| n);
-    egui::ComboBox::from_id_salt(("deck size", deck))
+    select(("deck size", deck), name)
         .width(150.0)
-        .selected_text(name)
-        .show_ui(ui, |ui| {
-            for (value, label) in SIZES {
-                ui.selectable_value(size, value, label);
-            }
-        });
+        .options(ui, size, SIZES);
 }
 
 pub(crate) fn deck_type_combo(ui: &mut Ui, deck: usize, s: &Settings) -> Option<DeckType> {
     let status = &s.status.decks[deck];
     let current = DeckType::of(status.deck_kind, status.live);
     let mut chosen = current;
-    egui::ComboBox::from_id_salt(("deck type", deck))
+    select(("deck type", deck), tr(chosen.label()))
         .width(110.0)
-        .selected_text(tr(chosen.label()))
-        .show_ui(ui, |ui| {
-            for value in DeckType::ALL {
-                ui.selectable_value(&mut chosen, value, tr(value.label()));
-            }
-        });
+        .options(ui, &mut chosen, DeckType::ALL.map(|v| (v, tr(v.label()))));
     (chosen != current).then_some(chosen)
 }
 

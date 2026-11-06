@@ -39,7 +39,10 @@ open-source generative AI studio (ArtCraft), whose real CSS variables
    background and rise halfway to `text_faint` under the mouse
    (`widgets::cell_fill`). The outline has the same width in every state
    and nothing expands: the control does not change size on hover (test
-   `hovering_a_button_does_not_resize_it`).
+   `hovering_a_button_does_not_resize_it`). Every drop-down goes through
+   `select::select` (or `search_combo` when it needs a search field): the
+   shown text carries no colour of its own, so it inverts with the control
+   (test `a_hovered_select_shows_its_text_in_the_inverted_colour`).
 
 ## Tokens
 

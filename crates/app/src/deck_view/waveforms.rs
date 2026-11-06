@@ -56,16 +56,17 @@ impl DeckView {
         let mut seek = None;
         let mut save = false;
 
-        let (rect, response) = ui.allocate_exact_size(vec2(width, height), Sense::click());
-        let painter = ui.painter_at(rect);
-        let radius = if self.size.parallel_wave().is_some() {
-            0.0
+        let parallel = self.size.parallel_wave().is_some();
+        let sense = if parallel {
+            Sense::click_and_drag()
         } else {
-            6.0
+            Sense::click()
         };
+        let (rect, response) = ui.allocate_exact_size(vec2(width, height), sense);
+        let painter = ui.painter_at(rect);
+        let radius = if parallel { 0.0 } else { 6.0 };
         painter.rect_filled(rect, radius, t.well);
         let style = waveform::WaveStyle::get(ui.ctx());
-        self.zoom_buttons(ui, rect, &t);
         let cue_marks: Vec<(f64, CueKind)> = self
             .cues()
             .into_iter()
@@ -147,11 +148,42 @@ impl DeckView {
             t.danger,
             egui::Stroke::NONE,
         ));
+        self.zoom_buttons(ui, rect, &t);
 
         self.zoom_texture = zoom_texture;
         self.pending_save_loop |= save;
         if let Some(seconds) = seek {
             out.push(self.deck(DeckCommand::Seek { seconds }));
+        }
+        if parallel {
+            self.drag_track(&response, rect, window, state.loaded, out);
+        }
+    }
+
+    /// Grabbing the waveform holds the track and moves it with the pointer.
+    fn drag_track(
+        &self,
+        response: &egui::Response,
+        rect: Rect,
+        window: (f64, f64),
+        loaded: bool,
+        out: &mut Vec<Command>,
+    ) {
+        if loaded && response.drag_started() {
+            out.push(self.deck(DeckCommand::ScratchStart));
+        }
+        if loaded && response.dragged() {
+            let dx = response.drag_delta().x;
+            if dx != 0.0 {
+                let seconds = waveform::drag_seconds(rect, window, dx);
+                out.push(self.deck(DeckCommand::ScratchMove(seconds)));
+            }
+            response.ctx.set_cursor_icon(egui::CursorIcon::Grabbing);
+        } else if loaded && response.hovered() {
+            response.ctx.set_cursor_icon(egui::CursorIcon::Grab);
+        }
+        if response.drag_stopped() {
+            out.push(self.deck(DeckCommand::ScratchEnd));
         }
     }
 
@@ -398,20 +430,24 @@ impl DeckView {
             let min = rect.right_top() + vec2(-(2.0 - i as f32) * (size.x + 2.0) - 2.0, 4.0);
             let area = Rect::from_min_size(min, size);
             let id = ui.scope_id().with(("zoom", self.index, i));
-            let response = ui.interact(area, id, Sense::click()).on_hover_text(hint);
-            let fill = if response.hovered() {
-                t.well.gamma_multiply(1.6)
+            let response = ui
+                .interact(area, id, Sense::click())
+                .on_hover_cursor(egui::CursorIcon::PointingHand)
+                .on_hover_text(hint);
+            let (fill, ink) = if response.is_pointer_button_down_on() {
+                (t.invert.gamma_multiply(0.8), t.invert_fg)
+            } else if response.hovered() {
+                (t.invert, t.invert_fg)
             } else {
-                t.well
+                (t.well.gamma_multiply(0.9), t.text_dim)
             };
-            ui.painter()
-                .rect_filled(area, 0.0, fill.gamma_multiply(0.9));
+            ui.painter().rect_filled(area, 0.0, fill);
             ui.painter().text(
                 area.center(),
                 egui::Align2::CENTER_CENTER,
                 label,
                 egui::FontId::proportional(13.0),
-                t.text_dim,
+                ink,
             );
             if response.clicked() {
                 self.set_zoom(self.zoom_s * factor);

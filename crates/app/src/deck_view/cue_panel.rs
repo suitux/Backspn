@@ -1,7 +1,7 @@
 use backspn_control::Action;
 use backspn_engine::{CueKind, DeckState, HOTCUES};
 use backspn_library::CuePoint;
-use eframe::egui::{Button, ComboBox, TextEdit, Ui, vec2};
+use eframe::egui::{Button, TextEdit, Ui, vec2};
 
 use crate::cue_list::CueList;
 use crate::i18n::tr;
@@ -9,6 +9,7 @@ use crate::theme;
 use crate::widgets;
 
 use super::{DeckEvent, DeckView};
+use crate::select::select;
 
 const TYPES: [(CueKind, &str); 5] = [
     (CueKind::Cue, "Cue"),
@@ -78,10 +79,9 @@ impl DeckView {
             let shown = selected_index
                 .and_then(|i| entries.iter().find(|(j, _)| *j == i))
                 .map_or("---", |(_, e)| e.as_str());
-            ComboBox::from_id_salt(("cue list", deck))
+            select(("cue list", deck), shown)
                 .width(110.0)
-                .selected_text(shown)
-                .show_ui(ui, |ui| {
+                .show(ui, |ui| {
                     for (i, entry) in entries {
                         if ui
                             .selectable_label(selected_index == Some(*i), entry)
@@ -113,10 +113,9 @@ impl DeckView {
             }
             let kind = selected.map(|c| c.kind);
             ui.add_enabled_ui(selected.is_some(), |ui| {
-                ComboBox::from_id_salt(("cue type", deck))
+                select(("cue type", deck), kind.map_or("Floating", type_name))
                     .width(80.0)
-                    .selected_text(kind.map_or("Floating", type_name))
-                    .show_ui(ui, |ui| {
+                    .show(ui, |ui| {
                         for (k, label) in TYPES {
                             let id = i32::from(k);
                             if ui.selectable_label(kind == Some(id), label).clicked() {

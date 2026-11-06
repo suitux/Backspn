@@ -281,27 +281,37 @@ impl Controls {
             return;
         };
         let name = self.set.tables[i].name.clone();
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter("Mapping", &[table::EXTENSION])
-            .set_file_name(table::file_name(&name))
-            .save_file()
-        else {
-            return;
-        };
-        self.message = Some(match std::fs::write(&path, text) {
-            Ok(()) => format!("Exported {name} to {}", path.display()),
-            Err(e) => format!("Cannot write {}: {e}", path.display()),
-        });
+        let file_name = table::file_name(&name);
+        self.dialog.open(
+            move || {
+                rfd::FileDialog::new()
+                    .add_filter("Mapping", &[table::EXTENSION])
+                    .set_file_name(file_name)
+                    .save_file()
+            },
+            move |c: &mut Self, path| {
+                c.message = Some(match std::fs::write(&path, text) {
+                    Ok(()) => format!("Exported {name} to {}", path.display()),
+                    Err(e) => format!("Cannot write {}: {e}", path.display()),
+                });
+            },
+        );
     }
 
     fn import_table(&mut self, owner: &Owner) {
-        let Some(path) = rfd::FileDialog::new()
-            .add_filter("Mapping", &[table::EXTENSION, "tsi"])
-            .pick_file()
-        else {
-            return;
-        };
-        match read_tables(&path) {
+        let owner = owner.clone();
+        self.dialog.open(
+            || {
+                rfd::FileDialog::new()
+                    .add_filter("Mapping", &[table::EXTENSION, "tsi"])
+                    .pick_file()
+            },
+            move |c: &mut Self, path| c.import_table_from(&owner, &path),
+        );
+    }
+
+    fn import_table_from(&mut self, owner: &Owner, path: &std::path::Path) {
+        match read_tables(path) {
             Ok(files) => self.add_imported(owner, files),
             Err(e) => self.message = Some(format!("Cannot read {}: {e}", path.display())),
         }

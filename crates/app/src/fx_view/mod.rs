@@ -5,12 +5,14 @@ use std::collections::HashMap;
 use backspn_engine::{
     Command, DECKS, EffectKind, FX_SLOTS, FX_UNITS, FxCommand, FxMode, FxRouting, create_effect,
 };
-use eframe::egui::{self, ComboBox, RichText, Ui};
+use eframe::egui::{self, RichText, Ui};
 
 use backspn_control::{Action, Trigger, deck_letter};
 
 use crate::i18n::tr;
 use crate::kits::KitLibrary;
+use crate::search_combo::{Entry, search_select};
+use crate::select::select;
 use crate::theme;
 use crate::widgets::{self, knob};
 pub use pattern::resolution_label;
@@ -69,28 +71,33 @@ pub fn mode_select(
     text_size: f32,
 ) -> bool {
     let before = *mode;
-    ComboBox::from_id_salt(id)
+    select(id, mode_name(*mode))
         .width(width)
-        .selected_text(RichText::new(mode_name(*mode)).size(text_size))
-        .show_ui(ui, |ui| {
-            for m in [FxMode::Group, FxMode::Single, FxMode::DrumMachine] {
-                ui.selectable_value(mode, m, mode_name(m));
-            }
-        });
+        .text_size(text_size)
+        .options(
+            ui,
+            mode,
+            [FxMode::Group, FxMode::Single, FxMode::DrumMachine].map(|m| (m, mode_name(m))),
+        );
     *mode != before
 }
 
-fn effect_matches(selection: &[EffectKind], query: &str, group: bool) -> Vec<EffectKind> {
-    let query = query.trim().to_lowercase();
-    let offered = selection
-        .iter()
-        .copied()
-        .filter(|k| group || !k.is_modifier());
-    if query.is_empty() {
-        return std::iter::once(EffectKind::None).chain(offered).collect();
-    }
-    offered
-        .filter(|k| k.info().name.to_lowercase().contains(&query))
+/// The effect list of a slot: "none" first (left out while searching), then
+/// the chosen effects, without modifiers outside a group.
+fn effect_entries(
+    selection: &[EffectKind],
+    current: EffectKind,
+    group: bool,
+) -> Vec<Entry<EffectKind>> {
+    let entry = |k: EffectKind| Entry::item(k, k.info().name, k == current);
+    std::iter::once(entry(EffectKind::None).hidden_while_searching())
+        .chain(
+            selection
+                .iter()
+                .copied()
+                .filter(|k| group || !k.is_modifier())
+                .map(entry),
+        )
         .collect()
 }
 
@@ -715,58 +722,17 @@ impl FxView {
         current: EffectKind,
         width: f32,
     ) -> Option<EffectKind> {
-        let search_id = egui::Id::unique(("fx-search", id.0, id.1));
-        let mut query: String = ui.data_mut(|d| d.get_temp(search_id).unwrap_or_default());
-        let mut selected = current;
-        let popup = ComboBox::from_id_salt(("fx", id.0, id.1))
-            .width(width)
-            .truncate()
-            .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-            .height(f32::INFINITY)
-            .selected_text(RichText::new(current.short_name()).size(12.0))
-            .show_ui(ui, |ui| {
-                let search = ui.add(
-                    egui::TextEdit::singleline(&mut query)
-                        .hint_text("Search…")
-                        .desired_width(f32::INFINITY),
-                );
-                if !search.has_focus() && !search.lost_focus() {
-                    search.request_focus();
-                }
-                let matches = effect_matches(&self.selection, &query, id.1 != SINGLE_SELECTOR);
-                if search.lost_focus()
-                    && ui.input(|i| i.key_pressed(egui::Key::Enter))
-                    && let Some(&first) = matches.first()
-                {
-                    selected = first;
-                    ui.close();
-                }
-                ui.separator();
-                let row = ui.spacing().interact_size.y + ui.spacing().item_spacing.y;
-                let full = (row * (self.selection.len() + 1) as f32).min(SEARCH_LIST_MAX);
-                egui::ScrollArea::vertical()
-                    .max_height(SEARCH_LIST_MAX)
-                    .show(ui, |ui| {
-                        ui.set_min_height(full);
-                        for kind in matches {
-                            if ui
-                                .selectable_label(kind == selected, kind.info().name)
-                                .clicked()
-                            {
-                                selected = kind;
-                                ui.close();
-                            }
-                        }
-                    });
-            });
+        let entries = effect_entries(&self.selection, current, id.1 != SINGLE_SELECTOR);
+        let (response, picked) =
+            search_select(("fx", id.0, id.1), current.short_name(), width, &entries)
+                .compact()
+                .truncate()
+                .max_height(SEARCH_LIST_MAX)
+                .show(ui);
         if current.short_name() != current.info().name {
-            popup.response.on_hover_text(current.info().name);
+            response.on_hover_text(current.info().name);
         }
-        if popup.inner.is_none() {
-            query.clear();
-        }
-        ui.data_mut(|d| d.insert_temp(search_id, query));
-        (selected != current).then_some(selected)
+        picked.filter(|&k| k != current)
     }
 
     fn group_slot(
@@ -1289,29 +1255,52 @@ mod tests {
         assert_eq!(v.dry_wet_label(1), "VOL");
     }
 
+    fn found(selection: &[EffectKind], query: &str, group: bool) -> Vec<EffectKind> {
+        let entries = effect_entries(selection, EffectKind::None, group);
+        crate::search_combo::visible(&entries, query)
+            .into_iter()
+            .filter_map(|i| match &entries[i] {
+                Entry::Item { value, .. } => Some(*value),
+                _ => None,
+            })
+            .collect()
+    }
+
     #[test]
     fn effect_search_ignores_case_and_keeps_the_order() {
         let selection = [EffectKind::Reverb, EffectKind::Delay, EffectKind::Gater];
+        assert_eq!(found(&selection, "", true).len(), 4, "none plus all");
         assert_eq!(
-            effect_matches(&selection, "", true).len(),
-            4,
-            "none plus all"
-        );
-        assert_eq!(
-            effect_matches(&selection, " E", true),
+            found(&selection, " E", true),
             [EffectKind::Reverb, EffectKind::Delay, EffectKind::Gater]
         );
-        assert_eq!(effect_matches(&selection, "del", true), [EffectKind::Delay]);
-        assert_eq!(effect_matches(&selection, "zzz", true), []);
+        assert_eq!(found(&selection, "del", true), [EffectKind::Delay]);
+        assert_eq!(found(&selection, "zzz", true), []);
+        assert_eq!(found(&selection, "no", true), [], "none only while idle");
         let selection = [
             EffectKind::Delay,
             EffectKind::ModFilter,
             EffectKind::ModDecay,
         ];
-        assert_eq!(effect_matches(&selection, "modifier", true).len(), 2);
+        assert_eq!(found(&selection, "modifier", true).len(), 2);
         assert_eq!(
-            effect_matches(&selection, "", false),
+            found(&selection, "", false),
             [EffectKind::None, EffectKind::Delay]
         );
+    }
+
+    #[test]
+    fn the_current_effect_is_marked() {
+        let entries = effect_entries(&[EffectKind::Delay], EffectKind::Delay, true);
+        let marked: Vec<_> = entries
+            .iter()
+            .filter_map(|e| match e {
+                Entry::Item {
+                    value, selected, ..
+                } => selected.then_some(*value),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(marked, [EffectKind::Delay]);
     }
 }

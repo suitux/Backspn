@@ -9,6 +9,7 @@ use crate::fx_view::resolution_label;
 use crate::i18n::tr;
 use crate::kits::{EXTENSION, Kit, KitLibrary, OLD_EXTENSION};
 use crate::modal::{self, Ask};
+use crate::select::select;
 use crate::{theme, widgets};
 
 #[derive(Debug, Default)]
@@ -78,17 +79,14 @@ impl Prefs {
                     .as_ref()
                     .and_then(|id| kits.find(id))
                     .map_or_else(|| "—".to_owned(), |k| k.kit.name.clone());
-                egui::ComboBox::from_id_salt("kit-pick")
-                    .width(180.0)
-                    .selected_text(current)
-                    .show_ui(ui, |ui| {
-                        for k in kits.kits() {
-                            let on = self.kit.selected.as_ref() == Some(&k.id);
-                            if ui.selectable_label(on, &k.kit.name).clicked() {
-                                self.kit.selected = Some(k.id.clone());
-                            }
+                select("kit-pick", current).width(180.0).show(ui, |ui| {
+                    for k in kits.kits() {
+                        let on = self.kit.selected.as_ref() == Some(&k.id);
+                        if ui.selectable_label(on, &k.kit.name).clicked() {
+                            self.kit.selected = Some(k.id.clone());
                         }
-                    });
+                    }
+                });
                 if ui.button(tr("New")).clicked() {
                     self.kit.selected = Some(kits.create("New kit")?);
                 }
@@ -101,22 +99,28 @@ impl Prefs {
                     if ui.button(tr("Delete")).clicked() {
                         self.kit.delete_ask = Some(ask_delete(kits, &id));
                     }
-                    if ui.button(tr("Export…")).clicked()
-                        && let Some(to) = rfd::FileDialog::new()
-                            .add_filter("Kit", &[EXTENSION])
-                            .set_file_name(format!("{id}.{EXTENSION}"))
-                            .save_file()
+                    let export = ui.button(tr("Export…"));
+                    let kit = id.clone();
+                    if let Some((kit, to)) =
+                        crate::dialog::ask(export.id, export.clicked(), move || {
+                            let to = rfd::FileDialog::new()
+                                .add_filter("Kit", &[EXTENSION])
+                                .set_file_name(format!("{kit}.{EXTENSION}"))
+                                .save_file()?;
+                            Some((kit, to))
+                        })
                     {
-                        kits.export(&id, &to)?;
+                        kits.export(&kit, &to)?;
                     }
                     Ok(())
                 })
                 .inner?;
-                if ui.button(tr("Import…")).clicked()
-                    && let Some(from) = rfd::FileDialog::new()
+                let import = ui.button(tr("Import…"));
+                if let Some(from) = crate::dialog::ask(import.id, import.clicked(), || {
+                    rfd::FileDialog::new()
                         .add_filter("Kit", &[EXTENSION, OLD_EXTENSION])
                         .pick_file()
-                {
+                }) {
                     self.kit.selected = Some(kits.import(&from)?);
                 }
                 if ui
@@ -213,10 +217,14 @@ impl Prefs {
                     ui.end_row();
                 }
             });
-        if ui.button(tr("Add sounds…")).clicked()
-            && let Some(files) = rfd::FileDialog::new()
+        let add = ui.button(tr("Add sounds…"));
+        let kit_id = id.to_owned();
+        if let Some((kit_id, files)) = crate::dialog::ask(add.id, add.clicked(), move || {
+            let files = rfd::FileDialog::new()
                 .add_filter("Audio", crate::AUDIO_EXTENSIONS)
-                .pick_files()
+                .pick_files()?;
+            Some((kit_id, files))
+        }) && kit_id == id
         {
             self.add_sounds(id, kit, &files, kits);
         }
@@ -269,16 +277,17 @@ impl Prefs {
                         steps.bits = 0;
                     }
                     let mut per_beat = steps.per_beat;
-                    egui::ComboBox::from_id_salt(("kit-resolution", &sound.file, n))
-                        .width(56.0)
-                        .selected_text(resolution_label(per_beat))
-                        .show_ui(ui, |ui| {
-                            for r in RESOLUTIONS {
-                                ui.selectable_value(&mut per_beat, r, resolution_label(r));
-                            }
-                        })
-                        .response
-                        .on_hover_text(tr("Steps of a beat: the grid and what ROLL repeats at"));
+                    select(
+                        ("kit-resolution", &sound.file, n),
+                        resolution_label(per_beat),
+                    )
+                    .width(56.0)
+                    .options(
+                        ui,
+                        &mut per_beat,
+                        RESOLUTIONS.map(|r| (r, resolution_label(r))),
+                    )
+                    .on_hover_text(tr("Steps of a beat: the grid and what ROLL repeats at"));
                     if per_beat != steps.per_beat {
                         *steps = steps.rescaled(per_beat);
                     }

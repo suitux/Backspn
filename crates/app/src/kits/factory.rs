@@ -5,18 +5,46 @@ pub struct FactoryKit {
     pub id: &'static str,
     pub name: &'static str,
     pub style: Style,
+    /// Generation that added the kit: a later one reaches existing users at
+    /// their next start.
+    pub since: u8,
 }
 
-pub const KITS: [FactoryKit; 2] = [
+pub const GENERATION: u8 = 3;
+
+/// A factory sound re-rendered in a later generation.
+pub struct Refresh {
+    pub since: u8,
+    pub kit: &'static str,
+    pub voice: Voice,
+}
+
+/// Sounds that changed after their kit came out: existing users get the new
+/// render at their next start, as long as the kit still uses that file.
+pub const REFRESHES: [Refresh; 1] = [Refresh {
+    since: 3,
+    kit: "remix-kit",
+    voice: Voice::Snare,
+}];
+
+pub const KITS: [FactoryKit; 3] = [
     FactoryKit {
         id: "analog-kit",
         name: "Analog Kit",
         style: Style::Analog,
+        since: 1,
     },
     FactoryKit {
         id: "club-kit",
         name: "Club Kit",
         style: Style::Club,
+        since: 1,
+    },
+    FactoryKit {
+        id: "remix-kit",
+        name: "Remix Kit",
+        style: Style::Remix,
+        since: 2,
     },
 ];
 
@@ -136,10 +164,28 @@ mod tests {
 
     #[test]
     fn kits_have_distinct_ids_and_files() {
-        assert_ne!(KITS[0].id, KITS[1].id);
+        let mut ids: Vec<_> = KITS.iter().map(|k| k.id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        assert_eq!(ids.len(), KITS.len());
         let mut files: Vec<_> = Voice::ALL.iter().map(|&v| file_name(v)).collect();
         files.sort_unstable();
         files.dedup();
         assert_eq!(files.len(), Voice::ALL.len());
+    }
+
+    #[test]
+    fn generation_is_the_newest_kit_or_refresh() {
+        let newest = KITS
+            .iter()
+            .map(|k| k.since)
+            .chain(REFRESHES.iter().map(|r| r.since))
+            .max();
+        assert_eq!(newest, Some(GENERATION));
+        assert!(KITS.iter().all(|k| k.since >= 1));
+        for r in &REFRESHES {
+            let kit = KITS.iter().find(|k| k.id == r.kit).expect("a factory kit");
+            assert!(r.since > kit.since, "{} refreshed after it came out", r.kit);
+        }
     }
 }

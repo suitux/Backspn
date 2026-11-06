@@ -1,11 +1,12 @@
 use backspn_engine::{Command, DeckCommand, DeckState, HOTCUES, SLICE_SIZES};
-use eframe::egui::{Button, ComboBox, Sense, Ui, vec2};
+use eframe::egui::{Button, Sense, Ui, vec2};
 
 use crate::i18n::tr;
 use crate::theme;
 use crate::widgets;
 
 use super::{ARROW, DeckView, SIZE_BUTTON, SIZES};
+use crate::select::select;
 
 impl DeckView {
     #[allow(clippy::too_many_lines)]
@@ -190,15 +191,13 @@ impl DeckView {
             b => format!("{b}"),
         };
         let mut chosen = index;
-        ComboBox::from_id_salt(("slice size", self.index))
+        select(("slice size", self.index), label(index))
             .width(48.0)
-            .selected_text(label(index))
-            .show_ui(ui, |ui| {
-                for i in 0..SLICE_SIZES.len() {
-                    ui.selectable_value(&mut chosen, i, label(i));
-                }
-            })
-            .response
+            .options(
+                ui,
+                &mut chosen,
+                (0..SLICE_SIZES.len()).map(|i| (i, label(i))),
+            )
             .on_hover_text(tr("Slice size in beats (an active loop is cut into eight)"));
         if chosen != index {
             out.push(self.deck(DeckCommand::SetSliceSize(chosen)));

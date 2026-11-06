@@ -9,6 +9,7 @@ use eframe::egui::{self, Ui, vec2};
 use crate::i18n::tr;
 use crate::sample_capture;
 use crate::sample_view::LoopDrag;
+use crate::select::select;
 use crate::{App, theme, widgets};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -207,14 +208,10 @@ impl App {
                     widgets::caption(ui, "LOOP RECORDER");
                     let mut size = s.size;
                     ui.add_enabled_ui(s.state == State::Empty, |ui| {
-                        egui::ComboBox::from_id_salt("loop-recorder-size")
+                        select("loop-recorder-size", beats(size))
                             .width(48.0)
-                            .selected_text(egui::RichText::new(beats(size)).size(12.0))
-                            .show_ui(ui, |ui| {
-                                for i in 0..SIZES.len() {
-                                    ui.selectable_value(&mut size, i, beats(i));
-                                }
-                            })
+                            .compact()
+                            .options(ui, &mut size, (0..SIZES.len()).map(|i| (i, beats(i))))
                     })
                     .response
                     .on_hover_text(tr("Loop length in beats (only while empty)"));
@@ -223,14 +220,10 @@ impl App {
                     }
                     let mut source = s.source;
                     ui.add_enabled_ui(!self.settings.external_mixer.on, |ui| {
-                        egui::ComboBox::from_id_salt("loop-recorder-source")
+                        select("loop-recorder-source", source.label())
                             .width(56.0)
-                            .selected_text(egui::RichText::new(source.label()).size(12.0))
-                            .show_ui(ui, |ui| {
-                                for value in Source::ALL {
-                                    ui.selectable_value(&mut source, value, value.label());
-                                }
-                            })
+                            .compact()
+                            .options(ui, &mut source, Source::ALL.map(|v| (v, v.label())))
                     })
                     .response
                     .on_hover_text(tr(

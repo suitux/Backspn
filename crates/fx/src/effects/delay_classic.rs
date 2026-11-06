@@ -177,12 +177,12 @@ impl Effect for Delay {
     }
 
     fn set_amount(&mut self, amount: f32) {
-        self.rate_knob = GROUP_RATE;
+        let v = amount.clamp(0.0, 1.0);
+        self.rate_knob = v;
         self.set_filter(0.0);
         self.spread = false;
         self.freeze = false;
         self.frozen = false;
-        let v = amount.clamp(0.0, 1.0);
         self.feedback = (2.0 * v - 1.0).max(0.0);
         self.set_mix(v.min(0.5));
     }
@@ -263,6 +263,21 @@ mod tests {
             left[36_100..37_000].iter().all(|v| v.abs() < 0.01),
             "one repeat only"
         );
+    }
+
+    fn first_echo(amount: f32) -> usize {
+        let mut d = Delay::new(f64::from(RATE));
+        d.set_amount(amount);
+        d.set_active(true);
+        let out = run(&mut d, &impulse(RATE as usize), ctx());
+        let left: Vec<f32> = out.iter().step_by(2).copied().collect();
+        left[100..].iter().position(|v| v.abs() > 0.05).unwrap() + 100
+    }
+
+    #[test]
+    fn a_higher_group_amount_shortens_the_echo() {
+        let times: Vec<usize> = [0.6, 0.75, 1.0].map(first_echo).to_vec();
+        assert!(times.windows(2).all(|w| w[1] < w[0]), "echoes at {times:?}");
     }
 
     #[test]

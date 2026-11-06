@@ -15,6 +15,7 @@ mod cue_list;
 mod deck_informer;
 mod deck_view;
 mod density;
+mod dialog;
 mod dirs;
 mod favorites;
 mod fx_view;
@@ -48,6 +49,7 @@ mod sample_capture;
 mod sample_view;
 mod screen;
 mod search_combo;
+mod select;
 mod selection;
 mod set_folder;
 mod slip_roll;
@@ -200,6 +202,7 @@ struct App {
     insights: insights::Insights,
     insights_ask: Option<modal::Ask<bool>>,
     insights_preview: Option<String>,
+    dialog: dialog::Then<App>,
 }
 
 impl App {
@@ -208,10 +211,11 @@ impl App {
         let mut settings = Settings::load();
         let (engine, audio_missing) = app::start_engine(&settings.audio_config());
         let mut kits = kits::KitLibrary::open(kits::KitLibrary::default_dir());
-        if !settings.factory_kits_installed {
-            kits.install_factory(false);
-            settings.factory_kits_installed = true;
-        }
+        let seen = settings
+            .factory_kits
+            .max(u8::from(settings.factory_kits_installed));
+        settings.factory_kits = kits.install_new_factory(seen);
+        settings.factory_kits_installed = true;
         let mut browser = Browser::open(settings.music_folders.clone());
         browser.find_programs();
         if settings.import_folders_at_startup {
@@ -257,6 +261,7 @@ impl App {
         let mut outbox = mixer.initial_commands();
         mixer.set_curve(settings.xfader_curve, &mut outbox);
         mixer.set_mixer_fx_slots(settings.mixer_fx_slots, &mut outbox);
+        mixer.set_mixer_fx_fade(settings.mixer_fx_fade(), &mut outbox);
         let sample_rate = engine.as_ref().map_or(44_100, |e| e.info().sample_rate);
         let mut fx = FxView::new(sample_rate, kits);
         fx.selection.clone_from(&settings.fx_selection);
@@ -352,6 +357,7 @@ impl App {
             insights: insights::Insights::none(),
             insights_ask: None,
             insights_preview: None,
+            dialog: dialog::Then::new("app"),
         };
         for (deck, &range) in app.decks.iter_mut().zip(&app.settings.deck_tempo_ranges) {
             deck.set_tempo_range(range);
@@ -400,6 +406,9 @@ impl Drop for App {
         if self.persist {
             self.save_status();
             self.browser.backup();
+            // Quitting from the macOS Dock ends the process right after this
+            // drop, so `main` never gets to close the log.
+            support::log::close();
         }
     }
 }
@@ -477,6 +486,12 @@ impl App {
         self.sample_save_dialogs(&ctx);
         self.set_import_dialog(&ctx);
         self.poll_recorder();
+        dialog::set_repaint(&ctx);
+        dialog::Then::finish(self, |app| &mut app.dialog);
+        self.browser.finish_dialog();
+        if let Some(controls) = &mut self.controls {
+            controls.finish_dialog();
+        }
 
         let t = theme::get(&ctx);
         let bar = egui::Frame::new()

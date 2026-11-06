@@ -145,14 +145,17 @@ impl Browser {
                 ui.add(egui::Button::new("+").frame(false))
                     .on_hover_text(tr("Add a folder of your computer"))
             });
-            if add.clicked()
-                && let Some(dirs) = rfd::FileDialog::new().pick_folders()
-            {
-                for dir in dirs {
-                    if let Some(action) = self.add_folder(dir) {
-                        self.tree_actions.push(action);
-                    }
-                }
+            if add.clicked() {
+                self.dialog.open(
+                    || rfd::FileDialog::new().pick_folders(),
+                    |b: &mut Self, dirs| {
+                        for dir in dirs {
+                            if let Some(action) = b.add_folder(dir) {
+                                b.tree_actions.push(action);
+                            }
+                        }
+                    },
+                );
             }
         });
         if self.folders.is_empty() {

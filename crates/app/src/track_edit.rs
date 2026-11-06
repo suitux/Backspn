@@ -1,9 +1,10 @@
 use backspn_formats::nml::MusicalKey;
 use backspn_library::{TextField, TrackRow};
-use eframe::egui::{self, ComboBox, RichText};
+use eframe::egui::{self, RichText};
 
 use crate::columns::stars;
 use crate::i18n::tr;
+use crate::select::select;
 use crate::theme::WindowExt;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -225,40 +226,36 @@ impl TrackEdit {
                     .0
                     .and_then(MusicalKey::from_value)
                     .map_or_else(String::new, |k| format!("{k} ({})", k.open_key()));
-                ComboBox::from_id_salt("edit-key")
-                    .selected_text(shown)
-                    .show_ui(ui, |ui| {
-                        if ui.selectable_label(self.key.0.is_none(), "—").clicked() {
-                            self.key = (None, true);
+                select("edit-key", shown).show(ui, |ui| {
+                    if ui.selectable_label(self.key.0.is_none(), "—").clicked() {
+                        self.key = (None, true);
+                    }
+                    for v in 0..24u8 {
+                        let k = MusicalKey::from_value(v).expect("in range");
+                        if ui
+                            .selectable_label(
+                                self.key.0 == Some(v),
+                                format!("{k} ({})", k.open_key()),
+                            )
+                            .clicked()
+                        {
+                            self.key = (Some(v), true);
                         }
-                        for v in 0..24u8 {
-                            let k = MusicalKey::from_value(v).expect("in range");
-                            if ui
-                                .selectable_label(
-                                    self.key.0 == Some(v),
-                                    format!("{k} ({})", k.open_key()),
-                                )
-                                .clicked()
-                            {
-                                self.key = (Some(v), true);
-                            }
-                        }
-                    });
+                    }
+                });
                 ui.end_row();
                 crate::widgets::check(ui, &mut self.rating.1, "");
                 ui.label(tr("Rating"));
-                ComboBox::from_id_salt("edit-rating")
-                    .selected_text(stars(self.rating.0))
-                    .show_ui(ui, |ui| {
-                        for n in 0..=5u8 {
-                            if ui
-                                .selectable_label(self.rating.0 == n * 51, stars(n * 51))
-                                .clicked()
-                            {
-                                self.rating = (n * 51, true);
-                            }
+                select("edit-rating", stars(self.rating.0)).show(ui, |ui| {
+                    for n in 0..=5u8 {
+                        if ui
+                            .selectable_label(self.rating.0 == n * 51, stars(n * 51))
+                            .clicked()
+                        {
+                            self.rating = (n * 51, true);
                         }
-                    });
+                    }
+                });
                 ui.end_row();
                 crate::widgets::check(ui, &mut self.track_number.1, "");
                 ui.label(tr("Track"));

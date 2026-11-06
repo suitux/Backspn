@@ -62,7 +62,7 @@ const jsonLd = {
   isAccessibleForFree: true,
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
   image: ogImage,
-  screenshot: [hero, ...Object.values(features)].map((c) => abs(url(c.file))),
+  screenshot: [hero, ...Object.values(features)].map((c) => abs(url(c.poster ?? c.file))),
   author: { '@type': 'Person', name: 'Xavier Rincón' },
   sameAs: [github, bmc, discord],
 };

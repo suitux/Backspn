@@ -180,6 +180,8 @@ pub struct MixerView {
     chrome: [[f32; 2]; 2],
     strips_width: f32,
     mixer_fx_slots: [MixerFx; 4],
+    /// The fade-out last sent to the engine (`None` before the first).
+    mixer_fx_fade: Option<f32>,
     held_select: Option<(u8, bool)>,
     held_on: [Option<bool>; 4],
     fx_dirty: [bool; 4],
@@ -251,6 +253,7 @@ impl MixerView {
             chrome: [[STRIP_CHROME; 2], [STRIP_CHROME + CROSSFADER_ROW; 2]],
             strips_width: 0.0,
             mixer_fx_slots: MIXER_FX_SLOTS,
+            mixer_fx_fade: None,
             held_select: None,
             held_on: [None; 4],
             fx_dirty: [false; 4],
@@ -289,6 +292,14 @@ impl MixerView {
         out.push(Command::Fx(FxCommand::MixerFxSelect(i, effect)));
         out.push(Command::Fx(FxCommand::MixerFxOn(i, c.filter_on)));
         out.push(Command::Fx(FxCommand::MixerFxKnob(i, c.filter)));
+    }
+
+    /// Seconds the mixer FX fade out when their button goes off; 0 cuts them.
+    pub fn set_mixer_fx_fade(&mut self, seconds: f32, out: &mut Vec<Command>) {
+        if self.mixer_fx_fade != Some(seconds) {
+            self.mixer_fx_fade = Some(seconds);
+            out.push(Command::Fx(FxCommand::MixerFxFade(seconds)));
+        }
     }
 
     pub fn set_mixer_fx_slots(&mut self, slots: [MixerFx; 4], out: &mut Vec<Command>) {

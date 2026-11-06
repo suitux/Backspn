@@ -106,13 +106,18 @@ impl Browser {
                         self.import_library_xml();
                     }
                 }
-                if ui.button(tr("Add files…")).clicked()
-                    && let Some(files) = rfd::FileDialog::new()
-                        .add_filter("Audio", crate::AUDIO_EXTENSIONS)
-                        .pick_files()
-                {
-                    let ids = self.add_files(&files);
-                    self.analyse_imported(&ids);
+                if ui.button(tr("Add files…")).clicked() {
+                    self.dialog.open(
+                        || {
+                            rfd::FileDialog::new()
+                                .add_filter("Audio", crate::AUDIO_EXTENSIONS)
+                                .pick_files()
+                        },
+                        |b: &mut Self, files| {
+                            let ids = b.add_files(&files);
+                            b.analyse_imported(&ids);
+                        },
+                    );
                 }
                 let filter_label = if self.filter.active() {
                     "Filter ●"

@@ -1,6 +1,7 @@
-use eframe::egui::{self, ComboBox, Key, Response, RichText, Ui};
+use eframe::egui::{self, AsIdSalt, Key, Response, RichText, Ui};
 
 use crate::i18n::tr;
+use crate::select::select;
 
 pub enum Entry<T> {
     Item {
@@ -8,6 +9,8 @@ pub enum Entry<T> {
         label: String,
         selected: bool,
         hint: Option<String>,
+        /// Shown only while the search field is empty.
+        idle_only: bool,
     },
     Heading(String),
     Separator,
@@ -20,6 +23,7 @@ impl<T> Entry<T> {
             label: label.into(),
             selected,
             hint: None,
+            idle_only: false,
         }
     }
 
@@ -30,15 +34,26 @@ impl<T> Entry<T> {
                 value,
                 label,
                 selected,
+                idle_only,
                 ..
             } => Self::Item {
                 value,
                 label,
                 selected,
                 hint: Some(text.into()).filter(|t: &String| !t.is_empty()),
+                idle_only,
             },
             other => other,
         }
+    }
+
+    /// Leaves the item out of search results (e.g. an "empty" choice).
+    #[must_use]
+    pub fn hidden_while_searching(mut self) -> Self {
+        if let Self::Item { idle_only, .. } = &mut self {
+            *idle_only = true;
+        }
+        self
     }
 }
 
@@ -60,8 +75,10 @@ pub fn visible<T>(entries: &[Entry<T>], query: &str) -> Vec<usize> {
         match e {
             Entry::Heading(_) => heading = Some(i),
             Entry::Separator => {}
-            Entry::Item { label, .. } => {
-                if matches(query, label) {
+            Entry::Item {
+                label, idle_only, ..
+            } => {
+                if !idle_only && matches(query, label) {
                     if let Some(h) = heading.take() {
                         shown.push(h);
                     }
@@ -76,83 +93,166 @@ pub fn visible<T>(entries: &[Entry<T>], query: &str) -> Vec<usize> {
 const MAX_HEIGHT: f32 = 400.0;
 
 #[allow(clippy::cast_precision_loss)]
-fn list_height(lines: usize, row: f32) -> f32 {
-    (lines as f32 * row).min(MAX_HEIGHT)
+fn list_height(lines: usize, row: f32, max: f32) -> f32 {
+    (lines as f32 * row).min(max)
 }
 
+/// A select whose list starts with a search field.
+#[must_use]
+pub struct SearchSelect<'e, T> {
+    id: egui::IdSalt,
+    text: String,
+    width: f32,
+    entries: &'e [Entry<T>],
+    compact: bool,
+    truncate: bool,
+    max_height: f32,
+}
+
+pub fn search_select<T: Clone>(
+    id_salt: impl AsIdSalt,
+    selected_text: impl Into<String>,
+    width: f32,
+    entries: &[Entry<T>],
+) -> SearchSelect<'_, T> {
+    SearchSelect {
+        id: egui::IdSalt::new(id_salt),
+        text: selected_text.into(),
+        width,
+        entries,
+        compact: false,
+        truncate: false,
+        max_height: MAX_HEIGHT,
+    }
+}
+
+/// Shows a search select with the default look and returns the picked value.
 pub fn show<T: Clone>(
     ui: &mut Ui,
-    id_salt: impl std::hash::Hash + std::fmt::Debug,
-    selected_text: impl Into<egui::WidgetText>,
+    id_salt: impl AsIdSalt,
+    selected_text: impl Into<String>,
     width: f32,
     entries: &[Entry<T>],
 ) -> (Response, Option<T>) {
-    let id = ui.make_persistent_id(id_salt);
+    search_select(id_salt, selected_text, width, entries).show(ui)
+}
+
+impl<T: Clone> SearchSelect<'_, T> {
+    pub fn compact(mut self) -> Self {
+        self.compact = true;
+        self
+    }
+
+    pub fn truncate(mut self) -> Self {
+        self.truncate = true;
+        self
+    }
+
+    /// Maximum height of the open list.
+    pub fn max_height(mut self, height: f32) -> Self {
+        self.max_height = height;
+        self
+    }
+
+    pub fn show(self, ui: &mut Ui) -> (Response, Option<T>) {
+        let Self {
+            id,
+            text,
+            width,
+            entries,
+            compact,
+            truncate,
+            max_height,
+        } = self;
+        let id = ui.make_persistent_id(id);
+        let mut combo = select(id, text)
+            .width(width)
+            .height(f32::INFINITY)
+            .close_on_click_outside();
+        if compact {
+            combo = combo.compact();
+        }
+        if truncate {
+            combo = combo.truncate();
+        }
+        list(ui, id, combo, width, max_height, entries)
+    }
+}
+
+fn list<T: Clone>(
+    ui: &mut Ui,
+    id: egui::Id,
+    combo: crate::select::Select<'_>,
+    width: f32,
+    max_height: f32,
+    entries: &[Entry<T>],
+) -> (Response, Option<T>) {
     let query_id = id.with("query");
     let mut chosen = None;
-    let inner = ComboBox::from_id_salt(id)
-        .width(width)
-        .height(MAX_HEIGHT)
-        .selected_text(selected_text)
-        .show_ui(ui, |ui| {
-            ui.set_min_width(width);
-            let row = ui.spacing().interact_size.y + ui.spacing().item_spacing.y;
-            ui.set_min_height(list_height(entries.len() + 2, row));
-            let opened = ui.data(|d| d.get_temp::<String>(query_id).is_none());
-            let mut query = ui
-                .data(|d| d.get_temp::<String>(query_id))
-                .unwrap_or_default();
-            let field = ui.add(
-                egui::TextEdit::singleline(&mut query)
-                    .hint_text(tr("Search"))
-                    .desired_width(f32::INFINITY),
-            );
-            if opened {
-                field.request_focus();
-            }
-            ui.separator();
-            let shown = visible(entries, &query);
-            let enter = field.lost_focus() && ui.input(|i| i.key_pressed(Key::Enter));
-            if enter {
-                chosen = shown.iter().find_map(|&i| match &entries[i] {
-                    Entry::Item { value, .. } => Some(value.clone()),
-                    _ => None,
-                });
-            }
-            let mut any = false;
-            for &i in &shown {
-                match &entries[i] {
-                    Entry::Heading(text) => {
-                        ui.label(RichText::new(text).weak());
-                    }
-                    Entry::Separator => {
-                        ui.separator();
-                    }
-                    Entry::Item {
-                        value,
-                        label,
-                        selected,
-                        hint,
-                    } => {
-                        any = true;
-                        let mut r = ui.selectable_label(*selected, label);
-                        if let Some(hint) = hint {
-                            r = r.on_hover_text(hint);
+    let inner = combo.show(ui, |ui| {
+        ui.set_min_width(width);
+        let opened = ui.data(|d| d.get_temp::<String>(query_id).is_none());
+        let mut query = ui
+            .data(|d| d.get_temp::<String>(query_id))
+            .unwrap_or_default();
+        let field = ui.add(
+            egui::TextEdit::singleline(&mut query)
+                .hint_text(tr("Search"))
+                .desired_width(f32::INFINITY),
+        );
+        if opened {
+            field.request_focus();
+        }
+        ui.separator();
+        let shown = visible(entries, &query);
+        let enter = field.lost_focus() && ui.input(|i| i.key_pressed(Key::Enter));
+        if enter {
+            chosen = shown.iter().find_map(|&i| match &entries[i] {
+                Entry::Item { value, .. } => Some(value.clone()),
+                _ => None,
+            });
+        }
+        let mut any = false;
+        let row = ui.spacing().interact_size.y + ui.spacing().item_spacing.y;
+        egui::ScrollArea::vertical()
+            .max_height(max_height)
+            .show(ui, |ui| {
+                ui.set_min_height(list_height(entries.len(), row, max_height));
+                for &i in &shown {
+                    match &entries[i] {
+                        Entry::Heading(text) => {
+                            ui.label(RichText::new(text).weak());
                         }
-                        if r.clicked() {
-                            chosen = Some(value.clone());
+                        Entry::Separator => {
+                            ui.separator();
+                        }
+                        Entry::Item {
+                            value,
+                            label,
+                            selected,
+                            hint,
+                            ..
+                        } => {
+                            any = true;
+                            let mut r = ui.selectable_label(*selected, label);
+                            if let Some(hint) = hint {
+                                r = r.on_hover_text(hint);
+                            }
+                            if r.clicked() {
+                                chosen = Some(value.clone());
+                            }
                         }
                     }
                 }
-            }
-            if !any {
-                ui.label(RichText::new(tr("No matches")).weak());
-            }
-            ui.data_mut(|d| d.insert_temp(query_id, query));
-            if chosen.is_some() {
-                ui.close();
-            }
-        });
+                if !any {
+                    ui.label(RichText::new(tr("No matches")).weak());
+                }
+            });
+        ui.data_mut(|d| d.insert_temp(query_id, query));
+        if chosen.is_some() {
+            ui.close();
+        }
+    });
     if inner.inner.is_none() {
         ui.data_mut(|d| d.remove::<String>(query_id));
     }
@@ -195,8 +295,27 @@ mod tests {
 
     #[test]
     fn the_list_keeps_its_full_height_up_to_the_cap() {
-        assert!((list_height(5, 20.0) - 100.0).abs() < f32::EPSILON);
-        assert!((list_height(100, 20.0) - MAX_HEIGHT).abs() < f32::EPSILON);
+        assert!((list_height(5, 20.0, MAX_HEIGHT) - 100.0).abs() < f32::EPSILON);
+        assert!((list_height(100, 20.0, MAX_HEIGHT) - MAX_HEIGHT).abs() < f32::EPSILON);
+        assert!((list_height(100, 20.0, 260.0) - 260.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn idle_only_items_leave_while_searching() {
+        let l = vec![
+            Entry::item(0, "None", true).hidden_while_searching(),
+            Entry::item(1, "Delay", false),
+            Entry::item(2, "Noise", false),
+        ];
+        assert_eq!(visible(&l, ""), vec![0, 1, 2]);
+        assert_eq!(visible(&l, "no"), vec![2]);
+        let Entry::Item { idle_only, .. } = Entry::item(0, "None", true)
+            .hidden_while_searching()
+            .with_hint("tip")
+        else {
+            panic!()
+        };
+        assert!(idle_only, "a hint keeps the flag");
     }
 
     #[test]
