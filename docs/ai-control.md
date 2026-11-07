@@ -46,6 +46,7 @@ only listens on 127.0.0.1.
 | `adjust_set` | Plans what is left again from changed brief fields |
 | `replace_upcoming` | Sets the tracks after the one playing |
 | `stop_set`, `resume_set` | Stops the set (the music keeps playing) or resumes it after a pause |
+| `save_session`, `list_sessions`, `get_session`, `start_session` | A whole set written ahead of time, saved as a session file and played again |
 | `set_pattern` | Sets up the pattern player; it keeps playing until changed |
 | `get_state`, `load_track`, `play`, `sync`, `set_mixer`, `crossfader`, `set_fx` | Manual control of decks, mixer and effects |
 
@@ -61,7 +62,9 @@ Beyond sets, the whole app:
 | `get_settings`, `set_settings` | Preferences: read, and change field by field; unknown names are refused; audio device changes restart the audio |
 
 The MCP server also offers the prompt `dj_session` (duration, genres,
-tempo, energy, mood, notes), which clients show as a form.
+tempo, energy, mood, notes, save as), which clients show as a form. With a
+name to save as, it asks for the whole session written ahead of time and
+saved.
 
 The catalog (names, descriptions, input schemas) lives in
 `crates/remote/src/catalog.rs`; every client uses it.
@@ -101,6 +104,40 @@ Named styles build ready-made recipes: `blend` (bass swapped halfway),
 `cut`, `fade`, `filter_sweep`, `chop` (fader cuts on the beat), `echo_out`,
 `loop_out`, `brake` and `backspin`. An assistant can also write its own
 recipe for any track.
+
+## Track scripts
+
+Besides the transition that brings it in, each track of a set can carry a
+script: what it does while it plays on its own. It uses the same lanes and
+events as a recipe (`Script` in `crates/remote/src/transition.rs`), in
+beats from the moment the track starts sounding, always on its own deck
+(`side: "in"`) and without play or stop, which belong to the set.
+
+- Beats are counted at the track's tempo over time, not from its play
+  position, so a loop or a beat jump does not hold the script back.
+- It runs from the end of the mix that brings the track in to the start of
+  the mix that takes it out. Events that fall inside the incoming mix fire
+  as it ends; lanes and events after the outgoing mix starts do not play.
+- The effect units it touches switch off and leave both decks when the
+  track has gone, as a recipe's do at the end of its mix.
+
+## Sessions
+
+A session is a whole set written ahead of time: the tracks in order, how
+long each plays and where it starts, the transition into each one and its
+script, plus the default transition and keylock. `save_session` checks all
+of it (track ids, recipes, scripts, effect and kit names) and returns every
+problem at once before writing anything.
+
+Sessions are saved as `<name>.bsession` (JSON, our own format) in the
+`sessions` folder of the data directory (`crates/remote/src/session.rs`).
+They are read field by field: a field that does not read is left at its
+default and a track that does not read is skipped, each with a warning.
+
+`start_session` plays one as `start_set` would. In the app, the
+**Sessions** menu in the status bar (shown once a session is saved or AI
+control is on) lists the saved sessions to play, opens a session file from
+elsewhere and shows the folder; playing one needs no assistant.
 
 ## The pattern player
 

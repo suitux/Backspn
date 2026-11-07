@@ -1023,6 +1023,7 @@ fn an_ai_set_plays_the_first_track_and_mixes_into_the_next() {
             start_at_pct: None,
             transition: None,
             recipe: None,
+            script: None,
         })
         .collect();
     let state = h.app.engine_state();
@@ -1034,6 +1035,7 @@ fn an_ai_set_plays_the_first_track_and_mixes_into_the_next() {
                 start_at_pct: None,
                 transition: None,
                 recipe: None,
+                script: None,
             }],
             transition: None,
             keylock: None,
@@ -1085,6 +1087,7 @@ fn moving_a_set_deck_by_hand_pauses_the_set() {
             start_at_pct: None,
             transition: None,
             recipe: None,
+            script: None,
         })
         .collect();
     let state = h.app.engine_state();
@@ -1133,6 +1136,7 @@ fn an_ai_set_reports_the_tempo_even_without_a_beat_grid() {
                     start_at_pct: None,
                     transition: None,
                     recipe: None,
+                    script: None,
                 }],
                 transition: None,
                 keylock: None,
@@ -1153,13 +1157,62 @@ fn an_ai_set_reports_the_tempo_even_without_a_beat_grid() {
 }
 
 #[test]
+fn a_saved_session_plays_with_its_scripts() {
+    use backspn_remote::catalog::request;
+    use serde_json::json;
+
+    let mut h = Harness::new("ai-session");
+    h.app.remote.sessions_dir = Some(h.dir.join("Sessions"));
+    let ids = h.tracks(&["A", "B"]);
+    h.frame();
+    let ask = |h: &mut Harness, tool: &str, args: serde_json::Value| {
+        let state = h.app.engine_state();
+        h.app.answer(request(tool, args).unwrap(), &state)
+    };
+    let script = json!({"events": [
+        {"beat": 0, "do": "fx_effect", "unit": 2, "effect": "Echo"},
+        {"beat": 0, "do": "fx_assign", "unit": 2, "side": "in", "on": true},
+        {"beat": 0, "do": "fx_on", "unit": 2, "on": true}]});
+    let bad = ask(
+        &mut h,
+        "save_session",
+        json!({"name": "Bad", "tracks": [{"id": 9999}, {"id": ids[0], "script":
+            {"events": [{"beat": 4, "do": "stop", "side": "in"}]}}]}),
+    )
+    .unwrap_err();
+    assert!(bad.contains("9999") && bad.contains("stop"), "{bad}");
+    let saved = ask(
+        &mut h,
+        "save_session",
+        json!({"name": "Warm-up", "notes": "deep", "transition": {"style": "cut"},
+               "tracks": [{"id": ids[0], "script": script}, {"id": ids[1]}]}),
+    )
+    .unwrap();
+    assert_eq!(saved["tracks"], 2, "{saved}");
+    assert_eq!(h.app.remote.sessions().len(), 1);
+    let listed = ask(&mut h, "list_sessions", json!({})).unwrap();
+    assert_eq!(listed["sessions"][0]["name"], "Warm-up", "{listed}");
+    let read = ask(&mut h, "get_session", json!({"name": "warm-up"})).unwrap();
+    let events = read["session"]["tracks"][0]["script"]["events"].as_array();
+    assert_eq!(events.map(Vec::len), Some(3), "{read}");
+    assert!(ask(&mut h, "start_session", json!({"name": "nope"})).is_err());
+    let started = ask(&mut h, "start_session", json!({"name": "Warm-up"})).unwrap();
+    assert_eq!(started["session"], "Warm-up", "{started}");
+    h.until("deck A plays the first track", |app| {
+        app.decks[0].track_id() == Some(ids[0]) && app.playing[0]
+    });
+    h.until_engine("the script switches its effect on", |s| s.fx.units[2].on);
+    assert_eq!(h.app.remote.progress(), Some((1, 2, false)));
+}
+
+#[test]
 fn the_ai_programs_the_pattern_player_by_kit_and_sound_names() {
     use backspn_remote::protocol::Request;
     use backspn_remote::transition::PatternSpec;
 
     let mut h = Harness::new("ai-pattern");
     let mut kits = crate::kits::KitLibrary::open(h.dir.join("Kits"));
-    assert_eq!(kits.install_factory(false), 2);
+    assert_eq!(kits.install_factory(false), 3);
     h.app.fx = crate::fx_view::FxView::new(44_100, kits);
     let state = h.app.engine_state();
     let overview = h.app.answer(Request::LibraryOverview, &state).unwrap();

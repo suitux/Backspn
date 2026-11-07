@@ -246,6 +246,8 @@ impl App {
             false,
         );
         app.controls = Some(Controls::detached());
+        app.remote.sessions_dir =
+            Some(std::env::temp_dir().join(format!("backspn-sessions-{}", std::process::id())));
         (app, renderer)
     }
 

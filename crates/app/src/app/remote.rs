@@ -2,6 +2,7 @@
 //! drives the autopilot that plays a planned set.
 
 use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 use backspn_control::{Action, Trigger};
 use backspn_engine::{Command, DECKS, DeckCommand, DeckState, EffectKind, EngineState, FxMode};
@@ -9,12 +10,14 @@ use backspn_library::set_plan::{self, SessionBrief, SetPlan, Source, Start, Tran
 use backspn_library::{NodeKind, TrackRow};
 use backspn_remote::protocol::{self, MixerControl, Request, SetTrack, TrackInfo};
 use backspn_remote::server::{Call, Server};
+use backspn_remote::session::{self, Session};
 use backspn_remote::transition::{self, Band, PatternSpec};
 use eframe::egui;
 use serde_json::{Value, json};
 
 use crate::App;
 use crate::autopilot::{self, AutoTrack, Autopilot, DeckView, Pause, Status, Step, Target};
+use crate::i18n::tr;
 
 const SEARCH_LIMIT: usize = 50;
 /// How often the autopilot looks at the decks while a set plays.
@@ -33,6 +36,10 @@ pub(crate) struct Remote {
     started_at: f64,
     /// Settings asked for, applied on the next preferences pass.
     asked_settings: Option<crate::prefs::Settings>,
+    /// Where sessions are saved; none is the data folder's.
+    pub(crate) sessions_dir: Option<PathBuf>,
+    /// Saved sessions by name, read again when asked for.
+    sessions: Option<Vec<(PathBuf, String)>>,
 }
 
 impl Remote {
@@ -45,6 +52,28 @@ impl Remote {
 
     pub(crate) fn stop(&mut self) {
         self.pilot = None;
+    }
+
+    pub(crate) fn sessions_dir(&self) -> PathBuf {
+        self.sessions_dir
+            .clone()
+            .unwrap_or_else(|| session::folder(&crate::dirs::data()))
+    }
+
+    /// The saved sessions, by name.
+    pub(crate) fn sessions(&mut self) -> &[(PathBuf, String)] {
+        let dir = self.sessions_dir();
+        self.sessions.get_or_insert_with(|| {
+            session::list(&dir)
+                .into_iter()
+                .map(|(path, s)| (path, s.name))
+                .collect()
+        })
+    }
+
+    /// Reads the saved sessions again the next time they are asked for.
+    pub(crate) fn forget_sessions(&mut self) {
+        self.sessions = None;
     }
 
     pub(super) fn ask_settings(&mut self, settings: crate::prefs::Settings) {
@@ -82,17 +111,30 @@ fn effect_kind(name: &str) -> Result<EffectKind, String> {
         .map_err(|_| format!("unknown effect \"{name}\"; see library_overview for the list"))
 }
 
-/// Builds the autopilot's tracks, checking ids and transitions.
+/// Effect names in `events` that the app does not know.
+fn effect_problems(events: &[transition::Event]) -> Vec<String> {
+    events
+        .iter()
+        .filter_map(|e| match &e.action {
+            transition::Action::FxEffect { effect, .. } => effect_kind(effect).err(),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Builds the autopilot's tracks, checking ids, transitions and scripts;
+/// every problem found comes back at once.
 fn auto_tracks(tracks: &[SetTrack], known: &dyn Fn(i64) -> bool) -> Result<Vec<AutoTrack>, String> {
     let missing: Vec<i64> = tracks
         .iter()
         .map(|t| t.id)
         .filter(|id| !known(*id))
         .collect();
+    let mut problems = Vec::new();
     if !missing.is_empty() {
-        return Err(format!("tracks not in the library: {missing:?}"));
+        problems.push(format!("tracks not in the library: {missing:?}"));
     }
-    tracks
+    let auto: Vec<AutoTrack> = tracks
         .iter()
         .map(|t| {
             let recipe = t
@@ -100,24 +142,37 @@ fn auto_tracks(tracks: &[SetTrack], known: &dyn Fn(i64) -> bool) -> Result<Vec<A
                 .clone()
                 .or_else(|| t.transition.map(transition::preset));
             if let Some(recipe) = &recipe {
-                let problems = recipe.check(backspn_engine::FX_UNITS);
-                if !problems.is_empty() {
-                    return Err(format!("transition into {}: {}", t.id, problems.join("; ")));
-                }
-                for action in recipe.events.iter().map(|e| &e.action) {
-                    if let transition::Action::FxEffect { effect, .. } = action {
-                        effect_kind(effect)?;
-                    }
+                let mut found = recipe.check(backspn_engine::FX_UNITS);
+                found.extend(effect_problems(&recipe.events));
+                if !found.is_empty() {
+                    problems.push(format!("transition into {}: {}", t.id, found.join("; ")));
                 }
             }
-            Ok(AutoTrack {
+            let script = t
+                .script
+                .clone()
+                .filter(|s| !s.lanes.is_empty() || !s.events.is_empty());
+            if let Some(script) = &script {
+                let mut found = script.check(backspn_engine::FX_UNITS);
+                found.extend(effect_problems(&script.events));
+                if !found.is_empty() {
+                    problems.push(format!("script of {}: {}", t.id, found.join("; ")));
+                }
+            }
+            AutoTrack {
                 id: t.id,
                 play_s: t.play_minutes.filter(|m| *m > 0.0).map(|m| m * 60.0),
                 start: t.start_at_pct.filter(|p| *p > 0.0).map(|p| p / 100.0),
                 transition: recipe,
-            })
+                script,
+            }
         })
-        .collect()
+        .collect();
+    if problems.is_empty() {
+        Ok(auto)
+    } else {
+        Err(problems.join("\n"))
+    }
 }
 
 fn status_name(status: Status) -> Value {
@@ -498,6 +553,30 @@ impl App {
                 pilot.resume();
                 Ok(self.set_status(state))
             }
+            Request::SaveSession {
+                name,
+                notes,
+                tracks,
+                transition,
+                keylock,
+            } => self.save_session(&Session {
+                name,
+                notes,
+                transition,
+                keylock,
+                tracks,
+            }),
+            Request::ListSessions => Ok(self.list_sessions()),
+            Request::GetSession { name } => {
+                let (session, warnings) = self.find_session(&name)?;
+                Ok(json!({"session": session, "warnings": warnings}))
+            }
+            Request::StartSession { name } => {
+                let (session, warnings) = self.find_session(&name)?;
+                let mut answer = self.start_session(&session)?;
+                answer["warnings"] = json!(warnings);
+                Ok(answer)
+            }
             Request::GetState => Ok(self.state_json(state)),
             Request::LoadTrack { .. }
             | Request::Play { .. }
@@ -526,6 +605,89 @@ impl App {
         self.remote.pilot = Some(Autopilot::new(auto, default, keylock));
         self.remote.started_at = self.now_s();
         Ok(json!({"started": true, "tracks": tracks.len()}))
+    }
+
+    fn save_session(&mut self, session: &Session) -> Result<Value, String> {
+        if session.name.trim().is_empty() {
+            return Err("the session needs a name".to_owned());
+        }
+        if session.tracks.is_empty() {
+            return Err("the session has no tracks".to_owned());
+        }
+        let browser = &self.browser;
+        auto_tracks(&session.tracks, &|id| id > 0 && browser.row(id).is_some())?;
+        let path = session::save(&self.remote.sessions_dir(), session)
+            .map_err(|e| format!("cannot save the session: {e}"))?;
+        self.remote.forget_sessions();
+        Ok(json!({
+            "saved": session.name,
+            "file": path.display().to_string(),
+            "tracks": session.tracks.len(),
+            "about_min": self.session_minutes(session),
+        }))
+    }
+
+    /// Roughly how long a session plays: each track's play time or length.
+    fn session_minutes(&self, session: &Session) -> f64 {
+        let minutes: f64 = session
+            .tracks
+            .iter()
+            .filter_map(|t| {
+                t.play_minutes.filter(|m| *m > 0.0).or_else(|| {
+                    let length = self.browser.row(t.id)?.duration_s? / 60.0;
+                    Some(length * (1.0 - t.start_at_pct.unwrap_or(0.0) / 100.0))
+                })
+            })
+            .sum();
+        (minutes * 10.0).round() / 10.0
+    }
+
+    fn list_sessions(&mut self) -> Value {
+        self.remote.forget_sessions();
+        let sessions: Vec<Value> = session::list(&self.remote.sessions_dir())
+            .iter()
+            .map(|(path, s)| {
+                json!({
+                    "name": s.name,
+                    "notes": s.notes,
+                    "tracks": s.tracks.len(),
+                    "about_min": self.session_minutes(s),
+                    "file": path.display().to_string(),
+                })
+            })
+            .collect();
+        json!({"sessions": sessions})
+    }
+
+    fn find_session(&self, name: &str) -> Result<(Session, Vec<String>), String> {
+        let path = session::find(&self.remote.sessions_dir(), name)
+            .ok_or_else(|| format!("no session named \"{name}\"; see list_sessions"))?;
+        session::load(&path)
+    }
+
+    fn start_session(&mut self, session: &Session) -> Result<Value, String> {
+        let mut answer = self.start_set(&session.tracks, session.transition, session.keylock)?;
+        answer["session"] = json!(session.name);
+        Ok(answer)
+    }
+
+    /// Plays a session file chosen in the app, saying what went wrong.
+    pub(crate) fn play_session_file(&mut self, path: &Path) {
+        let started = session::load(path).and_then(|(session, warnings)| {
+            self.start_session(&session)
+                .map(|_| (session.name, warnings))
+        });
+        match started {
+            Ok((name, warnings)) if warnings.is_empty() => {
+                crate::toast::info(format!("{}: {name}", tr("Playing session")));
+            }
+            Ok((name, warnings)) => crate::toast::warning(format!(
+                "{}: {name} ({})",
+                tr("Playing session"),
+                warnings.join("; ")
+            )),
+            Err(e) => crate::toast::error(format!("{}: {e}", tr("Cannot play the session"))),
+        }
     }
 
     fn adjust_set(&mut self, patch: &Value, state: &EngineState) -> Result<Value, String> {
@@ -558,6 +720,7 @@ impl App {
                 start_at_pct: None,
                 transition: None,
                 recipe: None,
+                script: None,
             })
             .collect();
         let browser = &self.browser;
@@ -752,6 +915,7 @@ mod tests {
             start_at_pct: None,
             transition: None,
             recipe: None,
+            script: None,
         }
     }
 
@@ -780,6 +944,29 @@ mod tests {
             .unwrap(),
         );
         assert!(auto_tracks(&[bad], &known).unwrap_err().contains("Kazoo"));
+    }
+
+    #[test]
+    fn every_problem_of_a_set_comes_back_at_once() {
+        let known = |id: i64| id < 10;
+        let mut scripted = set_track(4);
+        scripted.script = Some(
+            serde_json::from_value(json!({"events": [
+                {"beat": 32, "do": "fx_effect", "unit": 9, "effect": "Kazoo"},
+                {"beat": 64, "do": "stop", "side": "in"}]}))
+            .unwrap(),
+        );
+        let problems = auto_tracks(&[set_track(1), set_track(12), scripted], &known).unwrap_err();
+        assert!(problems.contains("[12]"), "{problems}");
+        assert!(problems.contains("script of 4"), "{problems}");
+        assert!(
+            problems.contains("Kazoo") && problems.contains("unit 9"),
+            "{problems}"
+        );
+        assert!(problems.contains("play or stop"), "{problems}");
+        let mut empty = set_track(5);
+        empty.script = Some(transition::Script::default());
+        assert_eq!(auto_tracks(&[empty], &known).unwrap()[0].script, None);
     }
 
     #[test]

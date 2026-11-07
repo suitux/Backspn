@@ -429,9 +429,60 @@ impl App {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 self.browser.progress(ui);
                 self.ai_set_status(ui);
+                self.sessions_menu(ui);
                 self.deck_analysis_status(ui);
             });
         });
+    }
+
+    /// Saved sessions to play, shown once there are some or AI control
+    /// is on.
+    fn sessions_menu(&mut self, ui: &mut Ui) {
+        if !self.settings.remote_control && self.remote.sessions().is_empty() {
+            return;
+        }
+        let menu = ui.menu_button(RichText::new(tr("Sessions")).size(11.0), |ui| {
+            let mut chosen = None;
+            let sessions = self.remote.sessions().to_vec();
+            if sessions.is_empty() {
+                ui.label(RichText::new(tr("No saved sessions")).weak());
+            }
+            for (path, name) in sessions {
+                if ui.button(name).clicked() {
+                    chosen = Some(path);
+                    ui.close();
+                }
+            }
+            ui.separator();
+            let dir = self.remote.sessions_dir();
+            if ui.button(tr("Open…")).clicked() {
+                ui.close();
+                let start = dir.clone();
+                self.dialog.open(
+                    move || {
+                        rfd::FileDialog::new()
+                            .add_filter("Backspn session", &[backspn_remote::session::EXTENSION])
+                            .set_directory(&start)
+                            .pick_file()
+                    },
+                    |app: &mut Self, path| app.play_session_file(&path),
+                );
+            }
+            if ui.button(tr("Show Folder")).clicked() {
+                ui.close();
+                if let Err(e) = std::fs::create_dir_all(&dir) {
+                    log::warn!("cannot create {}: {e}", dir.display());
+                }
+                crate::browser::reveal(&dir.to_string_lossy());
+            }
+            chosen
+        });
+        if menu.response.clicked() {
+            self.remote.forget_sessions();
+        }
+        if let Some(Some(path)) = menu.inner {
+            self.play_session_file(&path);
+        }
     }
 
     fn ai_set_status(&mut self, ui: &mut Ui) {

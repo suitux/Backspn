@@ -84,7 +84,9 @@ fn call_tool(params: &Value, call: &mut dyn FnMut(Request) -> Result<Value, Stri
     json!({"content": [{"type": "text", "text": text}], "isError": is_error})
 }
 
-const PROMPT_ARGUMENTS: [(&str, &str); 6] = [
+/// The prompt argument that asks for the set to be saved as a session.
+const SAVE_AS: &str = "save_as";
+const PROMPT_ARGUMENTS: [(&str, &str); 7] = [
     ("duration", "How long, e.g. \"60 min\""),
     ("genres", "Styles, e.g. \"deep house, progressive\""),
     ("tempo", "Tempo, e.g. \"120 to 126 BPM\""),
@@ -93,6 +95,10 @@ const PROMPT_ARGUMENTS: [(&str, &str); 6] = [
     (
         "notes",
         "Anything else: transitions, era, tracks to include…",
+    ),
+    (
+        SAVE_AS,
+        "Name to save it under as a session, written whole ahead of time, to play again later",
     ),
 ];
 
@@ -114,25 +120,35 @@ fn prompt(params: &Value) -> Result<Value, (i64, String)> {
     if params["name"] != PROMPT {
         return Err((INVALID_PARAMS, format!("unknown prompt {}", params["name"])));
     }
+    let argument = |name: &str| {
+        params["arguments"][name]
+            .as_str()
+            .map(str::trim)
+            .filter(|v| !v.is_empty())
+    };
     let wishes: Vec<String> = PROMPT_ARGUMENTS
         .iter()
-        .filter_map(|(name, _)| {
-            params["arguments"][name]
-                .as_str()
-                .map(str::trim)
-                .filter(|v| !v.is_empty())
-                .map(|v| format!("- {name}: {v}"))
-        })
+        .filter(|(name, _)| *name != SAVE_AS)
+        .filter_map(|(name, _)| argument(name).map(|v| format!("- {name}: {v}")))
         .collect();
     let wishes = if wishes.is_empty() {
         "Ask me what I would like to hear.".to_owned()
     } else {
         wishes.join("\n")
     };
-    let text = format!(
-        "Play a DJ set for me in Backspn.\n\n{wishes}\n\nLook at the library first, plan the set, \
-         show me the tracks and why they fit, then start it."
-    );
+    let steps = match argument(SAVE_AS) {
+        Some(name) => format!(
+            "Look at the library first and plan the set. Then write the whole session ahead of \
+             time: the transition into each track and each track's script (effects, loops, beat \
+             jumps, patterns, filter and EQ moves while it plays alone). Save it with \
+             save_session as \"{name}\", fix every problem it reports, show me the tracks and \
+             why they fit, then play it with start_session."
+        ),
+        None => "Look at the library first, plan the set, show me the tracks and why they fit, \
+                 then start it."
+            .to_owned(),
+    };
+    let text = format!("Play a DJ set for me in Backspn.\n\n{wishes}\n\n{steps}");
     Ok(json!({
         "description": "Plan and play a DJ set in Backspn.",
         "messages": [{"role": "user", "content": {"type": "text", "text": text}}]
@@ -283,6 +299,17 @@ mod tests {
             .as_str()
             .unwrap();
         assert!(text.contains("- duration: 45 min\n- mood: dark"), "{text}");
+        assert!(!text.contains("save_session"), "{text}");
+        let saved = ask(
+            &json!({"jsonrpc": "2.0", "id": 11, "method": "prompts/get",
+                   "params": {"name": PROMPT, "arguments": {"save_as": "Friday"}}}),
+            &mut offline,
+        );
+        let text = saved["result"]["messages"][0]["content"]["text"]
+            .as_str()
+            .unwrap();
+        assert!(text.contains("save_session as \"Friday\""), "{text}");
+        assert!(!text.contains("- save_as"), "{text}");
         let unknown = ask(
             &json!({"jsonrpc": "2.0", "id": 10, "method": "prompts/get", "params": {"name": "x"}}),
             &mut offline,

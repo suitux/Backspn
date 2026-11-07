@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use backspn_control::Action;
-use backspn_remote::transition::{self, Band, Control, PatternSpec, Recipe, Side};
+use backspn_remote::transition::{self, Band, Control, PatternSpec, Recipe, Script, Side};
 
 /// Decks the autopilot plays on.
 pub const DECKS: [usize; 2] = [0, 1];
@@ -31,6 +31,8 @@ pub struct AutoTrack {
     pub start: Option<f64>,
     /// How this track comes in; none uses the set's default.
     pub transition: Option<Recipe>,
+    /// What it does while it plays on its own.
+    pub script: Option<Script>,
 }
 
 /// What the autopilot needs to know about a deck.
@@ -179,6 +181,13 @@ struct Current {
     index: usize,
     start_s: f64,
     started_at: f64,
+    /// Beats since the track started sounding, counted at its tempo so
+    /// loops and jumps do not move the script.
+    beat: f64,
+    /// When `beat` was last counted; none after a pause.
+    counted_at: Option<f64>,
+    /// Script beat up to which events have fired.
+    fired: Option<f64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -278,6 +287,9 @@ impl Autopilot {
     /// Picks up after a pause, taking the decks as they are.
     pub fn resume(&mut self) {
         self.pause = None;
+        if let Some(current) = &mut self.current {
+            current.counted_at = None;
+        }
         self.sent.clear();
         self.tempo_sent.clear();
     }
@@ -462,6 +474,9 @@ impl Autopilot {
             index: 0,
             start_s,
             started_at: now,
+            beat: 0.0,
+            counted_at: Some(now),
+            fired: None,
         });
     }
 
@@ -482,6 +497,8 @@ impl Autopilot {
             let at_end = playing.position_s >= playing.duration_s - 0.5;
             if at_end && current.index + 1 >= self.tracks.len() {
                 self.finished = true;
+                let units = self.script_units(current.index);
+                self.units_off(&units, out);
             } else {
                 self.pause = Some(if at_end {
                     Pause::Stopped
@@ -497,6 +514,9 @@ impl Autopilot {
             if x >= 1.0 {
                 self.settle = None;
             }
+        }
+        if !mixing {
+            self.script(&playing, now, out);
         }
         let next = current.index + 1;
         if next >= self.tracks.len() {
@@ -643,17 +663,11 @@ impl Autopilot {
         });
         self.neutral(deck_out, 0.0, out);
         self.neutral(deck_in, 1.0, out);
-        for unit in recipe.fx_units() {
-            out.push(Step::FxOn { unit, on: false });
-            for deck in DECKS {
-                out.push(Step::FxAssign {
-                    unit,
-                    deck,
-                    on: false,
-                });
-            }
-            self.sent.remove(&Target::FxWet(unit));
-        }
+        let mut units = recipe.fx_units();
+        units.extend(self.script_units(current.index));
+        units.sort_unstable();
+        units.dedup();
+        self.units_off(&units, out);
         // Keep the tempo it was synced to, then ease back to its own.
         let from = view.tempo;
         self.tempo_sent.remove(&deck_in);
@@ -670,12 +684,69 @@ impl Autopilot {
         });
         self.holding = false;
         self.incoming = None;
+        let sounding = recipe.beats - recipe.in_start();
         self.current = Some(Current {
             deck: deck_in,
             index: incoming.index,
-            start_s: view.position_s - (recipe.beats - recipe.in_start()) * view.beat_s(),
+            start_s: view.position_s - sounding * view.beat_s(),
             started_at: now,
+            beat: sounding,
+            counted_at: Some(now),
+            fired: None,
         });
+    }
+
+    fn script_units(&self, index: usize) -> Vec<usize> {
+        self.tracks[index]
+            .script
+            .as_ref()
+            .map(Script::fx_units)
+            .unwrap_or_default()
+    }
+
+    /// Switches effect units off and takes them off both decks.
+    fn units_off(&mut self, units: &[usize], out: &mut Vec<Step>) {
+        for &unit in units {
+            out.push(Step::FxOn { unit, on: false });
+            for deck in DECKS {
+                out.push(Step::FxAssign {
+                    unit,
+                    deck,
+                    on: false,
+                });
+            }
+            self.sent.remove(&Target::FxWet(unit));
+        }
+    }
+
+    /// Moves the playing track's script on to where the track is.
+    fn script(&mut self, playing: &DeckView, now: f64, out: &mut Vec<Step>) {
+        let Some(mut current) = self.current else {
+            return;
+        };
+        if let Some(at) = current.counted_at
+            && playing.playing
+        {
+            current.beat += (now - at).max(0.0) * playing.tempo.max(0.0) / playing.beat_s();
+        }
+        current.counted_at = Some(now);
+        let deck = current.deck;
+        let Some(script) = &self.tracks[current.index].script else {
+            self.current = Some(current);
+            return;
+        };
+        let events: Vec<Step> = script
+            .events_between(current.fired, current.beat)
+            .into_iter()
+            .map(|a| Self::event(a, deck, other(deck)))
+            .collect();
+        let values: Vec<(Control, f32)> = script.values_at(current.beat).collect();
+        current.fired = Some(current.beat);
+        self.current = Some(current);
+        out.extend(events);
+        for (control, value) in values {
+            self.set(Self::target(control, deck, other(deck)), value, out);
+        }
     }
 }
 
@@ -718,6 +789,7 @@ mod tests {
                 play_s: None,
                 start: None,
                 transition: None,
+                script: None,
             })
             .collect()
     }
@@ -949,6 +1021,63 @@ mod tests {
                 effect: "VinylBrake".into()
             }
         ));
+    }
+
+    #[test]
+    fn a_track_plays_its_script_while_it_plays_alone() {
+        let script = |json| serde_json::from_value::<Script>(json).unwrap();
+        let mut set = tracks(&[1, 2]);
+        set[0].script = Some(script(serde_json::json!({
+            "lanes": [{"control": "filter", "side": "in",
+                       "points": [{"beat": 0, "value": 0}, {"beat": 16, "value": 1}]}],
+            "events": [{"beat": 0, "do": "fx_on", "unit": 2, "on": true},
+                       {"beat": 8, "do": "loop", "side": "in", "beats": 4}]
+        })));
+        set[1].script = Some(script(serde_json::json!({
+            "events": [{"beat": 1, "do": "beat_jump", "side": "in", "beats": 16}]
+        })));
+        let mut a = Autopilot::new(set, preset(TransitionStyle::Cut), true);
+        a.step(&[DeckView::default(); 2], 0.0);
+        a.step(&[deck(1, false, 0.0), DeckView::default()], 0.1);
+        // 0.9 s at two beats a second: beat 1.8.
+        let steps = a.step(&[deck(1, true, 1.0), DeckView::default()], 1.0);
+        assert!(has(&steps, &Step::FxOn { unit: 2, on: true }));
+        assert!(!has(
+            &steps,
+            &Step::Loop {
+                deck: A,
+                beats: 4.0
+            }
+        ));
+        let filter = |deck, value| Step::Set {
+            target: Target::Filter(deck),
+            value,
+        };
+        assert!(has(&steps, &filter(A, 0.1125)));
+        // A loop does not hold the script back: it counts time, not position.
+        let steps = a.step(&[deck(1, true, 1.0), deck(2, false, 0.0)], 4.2);
+        assert!(has(
+            &steps,
+            &Step::Loop {
+                deck: A,
+                beats: 4.0
+            }
+        ));
+        let steps = a.step(&[deck(1, true, 297.0), deck(2, false, 0.0)], 5.0);
+        assert!(has(&steps, &Step::Play { deck: B }));
+        let steps = a.step(&[deck(1, true, 299.0), deck(2, true, 2.0)], 7.0);
+        assert!(has(&steps, &Step::FxOn { unit: 2, on: false }), "{steps:?}");
+        // Beat 1 of the new track fell inside the mix: it fires as it ends.
+        let steps = a.step(&[deck(1, false, 299.0), deck(2, true, 2.1)], 7.1);
+        assert!(has(
+            &steps,
+            &Step::BeatJump {
+                deck: B,
+                beats: 16.0
+            }
+        ));
+        let steps = a.step(&[deck(1, false, 299.0), deck(2, true, 3.0)], 8.0);
+        assert!(!steps.iter().any(|s| matches!(s, Step::BeatJump { .. })));
     }
 
     #[test]

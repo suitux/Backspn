@@ -30,6 +30,13 @@ beat with faders, EQ, filter, effects, loops and fader cuts).
 what is left from a new brief (\"more energy\", \"no vocals\"); \
 replace_upcoming to set the next tracks yourself; stop_set to stop.
 
+A whole session can be written ahead of time: besides the transition into \
+each track, give it a script (effects, loops, beat jumps, patterns, EQ and \
+filter moves on its own deck, in beats from when it starts sounding). \
+save_session checks it all and saves it; start_session plays it, and the \
+listener can play it again from the app without you. get_session and \
+list_sessions read saved ones.
+
 The manual tools (load_track, play, sync, set_mixer, crossfader, set_fx, \
 set_pattern) act at once; using the deck and mixer ones on the set's decks \
 pauses the set.
@@ -128,64 +135,86 @@ fn transition_schema() -> Value {
     })
 }
 
+fn side_schema() -> Value {
+    json!({"type": "string", "enum": ["in", "out"]})
+}
+
+fn lanes_schema() -> Value {
+    json!({
+        "type": "array",
+        "description": "Controls moving over time. Values: volume, EQ and FX 0–1 (EQ 0.5 flat, 0 kills the band); filter -1 low-pass … 0 off … 1 high-pass. Shape \"step\" jumps on each point (fader cuts), \"linear\" glides.",
+        "items": {
+            "type": "object",
+            "required": ["control", "points"],
+            "properties": {
+                "control": {"type": "string", "enum": ["volume", "eq", "filter", "fx_wet", "fx_knob"]},
+                "side": side_schema(),
+                "band": {"type": "string", "enum": ["low", "mid", "high"]},
+                "unit": {"type": "integer", "description": "Effect unit 0–3."},
+                "knob": {"type": "integer", "description": "Effect knob 0–2."},
+                "shape": {"type": "string", "enum": ["linear", "step"]},
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["beat", "value"],
+                        "properties": {"beat": {"type": "number"}, "value": {"type": "number"}}
+                    }
+                }
+            }
+        }
+    })
+}
+
+fn events_schema() -> Value {
+    json!({
+        "type": "array",
+        "description": "One-off actions on a beat.",
+        "items": {
+            "type": "object",
+            "required": ["beat", "do"],
+            "properties": {
+                "beat": {"type": "number"},
+                "do": {"type": "string", "enum": ["play", "stop", "fx_effect", "fx_assign", "fx_on", "loop", "loop_off", "beat_jump", "pattern"]},
+                "side": side_schema(),
+                "unit": {"type": "integer"},
+                "effect": {"type": "string", "description": "Effect name from library_overview."},
+                "on": {"type": "boolean"},
+                "beats": {"type": "number", "description": "Loop length or jump, in beats."},
+                "kit": {"type": "string", "description": "pattern: kit name."},
+                "pattern": {"type": "integer", "description": "pattern: stored pattern 1–8."},
+                "steps": pattern_steps_schema(),
+                "only_these": {"type": "boolean", "description": "pattern: silence the sounds not in steps."},
+                "volume": {"type": "number"},
+                "decay": {"type": "number"},
+                "pitch": {"type": "number"},
+                "duck": {"type": "boolean"},
+                "roll": {"type": "boolean"}
+            }
+        }
+    })
+}
+
 fn recipe_schema() -> Value {
-    let side = json!({"type": "string", "enum": ["in", "out"]});
     json!({
         "type": "object",
         "description": "A transition written beat by beat from the start of the mix. \"in\" is the incoming deck, \"out\" the outgoing one. The incoming track starts on beat 0 unless an event plays it later. At the end the outgoing deck stops and every control goes back to neutral.",
         "required": ["beats"],
         "properties": {
             "beats": {"type": "number", "description": "Length of the mix in beats (4 beats = 1 bar)."},
-            "lanes": {
-                "type": "array",
-                "description": "Controls moving over time. Values: volume, EQ and FX 0–1 (EQ 0.5 flat, 0 kills the band); filter -1 low-pass … 0 off … 1 high-pass. Shape \"step\" jumps on each point (fader cuts), \"linear\" glides.",
-                "items": {
-                    "type": "object",
-                    "required": ["control", "points"],
-                    "properties": {
-                        "control": {"type": "string", "enum": ["volume", "eq", "filter", "fx_wet", "fx_knob"]},
-                        "side": side,
-                        "band": {"type": "string", "enum": ["low", "mid", "high"]},
-                        "unit": {"type": "integer", "description": "Effect unit 0–3."},
-                        "knob": {"type": "integer", "description": "Effect knob 0–2."},
-                        "shape": {"type": "string", "enum": ["linear", "step"]},
-                        "points": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "required": ["beat", "value"],
-                                "properties": {"beat": {"type": "number"}, "value": {"type": "number"}}
-                            }
-                        }
-                    }
-                }
-            },
-            "events": {
-                "type": "array",
-                "description": "One-off actions on a beat.",
-                "items": {
-                    "type": "object",
-                    "required": ["beat", "do"],
-                    "properties": {
-                        "beat": {"type": "number"},
-                        "do": {"type": "string", "enum": ["play", "stop", "fx_effect", "fx_assign", "fx_on", "loop", "loop_off", "beat_jump", "pattern"]},
-                        "side": side,
-                        "unit": {"type": "integer"},
-                        "effect": {"type": "string", "description": "Effect name from library_overview."},
-                        "on": {"type": "boolean"},
-                        "beats": {"type": "number", "description": "Loop length or jump, in beats."},
-                        "kit": {"type": "string", "description": "pattern: kit name."},
-                        "pattern": {"type": "integer", "description": "pattern: stored pattern 1–8."},
-                        "steps": pattern_steps_schema(),
-                        "only_these": {"type": "boolean", "description": "pattern: silence the sounds not in steps."},
-                        "volume": {"type": "number"},
-                        "decay": {"type": "number"},
-                        "pitch": {"type": "number"},
-                        "duck": {"type": "boolean"},
-                        "roll": {"type": "boolean"}
-                    }
-                }
-            }
+            "lanes": lanes_schema(),
+            "events": events_schema()
+        }
+    })
+}
+
+fn script_schema() -> Value {
+    json!({
+        "type": "object",
+        "description": "What the track does while it plays on its own, in beats from the moment it starts sounding (beat 0; 4 beats = 1 bar): effects, loops, beat jumps, patterns, EQ and filter moves. Side is always \"in\" (the track's own deck); no play or stop. It runs from the end of the mix that brings the track in (events inside that mix fire as it ends) to the start of the mix that takes it out; the effect units it uses switch off when the track has gone.",
+        "properties": {
+            "lanes": lanes_schema(),
+            "events": events_schema()
         }
     })
 }
@@ -209,7 +238,8 @@ fn set_tracks_schema() -> Value {
                 "play_minutes": {"type": "number", "description": "Minutes to play before the next mixes in."},
                 "start_at_pct": {"type": "number", "minimum": 0, "maximum": 95, "description": "Where the track starts, in percent of its length (50 is the middle); leave out to start at its cue."},
                 "transition": transition_schema(),
-                "recipe": recipe_schema()
+                "recipe": recipe_schema(),
+                "script": script_schema()
             }
         }
     })
@@ -233,6 +263,7 @@ fn empty() -> Value {
 
 pub fn tools() -> Vec<Tool> {
     let mut tools = set_tools();
+    tools.extend(session_tools());
     tools.extend(manual_tools());
     tools.extend(library_tools());
     tools.extend(list_tools());
@@ -480,6 +511,42 @@ fn set_tools() -> Vec<Tool> {
     ]
 }
 
+/// Tools that keep whole sets, written ahead of time, as session files.
+fn session_tools() -> Vec<Tool> {
+    let name = json!({"type": "string", "description": "Session name."});
+    vec![
+        Tool {
+            name: "save_session",
+            description: "Saves a whole set written ahead of time as a session the app can play again on its own, without you: the tracks in order, how each one comes in (style or recipe), how long it plays, where it starts and its script (what it does while it plays alone). Everything is checked first and every problem is returned; nothing plays. A session with the same name is replaced.",
+            input_schema: object(
+                json!({
+                    "name": name,
+                    "notes": {"type": "string", "description": "What the session is for, in the listener's words."},
+                    "tracks": set_tracks_schema(),
+                    "transition": transition_schema(),
+                    "keylock": {"type": "boolean"}
+                }),
+                &["name", "tracks"],
+            ),
+        },
+        Tool {
+            name: "list_sessions",
+            description: "The saved sessions: name, notes, track count and length.",
+            input_schema: empty(),
+        },
+        Tool {
+            name: "get_session",
+            description: "A saved session whole, as save_session takes it, to read or edit and save again.",
+            input_schema: object(json!({"name": name}), &["name"]),
+        },
+        Tool {
+            name: "start_session",
+            description: "Plays a saved session from the first track, like start_set.",
+            input_schema: object(json!({"name": name}), &["name"]),
+        },
+    ]
+}
+
 /// Tools that act on the decks and mixer at once.
 fn manual_tools() -> Vec<Tool> {
     vec![
@@ -606,6 +673,15 @@ mod tests {
             ("replace_upcoming", json!({"tracks": [{"id": 7}]})),
             ("stop_set", json!({})),
             ("resume_set", json!({})),
+            (
+                "save_session",
+                json!({"name": "Friday", "notes": "warm-up", "keylock": true,
+                       "tracks": [{"id": 1, "script": {"events": [
+                           {"beat": 64, "do": "loop", "side": "in", "beats": 4}]}}]}),
+            ),
+            ("list_sessions", json!({})),
+            ("get_session", json!({"name": "Friday"})),
+            ("start_session", json!({"name": "Friday"})),
             ("get_state", json!({})),
             ("load_track", json!({"deck": 0, "id": 4})),
             ("play", json!({"deck": 0, "on": true})),

@@ -248,24 +248,82 @@ pub struct Recipe {
     pub events: Vec<Event>,
 }
 
+/// Control values of `lanes` at `beat`.
+fn values_at(lanes: &[Lane], beat: f64) -> impl Iterator<Item = (Control, f32)> + '_ {
+    lanes
+        .iter()
+        .filter_map(move |l| l.value_at(beat).map(|v| (l.control, v)))
+}
+
+/// Events after `from` up to and including `to`, in order; `None` starts
+/// before the first beat.
+fn events_between(events: &[Event], from: Option<f64>, to: f64) -> Vec<&Action> {
+    let mut events: Vec<&Event> = events
+        .iter()
+        .filter(|e| from.is_none_or(|f| e.beat > f) && e.beat <= to)
+        .collect();
+    events.sort_by(|a, b| a.beat.total_cmp(&b.beat));
+    events.into_iter().map(|e| &e.action).collect()
+}
+
+/// Effect units that `lanes` and `events` touch.
+fn fx_units(lanes: &[Lane], events: &[Event]) -> Vec<usize> {
+    let mut units: Vec<usize> = lanes
+        .iter()
+        .filter_map(|l| match l.control {
+            Control::FxWet { unit } | Control::FxKnob { unit, .. } => Some(unit),
+            _ => None,
+        })
+        .chain(events.iter().filter_map(|e| match e.action {
+            Action::FxEffect { unit, .. }
+            | Action::FxAssign { unit, .. }
+            | Action::FxOn { unit, .. } => Some(unit),
+            Action::Pattern { ref pattern, .. } => Some(pattern.unit),
+            _ => None,
+        }))
+        .collect();
+    units.sort_unstable();
+    units.dedup();
+    units
+}
+
+/// Problems in `lanes` and `events` that would stop them from playing.
+fn problems(lanes: &[Lane], events: &[Event], units: usize) -> Vec<String> {
+    let mut problems = Vec::new();
+    for unit in fx_units(lanes, events) {
+        if unit >= units {
+            problems.push(format!(
+                "effect unit {unit} does not exist (0–{})",
+                units - 1
+            ));
+        }
+    }
+    for event in events {
+        if let Action::Pattern { pattern, .. } = &event.action {
+            problems.extend(pattern.problems(units));
+        }
+    }
+    for lane in lanes {
+        if lane.points.is_empty() {
+            problems.push(format!("{:?} has no points", lane.control));
+        }
+        if lane.points.windows(2).any(|w| w[1].beat < w[0].beat) {
+            problems.push(format!("{:?} points are not in beat order", lane.control));
+        }
+    }
+    problems
+}
+
 impl Recipe {
     /// Control values at `beat`.
     pub fn values_at(&self, beat: f64) -> impl Iterator<Item = (Control, f32)> + '_ {
-        self.lanes
-            .iter()
-            .filter_map(move |l| l.value_at(beat).map(|v| (l.control, v)))
+        values_at(&self.lanes, beat)
     }
 
     /// Events after `from` up to and including `to`, in order; `None`
     /// starts before the first beat.
     pub fn events_between(&self, from: Option<f64>, to: f64) -> Vec<&Action> {
-        let mut events: Vec<&Event> = self
-            .events
-            .iter()
-            .filter(|e| from.is_none_or(|f| e.beat > f) && e.beat <= to)
-            .collect();
-        events.sort_by(|a, b| a.beat.total_cmp(&b.beat));
-        events.into_iter().map(|e| &e.action).collect()
+        events_between(&self.events, from, to)
     }
 
     /// Beat at which the incoming track starts.
@@ -280,57 +338,95 @@ impl Recipe {
 
     /// Effect units the recipe touches, to switch off at the end.
     pub fn fx_units(&self) -> Vec<usize> {
-        let mut units: Vec<usize> = self
-            .lanes
-            .iter()
-            .filter_map(|l| match l.control {
-                Control::FxWet { unit } | Control::FxKnob { unit, .. } => Some(unit),
-                _ => None,
-            })
-            .chain(self.events.iter().filter_map(|e| match e.action {
-                Action::FxEffect { unit, .. }
-                | Action::FxAssign { unit, .. }
-                | Action::FxOn { unit, .. } => Some(unit),
-                Action::Pattern { ref pattern, .. } => Some(pattern.unit),
-                _ => None,
-            }))
-            .collect();
-        units.sort_unstable();
-        units.dedup();
-        units
+        fx_units(&self.lanes, &self.events)
     }
 
     /// Problems that would stop the recipe from playing as written.
     pub fn check(&self, fx_units: usize) -> Vec<String> {
-        let mut problems = Vec::new();
+        let mut found = Vec::new();
         if !(self.beats > 0.0 && self.beats <= 256.0) {
-            problems.push(format!(
+            found.push(format!(
                 "beats must be between 0 and 256, not {}",
                 self.beats
             ));
         }
-        for unit in self.fx_units() {
-            if unit >= fx_units {
-                problems.push(format!(
-                    "effect unit {unit} does not exist (0–{})",
-                    fx_units - 1
-                ));
-            }
+        found.extend(problems(&self.lanes, &self.events, fx_units));
+        found
+    }
+}
+
+/// What a track does while it plays on its own, in beats from the moment
+/// it starts sounding: effects, loops, patterns, EQ and filter moves. Its
+/// side is always `in`, the track's own deck. It runs between the end of
+/// the mix that brings the track in (events that fall inside that mix
+/// fire when it ends) and the start of the mix that takes it out; the
+/// effect units it uses switch off when the track has gone.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct Script {
+    #[serde(default)]
+    pub lanes: Vec<Lane>,
+    #[serde(default)]
+    pub events: Vec<Event>,
+}
+
+impl Script {
+    pub fn values_at(&self, beat: f64) -> impl Iterator<Item = (Control, f32)> + '_ {
+        values_at(&self.lanes, beat)
+    }
+
+    pub fn events_between(&self, from: Option<f64>, to: f64) -> Vec<&Action> {
+        events_between(&self.events, from, to)
+    }
+
+    pub fn fx_units(&self) -> Vec<usize> {
+        fx_units(&self.lanes, &self.events)
+    }
+
+    /// Problems that would stop the script from playing as written.
+    pub fn check(&self, fx_units: usize) -> Vec<String> {
+        let mut found = problems(&self.lanes, &self.events, fx_units);
+        let out_lane = self.lanes.iter().any(|l| {
+            matches!(
+                l.control,
+                Control::Volume { side: Side::Out }
+                    | Control::Eq {
+                        side: Side::Out,
+                        ..
+                    }
+                    | Control::Filter { side: Side::Out }
+            )
+        });
+        let out_event = self.events.iter().any(|e| {
+            matches!(
+                e.action,
+                Action::FxAssign {
+                    side: Side::Out,
+                    ..
+                } | Action::Loop {
+                    side: Side::Out,
+                    ..
+                } | Action::LoopOff { side: Side::Out }
+                    | Action::BeatJump {
+                        side: Side::Out,
+                        ..
+                    }
+                    | Action::Pattern {
+                        side: Some(Side::Out),
+                        ..
+                    }
+            )
+        });
+        if out_lane || out_event {
+            found.push("a track's script only moves its own deck: side \"in\"".to_owned());
         }
-        for event in &self.events {
-            if let Action::Pattern { pattern, .. } = &event.action {
-                problems.extend(pattern.problems(fx_units));
-            }
+        if self
+            .events
+            .iter()
+            .any(|e| matches!(e.action, Action::Play { .. } | Action::Stop { .. }))
+        {
+            found.push("a track's script cannot play or stop decks; the set does".to_owned());
         }
-        for lane in &self.lanes {
-            if lane.points.is_empty() {
-                problems.push(format!("{:?} has no points", lane.control));
-            }
-            if lane.points.windows(2).any(|w| w[1].beat < w[0].beat) {
-                problems.push(format!("{:?} points are not in beat order", lane.control));
-            }
-        }
-        problems
+        found
     }
 }
 
@@ -689,5 +785,34 @@ mod tests {
         assert_eq!(r.fx_units(), [1, 7]);
         let problems = r.check(4);
         assert_eq!(problems.len(), 2, "{problems:?}");
+    }
+
+    #[test]
+    fn a_script_moves_only_its_own_track() {
+        let s: Script = serde_json::from_str(
+            r#"{"lanes": [{"control": "filter", "side": "in",
+                           "points": [{"beat": 64, "value": 0}, {"beat": 96, "value": 0.6}]}],
+                "events": [{"beat": 96, "do": "loop", "side": "in", "beats": 4},
+                           {"beat": 112, "do": "loop_off", "side": "in"},
+                           {"beat": 0, "do": "pattern", "side": "in", "unit": 3, "kit": "808", "on": true}]}"#,
+        )
+        .unwrap();
+        assert!(s.check(4).is_empty(), "{:?}", s.check(4));
+        assert_eq!(s.fx_units(), [3]);
+        assert_eq!(s.values_at(80.0).next(), Some((filter(Side::In), 0.3)));
+        assert_eq!(
+            s.events_between(Some(96.0), 200.0),
+            [&Action::LoopOff { side: Side::In }]
+        );
+        let bad: Script = serde_json::from_str(
+            r#"{"lanes": [{"control": "volume", "side": "out", "points": [{"beat": 0, "value": 0}]}],
+                "events": [{"beat": 8, "do": "stop", "side": "in"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(bad.check(4).len(), 2, "{:?}", bad.check(4));
+        assert_eq!(
+            serde_json::from_str::<Script>("{}").unwrap(),
+            Script::default()
+        );
     }
 }

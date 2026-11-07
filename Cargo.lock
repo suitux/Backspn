@@ -688,7 +688,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-mcp"
-version = "0.0.26"
+version = "0.0.31"
 dependencies = [
  "backspn-library",
  "backspn-remote",
@@ -705,7 +705,7 @@ dependencies = [
 
 [[package]]
 name = "backspn-remote"
-version = "0.0.26"
+version = "0.0.31"
 dependencies = [
  "backspn-formats",
  "backspn-library",

@@ -8,7 +8,7 @@ use backspn_library::energy;
 use backspn_library::set_plan::{SessionBrief, Transition};
 use serde::{Deserialize, Serialize};
 
-use crate::transition::{PatternSpec, Recipe};
+use crate::transition::{PatternSpec, Recipe, Script};
 
 /// A track in a set as the client sends it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -27,6 +27,9 @@ pub struct SetTrack {
     /// How this track comes in, written beat by beat. Wins over `transition`.
     #[serde(default)]
     pub recipe: Option<Recipe>,
+    /// What the track does while it plays on its own.
+    #[serde(default)]
+    pub script: Option<Script>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -116,6 +119,24 @@ pub enum Request {
     },
     StopSet,
     ResumeSet,
+    /// Saves a whole set, written ahead of time, as a session file.
+    SaveSession {
+        name: String,
+        #[serde(default)]
+        notes: String,
+        tracks: Vec<SetTrack>,
+        #[serde(default)]
+        transition: Option<Transition>,
+        #[serde(default)]
+        keylock: Option<bool>,
+    },
+    ListSessions,
+    GetSession {
+        name: String,
+    },
+    StartSession {
+        name: String,
+    },
     GetState,
     LoadTrack {
         deck: usize,
