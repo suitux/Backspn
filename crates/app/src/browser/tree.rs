@@ -11,6 +11,7 @@ use crate::{theme, widgets};
 
 use super::dialogs::BrowserAsk;
 use super::files::subfolders;
+use super::walk::{Fold, Group};
 use super::{Browser, BrowserAction, NodeDrag, SetDrag, Source, SourceDrag, TrackDrag};
 
 const DECK_NAMES: [&str; 4] = ["A", "B", "C", "D"];
@@ -60,6 +61,17 @@ impl TreeNode {
             _ => return None,
         })
     }
+}
+
+/// Outlines the group header the tree encoder is on.
+fn mark_cursor(ui: &Ui, rect: egui::Rect) {
+    let t = theme::get(ui.ctx());
+    ui.painter().rect_stroke(
+        rect,
+        0.0,
+        egui::Stroke::new(1.0, t.accent),
+        egui::StrokeKind::Inside,
+    );
 }
 
 pub(super) fn set_label(set: &backspn_formats::nml::SampleSet) -> String {
@@ -212,25 +224,23 @@ impl Browser {
             .iter()
             .map(|s| (s.id, set_label(&s.set)))
             .collect();
-        let header = egui::CollapsingHeader::new(tr("All Sample Sets"))
-            .id_salt("sample-sets")
-            .default_open(false);
-        let header = crate::theme::collapsing(ui, header, |ui| {
+        let title = tr("All Sample Sets");
+        let header = self.group(ui, title, "sample-sets", Group::SampleSets, |b, ui| {
             if rows.is_empty() {
                 ui.label(RichText::new(tr("No Sample Sets in the collection")).weak());
             }
             for (id, label) in rows {
                 let response = ui
-                    .selectable_label(self.source == Source::Set(id), &label)
+                    .selectable_label(b.source == Source::Set(id), &label)
                     .interact(egui::Sense::drag());
                 response.dnd_set_drag_payload(SetDrag(id));
                 if response.clicked() {
-                    self.open_set(id);
+                    b.open_set(id);
                 }
-                response.context_menu(|ui| self.set_menu(ui, id));
+                response.context_menu(|ui| b.set_menu(ui, id));
             }
         });
-        header.header_response.context_menu(|ui| {
+        header.context_menu(|ui| {
             if ui.button(tr("Import Sample Set…")).clicked() {
                 self.tree_actions.push(BrowserAction::ImportSet);
                 ui.close();
@@ -335,6 +345,9 @@ impl Browser {
                 "🕘 History",
             )
             .interact(egui::Sense::drag());
+        if self.tree_cursor_on(Group::History) {
+            mark_cursor(ui, label.rect);
+        }
         if let Some(c) = current {
             label.dnd_set_drag_payload(SourceDrag(Source::History(c)));
         }
@@ -377,37 +390,57 @@ impl Browser {
         if archived.is_empty() || !self.shown(TreeNode::Archive) {
             return;
         }
-        let header = egui::CollapsingHeader::new(tr("Archive"))
-            .id_salt("history-archive")
-            .default_open(false);
-        crate::theme::collapsing(ui, header, |ui| {
+        let title = tr("Archive");
+        self.group(ui, title, "history-archive", Group::Archive, |b, ui| {
             for h in archived {
                 let response = ui
-                    .selectable_label(
-                        self.source == Source::History(h.id),
-                        format!("🕘 {}", h.name),
-                    )
+                    .selectable_label(b.source == Source::History(h.id), format!("🕘 {}", h.name))
                     .interact(egui::Sense::drag());
                 response.dnd_set_drag_payload(SourceDrag(Source::History(h.id)));
                 if response.clicked() {
-                    self.show(Source::History(h.id));
+                    b.show(Source::History(h.id));
                 }
                 response.context_menu(|ui| {
                     if ui.button(tr("Export history…")).clicked() {
                         ui.close();
-                        self.export_history(h.id, &h.name);
+                        b.export_history(h.id, &h.name);
                     }
                     if ui.button(tr("Delete archive")).clicked() {
-                        let result = self
+                        let result = b
                             .library()
                             .map_or(Ok(()), |lib| lib.delete_history_session(h.id));
                         Self::report(result);
-                        self.refresh();
+                        b.refresh();
                         ui.close();
                     }
                 });
             }
         });
+    }
+
+    /// A group header of the tree. It follows the tree encoder's push,
+    /// keeps its state for the encoder and is outlined while the encoder is
+    /// on it.
+    fn group(
+        &mut self,
+        ui: &mut Ui,
+        title: &str,
+        salt: impl egui::AsIdSalt + Copy,
+        group: Group,
+        body: impl FnOnce(&mut Self, &mut Ui),
+    ) -> egui::Response {
+        let fold = Fold::Group(group);
+        let header = egui::CollapsingHeader::new(title)
+            .id_salt(salt)
+            .default_open(matches!(group, Group::Playlists(_)))
+            .open(self.forced_open(&fold));
+        let id = ui.make_persistent_id(salt);
+        let response = crate::theme::collapsing(ui, header, |ui| body(self, ui)).header_response;
+        self.remember_fold(ui.ctx(), id, fold);
+        if self.tree_cursor_on(group) {
+            mark_cursor(ui, response.rect);
+        }
+        response
     }
 
     pub(super) fn folder_node(&mut self, ui: &mut Ui, dir: &Path, name: &str) -> egui::Response {
@@ -427,9 +460,9 @@ impl Browser {
                 id,
                 false,
             );
-            if self.toggled_dir.as_deref() == Some(dir) {
-                self.toggled_dir = None;
-                state.set_open(self.open_dirs.contains(dir));
+            let fold = Fold::Dir(dir.to_path_buf());
+            if let Some(open) = self.forced_open(&fold) {
+                state.set_open(open);
             }
             let mut response = None;
             state
@@ -444,13 +477,7 @@ impl Browser {
                         self.folder_node(ui, child, &name);
                     }
                 });
-            let open = egui::collapsing_header::CollapsingState::load(ui.ctx(), id)
-                .is_some_and(|s| s.is_open());
-            if open {
-                self.open_dirs.insert(dir.to_path_buf());
-            } else {
-                self.open_dirs.remove(dir);
-            }
+            self.remember_fold(ui.ctx(), id, fold);
             response.expect("header shown")
         };
         let response = response.interact(egui::Sense::drag());
@@ -484,12 +511,11 @@ impl Browser {
         for node in children {
             match node.kind {
                 NodeKind::Folder => {
-                    let header = egui::CollapsingHeader::new(node.name.clone())
-                        .id_salt(("node", node.id))
-                        .default_open(true);
-                    let header =
-                        crate::theme::collapsing(ui, header, |ui| self.subtree(ui, Some(node.id)));
-                    let response = header.header_response.interact(egui::Sense::drag());
+                    let group = Group::Playlists(node.id);
+                    let header = self.group(ui, &node.name, ("node", node.id), group, |b, ui| {
+                        b.subtree(ui, Some(node.id));
+                    });
+                    let response = header.interact(egui::Sense::drag());
                     response.dnd_set_drag_payload(NodeDrag(node.id));
                     if let Some(drag) = response.dnd_release_payload::<NodeDrag>() {
                         self.move_node(drag.0, Some(node.id));

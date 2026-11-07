@@ -3,6 +3,7 @@ use std::path::Path;
 use super::files::{is_inside_other_app_data, remove_files, subfolders};
 use super::table::Pending;
 use super::toolbar::list_statistics;
+use super::walk::{Fold, Group, Stop};
 use super::*;
 
 fn browser(files: &[&str]) -> Browser {
@@ -21,8 +22,30 @@ fn titles(b: &Browser) -> Vec<String> {
         .collect()
 }
 
+/// The lists the tree encoder stops at, without the group headers.
+fn sources(b: &Browser) -> Vec<Source> {
+    b.stops()
+        .into_iter()
+        .filter_map(|s| match s {
+            Stop::Source(source) => Some(source),
+            Stop::Group(_) => None,
+        })
+        .collect()
+}
+
 #[test]
-fn tree_encoder_steps_through_collection_playlists_and_folders() {
+fn tree_encoder_stops_at_history_before_anything_played() {
+    let mut b = browser(&["/m/A.mp3"]);
+    assert!(b.stops().contains(&Stop::Group(Group::History)));
+    b.show(Source::Loops);
+    b.move_source(1);
+    assert_eq!(b.tree_cursor, Some(Group::History));
+    b.toggle_tree_open();
+    assert!(b.toggled.is_none(), "History does not open or close");
+}
+
+#[test]
+fn tree_encoder_steps_through_the_tree_from_top_to_bottom() {
     let mut b = browser(&["/m/A.mp3"]);
     let lib = b.library().unwrap();
     let folder = lib
@@ -36,23 +59,86 @@ fn tree_encoder_steps_through_collection_playlists_and_folders() {
         .unwrap();
     b.refresh();
     b.folders = vec![PathBuf::from("/m")];
+    b.current_history = Some(7);
     assert_eq!(
-        b.sources(),
+        b.stops(),
         [
-            Source::Collection,
-            Source::Node(inner),
-            Source::Node(top),
-            Source::Folder(PathBuf::from("/m")),
-            Source::Recordings,
-            Source::Loops
+            Stop::Source(Source::Collection),
+            Stop::Group(Group::SampleSets),
+            Stop::Source(Source::Recordings),
+            Stop::Source(Source::Loops),
+            Stop::Source(Source::History(7)),
+            Stop::Group(Group::Playlists(folder)),
+            Stop::Source(Source::Node(inner)),
+            Stop::Source(Source::Node(top)),
+            Stop::Source(Source::Folder(PathBuf::from("/m"))),
         ]
     );
     b.move_source(1);
+    assert_eq!(
+        b.tree_cursor,
+        Some(Group::SampleSets),
+        "on the group header"
+    );
+    assert_eq!(b.source, Source::Collection, "the list shown stays");
+    b.move_source(5);
     assert_eq!(b.source, Source::Node(inner));
-    b.move_source(6);
-    assert_eq!(b.source, Source::Loops, "clamped at the end");
+    assert_eq!(b.tree_cursor, None);
+    b.move_source(9);
+    assert_eq!(
+        b.source,
+        Source::Folder(PathBuf::from("/m")),
+        "clamped at the end"
+    );
     b.move_source(-9);
     assert_eq!(b.source, Source::Collection);
+}
+
+#[test]
+fn encoder_push_opens_and_closes_the_group_it_is_on() {
+    let mut b = browser(&[]);
+    let lib = b.library().unwrap();
+    let folder = lib
+        .create_node(None, NodeKind::Folder, "Sets", None)
+        .unwrap();
+    let inner = lib
+        .create_node(Some(folder), NodeKind::Playlist, "Inner", None)
+        .unwrap();
+    let after = lib
+        .create_node(None, NodeKind::Playlist, "After", None)
+        .unwrap();
+    b.refresh();
+    b.set_hidden_nodes(&[
+        TreeNode::SampleSets,
+        TreeNode::Recordings,
+        TreeNode::Loops,
+        TreeNode::History,
+    ]);
+    assert!(
+        sources(&b).contains(&Source::Node(inner)),
+        "folders start open"
+    );
+    b.move_source(1);
+    assert_eq!(b.tree_cursor, Some(Group::Playlists(folder)));
+    b.toggle_tree_open();
+    assert_eq!(sources(&b), [Source::Collection, Source::Node(after)]);
+    assert_eq!(b.toggled, Some(Fold::Group(Group::Playlists(folder))));
+    b.move_source(1);
+    assert_eq!(
+        b.source,
+        Source::Node(after),
+        "the closed folder is skipped"
+    );
+    b.move_source(-1);
+    b.toggle_tree_open();
+    b.move_source(1);
+    assert_eq!(b.source, Source::Node(inner), "open again");
+    b.toggle_tree_open();
+    assert_eq!(
+        sources(&b).len(),
+        3,
+        "a playlist neither opens nor closes anything"
+    );
 }
 
 #[test]
@@ -64,7 +150,7 @@ fn encoder_push_opens_a_folder_so_the_tree_reaches_its_subfolders() {
     let mut b = browser(&[]);
     b.folders = vec![root.clone()];
     let folders = |b: &Browser| -> Vec<PathBuf> {
-        b.sources()
+        sources(b)
             .into_iter()
             .filter_map(|s| match s {
                 Source::Folder(dir) => Some(dir),
@@ -73,26 +159,25 @@ fn encoder_push_opens_a_folder_so_the_tree_reaches_its_subfolders() {
             .collect()
     };
     assert_eq!(folders(&b), std::slice::from_ref(&root), "closed at first");
-    b.move_source(1);
-    assert_eq!(b.source, Source::Folder(root.clone()));
-    b.toggle_source_open();
+    b.show(Source::Folder(root.clone()));
+    b.toggle_tree_open();
     assert_eq!(
         folders(&b),
         [root.clone(), root.join("House"), root.join("Techno")]
     );
     b.move_source(1);
-    b.toggle_source_open();
+    b.toggle_tree_open();
     assert_eq!(folders(&b)[2], root.join("House/Deep"));
     b.move_source(2);
     assert_eq!(b.source, Source::Folder(root.join("Techno")));
-    b.toggle_source_open();
+    b.toggle_tree_open();
     assert_eq!(
         folders(&b).len(),
         4,
         "a folder without subfolders stays as it is"
     );
     b.move_source(-3);
-    b.toggle_source_open();
+    b.toggle_tree_open();
     assert_eq!(
         folders(&b),
         std::slice::from_ref(&root),
@@ -108,7 +193,7 @@ fn hidden_nodes_leave_the_tree_and_the_encoder() {
     b.set_hidden_nodes(&[TreeNode::Loops, TreeNode::Music]);
     assert_eq!(b.source, Source::Collection, "the hidden list gives way");
     assert!(!b.shown(TreeNode::Loops) && b.shown(TreeNode::Recordings));
-    assert_eq!(b.sources(), [Source::Collection, Source::Recordings]);
+    assert_eq!(sources(&b), [Source::Collection, Source::Recordings]);
     b.show(Source::Recordings);
     b.set_hidden_nodes(&[TreeNode::Music]);
     assert_eq!(b.source, Source::Recordings, "a shown one stays");

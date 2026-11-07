@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
@@ -25,33 +25,6 @@ pub(super) fn audio_files(dir: &Path) -> Vec<PathBuf> {
         .unwrap_or_default();
     files.sort_by_key(|p| p.file_name().map(|n| n.to_string_lossy().to_lowercase()));
     files
-}
-
-/// The added folders in tree order, each followed by the subfolders shown
-/// under it while it is open.
-pub(super) fn open_folders(
-    roots: &[PathBuf],
-    open: &HashSet<PathBuf>,
-    subdirs: &HashMap<PathBuf, Vec<PathBuf>>,
-) -> Vec<PathBuf> {
-    fn walk(
-        dir: &Path,
-        open: &HashSet<PathBuf>,
-        subdirs: &HashMap<PathBuf, Vec<PathBuf>>,
-        out: &mut Vec<PathBuf>,
-    ) {
-        out.push(dir.to_path_buf());
-        if open.contains(dir) {
-            for child in subdirs.get(dir).into_iter().flatten() {
-                walk(child, open, subdirs, out);
-            }
-        }
-    }
-    let mut out = Vec::new();
-    for root in roots {
-        walk(root, open, subdirs, &mut out);
-    }
-    out
 }
 
 pub(super) fn subfolders(dir: &Path) -> Vec<PathBuf> {

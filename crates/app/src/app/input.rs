@@ -555,7 +555,7 @@ impl App {
                 Trigger::Press => self.browser.move_source(1),
                 _ => {}
             },
-            Action::BrowserExpand if pressed => self.browser.toggle_source_open(),
+            Action::BrowserExpand if pressed => self.browser.toggle_tree_open(),
             Action::BrowserFavoriteStep => match trigger {
                 Trigger::Delta(steps) => self.browser.step_favorite(steps.round() as i32),
                 Trigger::Press => self.browser.step_favorite(1),

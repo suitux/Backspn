@@ -33,6 +33,7 @@ mod table;
 mod tags;
 mod toolbar;
 mod tree;
+mod walk;
 pub use tree::TreeNode;
 
 pub use files::library_path;
@@ -131,10 +132,12 @@ pub struct Browser {
     programs: Vec<external::OutsideLibrary>,
     by_path: HashMap<String, i64>,
     subdirs: HashMap<PathBuf, Vec<PathBuf>>,
-    /// Folders whose subfolders the tree shows.
-    open_dirs: HashSet<PathBuf>,
-    /// A folder opened or closed from a controller, for the tree to follow.
-    toggled_dir: Option<PathBuf>,
+    /// Whether each fold of the tree is open, as the tree last drew it.
+    folds: HashMap<walk::Fold, bool>,
+    /// A fold opened or closed from a controller, for the tree to follow.
+    toggled: Option<walk::Fold>,
+    /// The group header the tree encoder is on, when it is on one.
+    tree_cursor: Option<walk::Group>,
     tree_actions: Vec<BrowserAction>,
     search: String,
     filter: TrackFilter,
@@ -240,8 +243,9 @@ impl Browser {
             programs: Vec::new(),
             by_path: HashMap::new(),
             subdirs: HashMap::new(),
-            open_dirs: HashSet::new(),
-            toggled_dir: None,
+            folds: HashMap::new(),
+            toggled: None,
+            tree_cursor: None,
             tree_actions: Vec::new(),
             search: String::new(),
             search_error: None,
@@ -844,38 +848,9 @@ impl Browser {
         covers.get(ctx, row).map(egui::TextureHandle::id)
     }
 
-    fn sources(&self) -> Vec<Source> {
-        fn walk(nodes: &[Node], parent: Option<i64>, out: &mut Vec<Source>) {
-            let mut children: Vec<&Node> = nodes.iter().filter(|n| n.parent == parent).collect();
-            children.sort_by_key(|n| n.position);
-            for node in children {
-                if node.kind == NodeKind::Folder {
-                    walk(nodes, Some(node.id), out);
-                } else {
-                    out.push(Source::Node(node.id));
-                }
-            }
-        }
-        let mut out = vec![Source::Collection];
-        walk(&self.nodes, None, &mut out);
-        out.extend(
-            files::open_folders(&self.folders, &self.open_dirs, &self.subdirs)
-                .into_iter()
-                .map(Source::Folder),
-        );
-        for (node, source) in [
-            (TreeNode::Recordings, Source::Recordings),
-            (TreeNode::Loops, Source::Loops),
-        ] {
-            if self.shown(node) {
-                out.push(source);
-            }
-        }
-        out
-    }
-
     fn show(&mut self, source: Source) {
         self.source = source;
+        self.tree_cursor = None;
         self.sort = self
             .sorting_path()
             .and_then(|path| self.lib.as_ref().ok()?.sorting(&path).ok())
@@ -910,33 +885,6 @@ impl Browser {
             .collect();
         let result = self.with_lib(|lib| lib.set_sorting(&path, &sorting));
         Self::report(result);
-    }
-
-    pub fn move_source(&mut self, delta: i32) {
-        let sources = self.sources();
-        let at = sources.iter().position(|s| *s == self.source).unwrap_or(0) as i64;
-        let next = (at + i64::from(delta)).clamp(0, sources.len() as i64 - 1) as usize;
-        self.selection.clear();
-        self.show(sources[next].clone());
-    }
-
-    /// Opens or closes the folder selected in the tree, when it has subfolders.
-    pub fn toggle_source_open(&mut self) {
-        let Source::Folder(dir) = &self.source else {
-            return;
-        };
-        let dir = dir.clone();
-        let children = self
-            .subdirs
-            .entry(dir.clone())
-            .or_insert_with(|| files::subfolders(&dir));
-        if children.is_empty() {
-            return;
-        }
-        if !self.open_dirs.remove(&dir) {
-            self.open_dirs.insert(dir.clone());
-        }
-        self.toggled_dir = Some(dir);
     }
 
     fn preparation(&mut self) -> Option<i64> {

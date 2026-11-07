@@ -6,6 +6,7 @@ use backspn_library::external::{ExternalLibrary, ExternalNode, ExternalTrack};
 use eframe::egui::{self, RichText, Ui};
 
 use super::dialogs::BrowserAsk;
+use super::walk::Fold;
 use super::{Browser, BrowserAction, Source, SourceDrag};
 use crate::i18n::tr;
 use crate::modal::Ask;
@@ -243,7 +244,7 @@ fn with_marks(program: Option<Program>, track: &ExternalTrack) -> ExternalTrack 
     track
 }
 
-fn node_at<'a>(lib: &'a ExternalLibrary, at: &[usize]) -> Option<&'a ExternalNode> {
+pub(super) fn node_at<'a>(lib: &'a ExternalLibrary, at: &[usize]) -> Option<&'a ExternalNode> {
     let (first, rest) = at.split_first()?;
     let mut node = lib.playlists.get(*first)?;
     for &i in rest {
@@ -328,7 +329,7 @@ impl Browser {
         }
     }
 
-    fn outside_library(&self, kind: Outside) -> Option<&ExternalLibrary> {
+    pub(super) fn outside_library(&self, kind: Outside) -> Option<&ExternalLibrary> {
         self.outside(kind)?.library()
     }
 
@@ -704,11 +705,15 @@ impl Browser {
             }
             ExternalNode::Folder { name, children } => {
                 let id = ui.make_persistent_id(("outside", kind, at));
-                let state = egui::collapsing_header::CollapsingState::load_with_default_open(
+                let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(
                     ui.ctx(),
                     id,
                     false,
                 );
+                let fold = Fold::Outside(kind, at.to_vec());
+                if let Some(open) = self.forced_open(&fold) {
+                    state.set_open(open);
+                }
                 let mut response = None;
                 state
                     .show_header(ui, |ui| {
@@ -721,6 +726,7 @@ impl Browser {
                             self.outside_node(ui, kind, child, &path);
                         }
                     });
+                self.remember_fold(ui.ctx(), id, fold);
                 response.expect("header shown")
             }
         };
