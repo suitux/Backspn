@@ -378,11 +378,24 @@ impl App {
                 },
                 value,
             ),
-            Target::Filter(channel) => (Action::Filter { channel }, f32::midpoint(value, 1.0)),
+            Target::Filter(channel) => {
+                self.filter_knob(channel, value);
+                (Action::Filter { channel }, f32::midpoint(value, 1.0))
+            }
             Target::FxWet(unit) => (Action::FxDryWet { unit }, value),
             Target::FxKnob(unit, knob) => (Action::FxKnob { unit, knob }, value),
         };
         self.set(action, value.clamp(0.0, 1.0), state);
+    }
+
+    /// A filter move from the assistant or a set is a filter move: the
+    /// channel's knob switches to the plain filter (and the interface shows
+    /// it) instead of driving whichever mixer FX was picked. Back at the
+    /// middle the knob does nothing, so the pick stays.
+    fn filter_knob(&mut self, channel: usize, value: f32) {
+        if value.abs() > 1e-3 {
+            self.mixer.use_filter(channel, &mut self.outbox);
+        }
     }
 
     /// Puts one effect alone in a unit.
@@ -854,7 +867,10 @@ impl App {
                     MixerControl::EqLow => (Action::Eq { channel, band: 0 }, value),
                     MixerControl::EqMid => (Action::Eq { channel, band: 1 }, value),
                     MixerControl::EqHigh => (Action::Eq { channel, band: 2 }, value),
-                    MixerControl::Filter => (Action::Filter { channel }, f32::midpoint(value, 1.0)),
+                    MixerControl::Filter => {
+                        self.filter_knob(channel, value);
+                        (Action::Filter { channel }, f32::midpoint(value, 1.0))
+                    }
                 };
                 act(self, action, Trigger::Set(value.clamp(0.0, 1.0)));
             }

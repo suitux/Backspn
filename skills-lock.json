@@ -37,6 +37,18 @@
       "skillPath": "skills/taste-skill/SKILL.md",
       "computedHash": "69021ac7e671c0c0d85d65b570003cef360b1c296323fa28c042884e146478ca"
     },
+    "dj": {
+      "source": "wonsukchoi/domain-experts",
+      "sourceType": "github",
+      "skillPath": "roles/dj/SKILL.md",
+      "computedHash": "f24a0e2ddea6eeb158414c421ddc8a3f2d91d6b580ccc85e95c3a2ee6d99997d"
+    },
+    "dj-playbook": {
+      "source": "dvcrn/openclaw-skills-marketplace",
+      "sourceType": "github",
+      "skillPath": "plugins/chilu18--dj-playbook/skills/dj-playbook/SKILL.md",
+      "computedHash": "914e4434faa0ff8e9e9adf0f9925c508fc8237d90ecd3b532758bb77b18c2eda"
+    },
     "find-skills": {
       "source": "vercel-labs/skills",
       "sourceType": "github",

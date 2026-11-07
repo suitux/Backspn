@@ -313,6 +313,22 @@ impl MixerView {
         }
     }
 
+    /// Puts the plain filter, switched on, under a channel's filter knob,
+    /// for moves meant as filter moves whatever mixer FX was picked.
+    pub fn use_filter(&mut self, channel: usize, out: &mut Vec<Command>) {
+        if self.lock.locks(Action::Filter { channel }) {
+            return;
+        }
+        let Some(c) = self.channels.get_mut(channel) else {
+            return;
+        };
+        if c.fx != 0 || !c.filter_on {
+            c.fx = 0;
+            c.filter_on = true;
+            self.fx_commands(channel, out);
+        }
+    }
+
     pub fn mixer_fx(&self) -> [(u8, bool); 4] {
         self.channels.map(|c| (c.fx, c.filter_on))
     }

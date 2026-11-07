@@ -445,10 +445,20 @@ impl Autopilot {
             self.finished = true;
             return;
         };
-        let deck = DECKS[0];
+        // The first track goes on a stopped deck: a playing one may refuse it.
+        let deck = self.incoming.map_or(
+            if decks[DECKS[0]].playing && !decks[DECKS[1]].playing {
+                DECKS[1]
+            } else {
+                DECKS[0]
+            },
+            |i| i.deck,
+        );
         let Some(incoming) = self.incoming else {
             self.load(deck, 0, out);
             self.set(Target::Volume(other(deck)), 0.0, out);
+            // The other deck takes the second track, so it has to stop.
+            out.push(Step::Stop { deck: other(deck) });
             return;
         };
         let view = decks[incoming.deck];
@@ -523,7 +533,13 @@ impl Autopilot {
             return;
         }
         let Some(mut incoming) = self.incoming else {
-            self.load(other(current.deck), next, out);
+            // A deck that still plays may refuse the load (load only on
+            // stopped decks); the deck just mixed out takes a few frames to
+            // report that it stopped.
+            let free = other(current.deck);
+            if !decks[free].playing {
+                self.load(free, next, out);
+            }
             return;
         };
         let view = decks[incoming.deck];
@@ -881,6 +897,33 @@ mod tests {
         assert!(has(&steps, &low(A, 0.5)), "back to neutral");
         assert_eq!(a.cursor(), 1);
         assert_eq!(a.status(36.0), Status::Playing);
+    }
+
+    #[test]
+    fn the_next_track_waits_for_the_deck_it_goes_on_to_stop() {
+        let mut a = ready(&[1, 2, 3], preset(TransitionStyle::Blend));
+        a.step(&[deck(1, true, 267.0), deck(2, false, 0.0)], 4.0);
+        let steps = a.step(&[deck(1, true, 299.0), deck(2, true, 32.0)], 36.0);
+        assert!(has(&steps, &Step::Stop { deck: A }));
+        let steps = a.step(&[deck(1, true, 299.1), deck(2, true, 32.2)], 36.1);
+        assert!(
+            !steps.iter().any(|s| matches!(s, Step::Load { .. })),
+            "deck A still reports playing"
+        );
+        let steps = a.step(&[deck(1, false, 299.1), deck(2, true, 32.4)], 36.2);
+        assert!(has(&steps, &Step::Load { deck: A, track: 3 }));
+    }
+
+    #[test]
+    fn a_set_starts_on_a_stopped_deck() {
+        let mut a = Autopilot::new(tracks(&[1, 2]), preset(TransitionStyle::Blend), true);
+        let steps = a.step(&[deck(9, true, 10.0), DeckView::default()], 0.0);
+        assert!(has(&steps, &Step::Load { deck: B, track: 1 }));
+        assert!(has(&steps, &Step::Stop { deck: A }));
+        let steps = a.step(&[deck(9, false, 10.0), deck(1, false, 0.0)], 0.1);
+        assert!(has(&steps, &Step::Play { deck: B }));
+        let steps = a.step(&[deck(9, false, 10.0), deck(1, true, 10.0)], 1.0);
+        assert!(has(&steps, &Step::Load { deck: A, track: 2 }));
     }
 
     #[test]

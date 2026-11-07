@@ -1073,6 +1073,28 @@ fn an_ai_set_plays_the_first_track_and_mixes_into_the_next() {
 }
 
 #[test]
+fn an_assistant_filter_move_picks_the_filter() {
+    use backspn_remote::protocol::{MixerControl, Request};
+
+    let mut h = Harness::new("ai-filter");
+    let state = h.app.engine_state();
+    let select = Action::MixerFxSelect { slot: 2 };
+    h.app.execute(select, Trigger::Press, &state);
+    h.app.execute(select, Trigger::Release, &state);
+    assert!(h.app.mixer.mixer_fx().iter().all(|&(fx, _)| fx == 2));
+    let filter = |value| Request::SetMixer {
+        deck: 0,
+        control: MixerControl::Filter,
+        value,
+    };
+    h.app.answer(filter(0.0), &state).unwrap();
+    assert_eq!(h.app.mixer.mixer_fx()[0].0, 2, "the middle keeps the pick");
+    h.app.answer(filter(0.6), &state).unwrap();
+    assert_eq!(h.app.mixer.mixer_fx()[0], (0, true));
+    assert_eq!(h.app.mixer.mixer_fx()[1].0, 2, "other channels keep theirs");
+}
+
+#[test]
 fn moving_a_set_deck_by_hand_pauses_the_set() {
     use backspn_remote::protocol::{Request, SetTrack};
 
