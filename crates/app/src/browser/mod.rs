@@ -131,6 +131,10 @@ pub struct Browser {
     programs: Vec<external::OutsideLibrary>,
     by_path: HashMap<String, i64>,
     subdirs: HashMap<PathBuf, Vec<PathBuf>>,
+    /// Folders whose subfolders the tree shows.
+    open_dirs: HashSet<PathBuf>,
+    /// A folder opened or closed from a controller, for the tree to follow.
+    toggled_dir: Option<PathBuf>,
     tree_actions: Vec<BrowserAction>,
     search: String,
     filter: TrackFilter,
@@ -236,6 +240,8 @@ impl Browser {
             programs: Vec::new(),
             by_path: HashMap::new(),
             subdirs: HashMap::new(),
+            open_dirs: HashSet::new(),
+            toggled_dir: None,
             tree_actions: Vec::new(),
             search: String::new(),
             search_error: None,
@@ -852,7 +858,11 @@ impl Browser {
         }
         let mut out = vec![Source::Collection];
         walk(&self.nodes, None, &mut out);
-        out.extend(self.folders.iter().cloned().map(Source::Folder));
+        out.extend(
+            files::open_folders(&self.folders, &self.open_dirs, &self.subdirs)
+                .into_iter()
+                .map(Source::Folder),
+        );
         for (node, source) in [
             (TreeNode::Recordings, Source::Recordings),
             (TreeNode::Loops, Source::Loops),
@@ -908,6 +918,25 @@ impl Browser {
         let next = (at + i64::from(delta)).clamp(0, sources.len() as i64 - 1) as usize;
         self.selection.clear();
         self.show(sources[next].clone());
+    }
+
+    /// Opens or closes the folder selected in the tree, when it has subfolders.
+    pub fn toggle_source_open(&mut self) {
+        let Source::Folder(dir) = &self.source else {
+            return;
+        };
+        let dir = dir.clone();
+        let children = self
+            .subdirs
+            .entry(dir.clone())
+            .or_insert_with(|| files::subfolders(&dir));
+        if children.is_empty() {
+            return;
+        }
+        if !self.open_dirs.remove(&dir) {
+            self.open_dirs.insert(dir.clone());
+        }
+        self.toggled_dir = Some(dir);
     }
 
     fn preparation(&mut self) -> Option<i64> {

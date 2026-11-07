@@ -464,6 +464,7 @@ impl App {
                 deck.clear_notice(deck_informer::Key::DeckLocked);
             }
         }
+        self.follow_hardware_main();
         self.handle_controls(&ctx, &state);
         self.guard_quit(&ctx, &state);
         self.offer_audio(&ctx);

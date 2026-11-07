@@ -217,6 +217,7 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     meters: None,
     meter_leds: None,
     deck_leds: None,
+    hardware_main: false,
     default_mappings,
     shifted,
     modifier_hooks: None,

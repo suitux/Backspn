@@ -246,6 +246,14 @@ impl Controls {
         decks
     }
 
+    /// Whether a connected controller sets the main level of `output`, the
+    /// audio device playing, with its own MAIN knob.
+    pub fn hardware_main(&self, output: &str) -> bool {
+        self.devices
+            .iter()
+            .any(|d| d.connected() && d.hardware_main() && plays_through(output, d.name()))
+    }
+
     pub fn send_screens(&self, frames: Vec<Frame>) {
         if let Some(screens) = self.screen_device().and_then(|d| d.screens()) {
             screens.send(frames);
@@ -650,6 +658,12 @@ fn port_changes(
 
 pub(crate) const KEYBOARD: &str = "keyboard";
 
+/// Whether the audio device `output` is the sound card of the controller
+/// named `controller`, whose name the card's name contains.
+fn plays_through(output: &str, controller: &str) -> bool {
+    !controller.is_empty() && output.contains(controller)
+}
+
 fn hotcue_kind(kind: CueKind) -> HotcueKind {
     match kind {
         CueKind::FadeIn => HotcueKind::FadeIn,
@@ -777,6 +791,17 @@ mod tests {
     use super::*;
 
     use backspn_engine::HotcuePoint;
+
+    #[test]
+    fn a_controller_card_is_recognised_by_its_name() {
+        assert!(plays_through("Traktor Kontrol S4 MK3", "Kontrol S4 MK3"));
+        assert!(plays_through(
+            "Speakers (Traktor Kontrol S3)",
+            backspn_control::kontrol::s3::NAME
+        ));
+        assert!(!plays_through("MacBook Pro Speakers", "Kontrol S4 MK3"));
+        assert!(!plays_through("offline", ""));
+    }
 
     #[test]
     fn ports_plugged_in_open_and_unplugged_ones_close() {

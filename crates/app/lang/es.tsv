@@ -938,3 +938,4 @@ Puts the WinUSB driver that comes with Windows on the screens' USB interface; Wi
 Fade out when switched off	Desvanecer al apagar
 Off: the FX button cuts the effect at once. On: it dies away over the fade time.	Desactivado: el botón FX corta el efecto al momento. Activado: se desvanece durante el tiempo de fundido.
 Fade time	Tiempo de fundido
+Set by the MAIN knob on the controller	Lo fija el knob MAIN del controlador

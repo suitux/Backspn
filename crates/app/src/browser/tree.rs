@@ -422,11 +422,15 @@ impl Browser {
             ui.selectable_label(selected, label)
         } else {
             let id = ui.make_persistent_id(("folder", dir));
-            let state = egui::collapsing_header::CollapsingState::load_with_default_open(
+            let mut state = egui::collapsing_header::CollapsingState::load_with_default_open(
                 ui.ctx(),
                 id,
                 false,
             );
+            if self.toggled_dir.as_deref() == Some(dir) {
+                self.toggled_dir = None;
+                state.set_open(self.open_dirs.contains(dir));
+            }
             let mut response = None;
             state
                 .show_header(ui, |ui| {
@@ -440,6 +444,13 @@ impl Browser {
                         self.folder_node(ui, child, &name);
                     }
                 });
+            let open = egui::collapsing_header::CollapsingState::load(ui.ctx(), id)
+                .is_some_and(|s| s.is_open());
+            if open {
+                self.open_dirs.insert(dir.to_path_buf());
+            } else {
+                self.open_dirs.remove(dir);
+            }
             response.expect("header shown")
         };
         let response = response.interact(egui::Sense::drag());

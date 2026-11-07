@@ -56,6 +56,11 @@ pub trait Controller {
     fn motor_jogs(&self) -> bool {
         false
     }
+    /// Whether MAIN sets the level of the controller's own sound card in
+    /// hardware.
+    fn hardware_main(&self) -> bool {
+        false
+    }
     fn calibration_groups(&self) -> &'static [crate::calibration::Group] {
         &[]
     }

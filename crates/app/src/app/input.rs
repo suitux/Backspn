@@ -555,6 +555,7 @@ impl App {
                 Trigger::Press => self.browser.move_source(1),
                 _ => {}
             },
+            Action::BrowserExpand if pressed => self.browser.toggle_source_open(),
             Action::BrowserFavoriteStep => match trigger {
                 Trigger::Delta(steps) => self.browser.step_favorite(steps.round() as i32),
                 Trigger::Press => self.browser.step_favorite(1),
@@ -816,6 +817,20 @@ impl App {
             ctx.request_repaint_after(PREVIEW_BLINK / 2);
         }
         self.update_screens(ctx, state);
+    }
+
+    /// The software master stays at full while the audio plays through a
+    /// controller that sets the main level with its own MAIN knob.
+    pub(crate) fn follow_hardware_main(&mut self) {
+        let output = self
+            .engine
+            .as_ref()
+            .map_or("", |e| e.info().device.as_str());
+        let on = self
+            .controls
+            .as_ref()
+            .is_some_and(|c| c.hardware_main(output));
+        self.mixer.set_hardware_main(on, &mut self.outbox);
     }
 
     fn platter_deck(&self, d: usize) -> bool {

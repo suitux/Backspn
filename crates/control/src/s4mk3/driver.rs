@@ -226,6 +226,10 @@ impl Controller for S4Mk3 {
         self.layout.motors
     }
 
+    fn hardware_main(&self) -> bool {
+        self.layout.hardware_main
+    }
+
     fn calibration_groups(&self) -> &'static [crate::calibration::Group] {
         self.layout.calibration
     }
@@ -327,6 +331,9 @@ fn wheel_leds(
 }
 
 pub(crate) fn upgraded(mapping: &Mapping) -> Option<Mapping> {
+    if let Some(m) = crate::s4mk3::hardware_main_upgrade(mapping) {
+        return Some(m);
+    }
     let Input::Hid(name) = &mapping.input else {
         return None;
     };

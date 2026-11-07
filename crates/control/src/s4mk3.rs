@@ -487,6 +487,8 @@ pub struct Layout {
     pub meters: Option<fn(&Feedback) -> Meters>,
     pub meter_leds: Option<fn(&Feedback, &Decoder, &mut Leds)>,
     pub deck_leds: Option<DeckLeds>,
+    /// MAIN sets the level of the controller's own sound card in hardware.
+    pub hardware_main: bool,
     pub default_mappings: fn() -> Vec<Mapping>,
     pub shifted: ShiftFn,
     pub modifier_hooks: Option<ModifierHooks>,
@@ -568,7 +570,8 @@ pub static S4: LazyLock<Layout> = LazyLock::new(|| {
         meters: Some(driver::meters),
         meter_leds: None,
         deck_leds: None,
-        default_mappings,
+        hardware_main: true,
+        default_mappings: s4_default_mappings,
         shifted,
         modifier_hooks: None,
         upgrade: Some(driver::upgraded),
@@ -1428,6 +1431,29 @@ fn read_calibration(
     stored.parse(&data)
 }
 
+fn s4_default_mappings() -> Vec<Mapping> {
+    hardware_main_defaults(default_mappings())
+}
+
+/// MAIN on a controller whose MAIN sets its sound card level in hardware: the
+/// knob is shown on screen, not applied again in software, so the booth
+/// output, which copies the main signal, keeps its own level.
+pub(crate) fn hardware_main_defaults(defaults: Vec<Mapping>) -> Vec<Mapping> {
+    defaults
+        .into_iter()
+        .map(|m| hardware_main_upgrade(&m).unwrap_or(m))
+        .collect()
+}
+
+/// Moves a saved MAIN mapping to the hardware MAIN.
+pub(crate) fn hardware_main_upgrade(mapping: &Mapping) -> Option<Mapping> {
+    (mapping.input == Input::Hid("Mixer.Master".into()) && mapping.action == Action::MasterVolume)
+        .then(|| Mapping {
+            action: Action::HardwareMasterVolume,
+            ..mapping.clone()
+        })
+}
+
 #[allow(clippy::too_many_lines)]
 pub fn default_mappings() -> Vec<Mapping> {
     let mut v = Vec::new();
@@ -1672,6 +1698,7 @@ pub fn shifted(name: &str) -> Option<Option<(Action, Interaction)>> {
         "Move.Turn" => (Action::BeatJump { deck, beats: 1.0 }, Interaction::Relative),
         "Jog.Turn" => (Action::JogSearch { deck }, Interaction::Relative),
         "Browse.Encoder.Turn" => (Action::BrowserTree, Interaction::Relative),
+        "Browse.Encoder.Push" => (Action::BrowserExpand, Interaction::Trigger),
         "Browse.Add To Playlist" => (Action::PrepListJump, Interaction::Trigger),
         "Loop.Turn" => (Action::KeyAdjust { deck }, Interaction::Relative),
         "Loop.Push" => (Action::Keylock { deck }, Interaction::Trigger),
@@ -1685,6 +1712,34 @@ pub fn shifted(name: &str) -> Option<Option<(Action, Interaction)>> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+
+    #[test]
+    fn main_is_shown_but_left_to_the_hardware() {
+        assert!(S4.hardware_main);
+        let main = |defaults: Vec<Mapping>| {
+            defaults
+                .into_iter()
+                .find(|m| m.input == Input::Hid("Mixer.Master".into()))
+                .map(|m| m.action)
+        };
+        assert_eq!(
+            main((S4.default_mappings)()),
+            Some(Action::HardwareMasterVolume)
+        );
+        assert_eq!(
+            main(default_mappings()),
+            Some(Action::MasterVolume),
+            "other controllers keep MAIN on the software master"
+        );
+        let saved = Mapping::new(
+            Input::Hid("Mixer.Master".into()),
+            Action::MasterVolume,
+            Interaction::Direct,
+        );
+        let upgraded = (S4.upgrade.expect("upgrade"))(&saved).expect("moved");
+        assert_eq!(upgraded.action, Action::HardwareMasterVolume);
+        assert_eq!(upgraded.input, saved.input);
+    }
 
     fn report1(set: &[(usize, u8)]) -> Vec<u8> {
         let mut r = vec![0u8; 42];

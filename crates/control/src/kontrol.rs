@@ -149,6 +149,7 @@ fn common_shifted(name: &str) -> Shifted {
         "Move.Turn" => (Action::BeatJump { deck, beats: 1.0 }, Interaction::Relative),
         "Jog.Turn" => (Action::JogSearch { deck }, Interaction::Relative),
         "Browse.Encoder.Turn" => (Action::BrowserTree, Interaction::Relative),
+        "Browse.Encoder.Push" => (Action::BrowserExpand, Interaction::Trigger),
         "Browse.Add To Playlist" => (Action::PrepListJump, Interaction::Trigger),
         "Quant" => (Action::Snap, Interaction::Toggle),
         "Tempo" => return Some(None),

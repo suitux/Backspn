@@ -304,6 +304,8 @@ pub enum Action {
     },
     Crossfader,
     MasterVolume,
+    /// A MAIN knob that sets the level in the controller's own hardware.
+    HardwareMasterVolume,
     CueVolume,
     CueMix,
     FxOn {
@@ -434,6 +436,8 @@ pub enum Action {
         deck: usize,
     },
     BrowserTree,
+    /// Opens or closes the folder selected in the browser tree.
+    BrowserExpand,
     JogSearch {
         deck: usize,
     },
@@ -564,6 +568,7 @@ impl Action {
                 | Self::Filter { .. }
                 | Self::Crossfader
                 | Self::MasterVolume
+                | Self::HardwareMasterVolume
                 | Self::CueVolume
                 | Self::CueMix
                 | Self::FxDryWet { .. }
@@ -937,6 +942,7 @@ impl Action {
             Self::MonitorCue { channel } => format!("Ch {} Cue", d(channel)),
             Self::Crossfader => "Crossfader".into(),
             Self::MasterVolume => "Master Volume".into(),
+            Self::HardwareMasterVolume => "Master Volume (hardware knob)".into(),
             Self::CueVolume => "Headphone Volume".into(),
             Self::CueMix => "Headphone Cue Mix".into(),
             Self::FxOn { unit } => format!("FX{} On", unit + 1),
@@ -1003,6 +1009,7 @@ impl Action {
             Self::TempoReset { deck } => format!("Deck {} Tempo Reset", d(deck)),
             Self::TempoLock { deck } => format!("Deck {} Tempo Lock", d(deck)),
             Self::BrowserTree => "Browser Tree Up/Down".into(),
+            Self::BrowserExpand => "Browser Tree Expand/Collapse".into(),
             Self::JogSearch { deck } => format!("Deck {} Jog Search", d(deck)),
             Self::Seek { deck } => format!("Deck {} Seek Position", d(deck)),
             Self::GridAdjust { deck } => format!("Deck {} Grid Adjust", d(deck)),

@@ -386,6 +386,8 @@ fn categories() -> Vec<Category> {
             name: "Browser",
             actions: vec![
                 Action::BrowserUpDown,
+                Action::BrowserTree,
+                Action::BrowserExpand,
                 Action::BrowserFavoriteStep,
                 Action::PreviewLoad,
                 Action::PreviewSeek,

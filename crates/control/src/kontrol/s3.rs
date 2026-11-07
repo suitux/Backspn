@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use super::{analog, button, db_meter, encoder, jog, linear_meter, map};
 use crate::feedback::Feedback;
-use crate::s4mk3::{Analog, Button, Encoder, Jog, Layout, Meters, Shifted};
+use crate::s4mk3::{Analog, Button, Decoder, Encoder, Jog, Layout, Leds, Meters, Shifted, colour};
 use crate::{Action, Interaction, Mapping};
 
 pub const NAME: &str = "Kontrol S3";
@@ -216,6 +216,33 @@ fn meters(feedback: &Feedback) -> Meters {
     Meters(bytes)
 }
 
+const DECK_BUTTONS: [[(&str, usize, u8); 2]; 2] = [
+    [
+        ("Left.Deck.A", 0, colour::BLUE),
+        ("Left.Deck.C", 2, colour::ORANGE),
+    ],
+    [
+        ("Right.Deck.B", 1, colour::BLUE),
+        ("Right.Deck.D", 3, colour::ORANGE),
+    ],
+];
+
+/// Only the deck each side plays is lit; the other button is dark, so the
+/// selection reads at a glance.
+fn deck_leds(_feedback: &Feedback, decoder: &Decoder, layer: [usize; 2], leds: &mut Leds) {
+    for (side, buttons) in DECK_BUTTONS.iter().enumerate() {
+        for &(name, deck, colour) in buttons {
+            if let Some(led) = decoder.led(name) {
+                leds.0[led] = if layer[side] == deck {
+                    colour + colour::BRIGHT
+                } else {
+                    colour::OFF
+                };
+            }
+        }
+    }
+}
+
 fn default_mappings() -> Vec<Mapping> {
     let mut extra = super::side_extras(&LAYOUT);
     extra.push(map(
@@ -223,7 +250,7 @@ fn default_mappings() -> Vec<Mapping> {
         Action::LiveInput { deck: 3 },
         Interaction::Trigger,
     ));
-    super::default_mappings(&LAYOUT, extra)
+    crate::s4mk3::hardware_main_defaults(super::default_mappings(&LAYOUT, extra))
         .into_iter()
         .filter(|m| !matches!(m.action, Action::JogMode { .. }))
         .collect()
@@ -273,11 +300,12 @@ pub static LAYOUT: LazyLock<Layout> = LazyLock::new(|| Layout {
     strip_leds: None,
     meters: Some(meters),
     meter_leds: None,
-    deck_leds: None,
+    deck_leds: Some(deck_leds),
+    hardware_main: true,
     default_mappings,
     shifted,
     modifier_hooks: None,
-    upgrade: None,
+    upgrade: Some(crate::s4mk3::hardware_main_upgrade),
     jog_button_toggles_touch: true,
     samples_button_stems: true,
     samples_button_toggles: false,
@@ -318,6 +346,10 @@ mod tests {
                 Interaction::Trigger
             )))
         );
+        assert_eq!(
+            shifted("Left.Browse.Encoder.Push"),
+            Some(Some((Action::BrowserExpand, Interaction::Trigger)))
+        );
         assert_eq!(shifted("Mixer.D.Ext"), Some(None));
         assert_eq!(shifted("Left.Loop.Turn"), None);
     }
@@ -330,6 +362,28 @@ mod tests {
         assert!(has("Left.Quant") && has("Mixer.D.Ext"));
         assert!(!has("Left.Jog Mode.Jog"), "handled by the driver");
         assert!(LAYOUT.has("Left.Deck.C") && LAYOUT.has("Right.Deck.D"));
+    }
+
+    #[test]
+    fn main_is_shown_but_left_to_the_hardware() {
+        assert!(LAYOUT.hardware_main && LAYOUT.has("Mixer.Master"));
+        let main = default_mappings()
+            .into_iter()
+            .find(|m| m.input == Input::Hid("Mixer.Master".into()))
+            .map(|m| m.action);
+        assert_eq!(main, Some(Action::HardwareMasterVolume));
+    }
+
+    #[test]
+    fn only_the_selected_deck_buttons_light() {
+        let d = Decoder::new(&LAYOUT);
+        let mut leds = Leds::for_layout(&LAYOUT);
+        deck_leds(&Feedback::default(), &d, [2, 1], &mut leds);
+        let at = |name: &str| leds.0[d.led(name).expect(name)];
+        assert_eq!(at("Left.Deck.A"), colour::OFF);
+        assert_eq!(at("Left.Deck.C"), colour::ORANGE + colour::BRIGHT);
+        assert_eq!(at("Right.Deck.B"), colour::BLUE + colour::BRIGHT);
+        assert_eq!(at("Right.Deck.D"), colour::OFF);
     }
 
     #[test]

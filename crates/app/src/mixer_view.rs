@@ -166,11 +166,30 @@ fn assign_of(code: u8) -> Assign {
 
 const BANDS: [Band; 4] = [Band::Low, Band::Mid, Band::High, Band::MidLow];
 
+/// A controller MAIN knob that sets the level in hardware.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct HardwareMain {
+    /// The audio plays through that controller: the software master stays at
+    /// full and the MAIN on screen shows the knob.
+    on: bool,
+    level: f32,
+}
+
+impl Default for HardwareMain {
+    fn default() -> Self {
+        Self {
+            on: false,
+            level: 1.0,
+        }
+    }
+}
+
 pub struct MixerView {
     channels: [ChannelControls; 4],
     crossfader: f32,
     curve: f32,
     master: f32,
+    hardware_main: HardwareMain,
     master_balance: f32,
     cue_mix: f32,
     cue_volume: f32,
@@ -244,6 +263,7 @@ impl MixerView {
             crossfader: defaults.crossfader,
             curve: defaults.crossfader_curve,
             master: defaults.master_volume,
+            hardware_main: HardwareMain::default(),
             master_balance: defaults.master_balance,
             cue_mix: defaults.cue_mix,
             cue_volume: defaults.cue_volume,
@@ -359,7 +379,7 @@ impl MixerView {
         send(MixerCommand::Crossfader(self.crossfader));
         send(MixerCommand::MasterBalance(self.master_balance));
         send(MixerCommand::CrossfaderCurve(self.curve));
-        send(MixerCommand::MasterVolume(self.master));
+        send(MixerCommand::MasterVolume(self.sent_master()));
         send(MixerCommand::CueMix(self.cue_mix));
         send(MixerCommand::CueVolume(self.cue_volume));
         send(MixerCommand::Limiter(self.limiter));
@@ -473,9 +493,39 @@ impl MixerView {
         }
     }
 
+    /// The master level the engine applies.
+    fn sent_master(&self) -> f32 {
+        if self.hardware_main.on {
+            1.0
+        } else {
+            self.master
+        }
+    }
+
+    /// Follows whether the audio plays through a controller that sets the
+    /// main level with its own MAIN knob.
+    pub fn set_hardware_main(&mut self, on: bool, out: &mut Vec<Command>) {
+        if self.hardware_main.on != on {
+            self.hardware_main.on = on;
+            out.push(Command::Mixer(MixerCommand::MasterVolume(
+                self.sent_master(),
+            )));
+        }
+    }
+
     pub fn main_volume(&mut self, ui: &mut Ui, state: &MixerState, out: &mut Vec<Command>) {
         ui.horizontal_top(|ui| {
             ui.spacing_mut().item_spacing.x = 3.0;
+            if self.hardware_main.on {
+                let mut shown = self.hardware_main.level;
+                ui.add_enabled_ui(false, |ui| {
+                    widgets::knob(ui, &mut shown, 0.0..=1.0, 0.8, "MAIN");
+                })
+                .response
+                .on_disabled_hover_text(tr("Set by the MAIN knob on the controller"));
+                meter(ui, &state.master_peak, 40.0);
+                return;
+            }
             let moved = ui
                 .add_enabled_ui(!self.lock.master, |ui| {
                     widgets::knob(ui, &mut self.master, 0.0..=1.0, 0.8, "MAIN").changed()
@@ -940,9 +990,27 @@ impl MixerView {
     }
 
     pub fn apply(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
-        self.lock.locks(action)
-            || self.apply_kill(action, trigger, out)
-            || self.apply_unlocked(action, trigger, out)
+        let action = if action == Action::HardwareMasterVolume {
+            if let Some(v) = level(self.hardware_main.level, trigger) {
+                self.hardware_main.level = v;
+            }
+            if self.hardware_main.on {
+                return true;
+            }
+            Action::MasterVolume
+        } else {
+            action
+        };
+        if self.lock.locks(action) {
+            return true;
+        }
+        if action == Action::MasterVolume && self.hardware_main.on {
+            if let Some(v) = level(self.master, trigger) {
+                self.master = v;
+            }
+            return true;
+        }
+        self.apply_kill(action, trigger, out) || self.apply_unlocked(action, trigger, out)
     }
 
     fn apply_unlocked(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
@@ -1095,6 +1163,40 @@ mod tests {
         assert!((channel_meter_gain(-3.0, false) - 0.707_95).abs() < 1e-5);
         assert!((channel_meter_gain(-3.0, true) - 0.501_2).abs() < 1e-3);
         assert!((channel_meter_gain(0.0, true) - 0.707_95).abs() < 1e-5);
+    }
+
+    #[test]
+    fn a_hardware_main_is_shown_and_the_software_master_stays_at_full() {
+        let mut m = MixerView::new();
+        let mut out = Vec::new();
+        m.apply(Action::MasterVolume, Trigger::Set(0.6), &mut out);
+        m.set_hardware_main(true, &mut out);
+        assert_eq!(mixer(&out).last(), Some(&MixerCommand::MasterVolume(1.0)));
+        out.clear();
+        m.apply(Action::HardwareMasterVolume, Trigger::Set(0.3), &mut out);
+        m.apply(Action::MasterVolume, Trigger::Set(0.5), &mut out);
+        assert!(out.is_empty(), "nothing reaches the engine: {out:?}");
+        assert!((m.hardware_main.level - 0.3).abs() < 1e-6);
+        assert!(m.all_commands().iter().any(|c| matches!(
+            c,
+            Command::Mixer(MixerCommand::MasterVolume(v)) if (*v - 1.0).abs() < 1e-6
+        )));
+        m.set_hardware_main(true, &mut out);
+        assert!(out.is_empty(), "no repeat while it stays on");
+        m.set_hardware_main(false, &mut out);
+        assert_eq!(
+            mixer(&out),
+            [MixerCommand::MasterVolume(0.5)],
+            "the saved level is back"
+        );
+        assert!((m.status().master_volume - 0.5).abs() < 1e-6);
+        out.clear();
+        m.apply(Action::HardwareMasterVolume, Trigger::Set(0.7), &mut out);
+        assert_eq!(
+            mixer(&out),
+            [MixerCommand::MasterVolume(0.7)],
+            "through another card the knob is the software master"
+        );
     }
 
     fn mixer(out: &[Command]) -> Vec<MixerCommand> {

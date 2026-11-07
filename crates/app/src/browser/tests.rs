@@ -56,6 +56,52 @@ fn tree_encoder_steps_through_collection_playlists_and_folders() {
 }
 
 #[test]
+fn encoder_push_opens_a_folder_so_the_tree_reaches_its_subfolders() {
+    let root = std::env::temp_dir().join(format!("backspn-tree-open-{}", std::process::id()));
+    drop(std::fs::remove_dir_all(&root));
+    std::fs::create_dir_all(root.join("House/Deep")).unwrap();
+    std::fs::create_dir_all(root.join("Techno")).unwrap();
+    let mut b = browser(&[]);
+    b.folders = vec![root.clone()];
+    let folders = |b: &Browser| -> Vec<PathBuf> {
+        b.sources()
+            .into_iter()
+            .filter_map(|s| match s {
+                Source::Folder(dir) => Some(dir),
+                _ => None,
+            })
+            .collect()
+    };
+    assert_eq!(folders(&b), std::slice::from_ref(&root), "closed at first");
+    b.move_source(1);
+    assert_eq!(b.source, Source::Folder(root.clone()));
+    b.toggle_source_open();
+    assert_eq!(
+        folders(&b),
+        [root.clone(), root.join("House"), root.join("Techno")]
+    );
+    b.move_source(1);
+    b.toggle_source_open();
+    assert_eq!(folders(&b)[2], root.join("House/Deep"));
+    b.move_source(2);
+    assert_eq!(b.source, Source::Folder(root.join("Techno")));
+    b.toggle_source_open();
+    assert_eq!(
+        folders(&b).len(),
+        4,
+        "a folder without subfolders stays as it is"
+    );
+    b.move_source(-3);
+    b.toggle_source_open();
+    assert_eq!(
+        folders(&b),
+        std::slice::from_ref(&root),
+        "closing hides every level"
+    );
+    drop(std::fs::remove_dir_all(&root));
+}
+
+#[test]
 fn hidden_nodes_leave_the_tree_and_the_encoder() {
     let mut b = browser(&["/m/A.mp3"]);
     b.show(Source::Loops);
