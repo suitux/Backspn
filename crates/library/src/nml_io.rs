@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::collections::hash_map::RandomState;
 use std::hash::BuildHasher;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use backspn_formats::mpeg;
 use backspn_formats::nml::{Nml, Node as NmlNode};
 use backspn_formats::xml::{self, Element};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
@@ -73,6 +75,8 @@ fn insert_entry(
     path: &str,
 ) -> Result<(i64, usize)> {
     let grid = entry.grid_cue();
+    let lead_s = untrimmed_lead_s(&paths::local_path(&entry.location));
+    let seconds = |ms: f64| ms / 1000.0 - lead_s;
     tx.execute(
         "INSERT INTO tracks (path, title, artist, album, genre, label, comment, key_text, musical_key, \
          bpm, grid_anchor_s, duration_s, rating, playcount, import_date, lufs, analyzed, locked, nml_raw, dirty) \
@@ -88,7 +92,7 @@ fn insert_entry(
             entry.info.key_text.as_deref().unwrap_or(""),
             entry.musical_key.map(backspn_formats::nml::MusicalKey::value),
             entry.tempo.and_then(|t| t.bpm),
-            grid.map(|g| g.start_ms / 1000.0),
+            grid.map(|g| seconds(g.start_ms)),
             entry.info.playtime_float.or(entry.info.playtime.map(f64::from)),
             entry.info.ranking.unwrap_or(0),
             entry.info.playcount.unwrap_or(0),
@@ -109,7 +113,7 @@ fn insert_entry(
                 position as i64,
                 i32::from(cue.kind),
                 cue.name,
-                cue.start_ms / 1000.0,
+                seconds(cue.start_ms),
                 cue.len_ms / 1000.0,
                 cue.hotcue.map_or(-1, i64::from),
                 cue.display_order,
@@ -442,6 +446,39 @@ fn store_extras(conn: &Connection, id: i64, entry: &Element) -> Result<()> {
     Ok(())
 }
 
+/// Seconds by which an NML position is later than ours in this file. Those
+/// positions count an MP3's header frame and encoder delay, which our decoder
+/// trims; other files and unreadable ones line up as they are.
+fn untrimmed_lead_s(path: &Path) -> f64 {
+    let is_mp3 = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("mp3"));
+    if !is_mp3 {
+        return 0.0;
+    }
+    read_prefix(path)
+        .and_then(|bytes| mpeg::stream_start(&bytes))
+        .map_or(0.0, |s| s.untrimmed_lead_s())
+}
+
+/// The first bytes of the audio, past any `ID3v2` tag so that cover art is
+/// not read.
+fn read_prefix(path: &Path) -> Option<Vec<u8>> {
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut head = Vec::new();
+    file.by_ref()
+        .take(mpeg::ID3_HEADER_LEN as u64)
+        .read_to_end(&mut head)
+        .ok()?;
+    file.seek(SeekFrom::Start(mpeg::id3v2_len(&head) as u64))
+        .ok()?;
+    let mut bytes = Vec::new();
+    file.take(mpeg::SCAN_LEN as u64)
+        .read_to_end(&mut bytes)
+        .ok()?;
+    Some(bytes)
+}
+
 pub fn backfill_extras(conn: &Connection) -> Result<()> {
     let rows: Vec<(i64, String)> = {
         let mut stmt = conn.prepare("SELECT id, nml_raw FROM tracks WHERE nml_raw IS NOT NULL")?;
@@ -524,5 +561,29 @@ mod tests {
         assert_eq!(a.len(), 32);
         assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn mp3_positions_move_back_by_the_header_frame() {
+        let mut frame = vec![0u8; 417];
+        frame[..4].copy_from_slice(&[0xff, 0xfb, 0x90, 0x00]);
+        let mut info = frame.clone();
+        info[36..40].copy_from_slice(b"Info");
+        let mut bytes = b"ID3\x04\x00\x00\x00\x00\x00\x10".to_vec();
+        bytes.extend([0; 16]);
+        bytes.extend(&info);
+        for _ in 0..3 {
+            bytes.extend(&frame);
+        }
+        let dir = std::env::temp_dir().join(format!("backspn-lead-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mp3 = dir.join("a.MP3");
+        let other = dir.join("a.wav");
+        std::fs::write(&mp3, &bytes).unwrap();
+        std::fs::write(&other, &bytes).unwrap();
+        assert!((untrimmed_lead_s(&mp3) - 1152.0 / 44_100.0).abs() < 1e-12);
+        assert_eq!(untrimmed_lead_s(&other), 0.0);
+        assert_eq!(untrimmed_lead_s(&dir.join("missing.mp3")), 0.0);
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

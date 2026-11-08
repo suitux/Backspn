@@ -340,4 +340,51 @@ mod tests {
         assert!(matches!(decode_stems(&path), Err(Error::Unsupported(_))));
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    /// A silent MPEG-1 Layer III frame: 128 kbit/s, 44.1 kHz, stereo.
+    fn mp3_frame() -> Vec<u8> {
+        let mut f = vec![0; 417];
+        f[..4].copy_from_slice(&[0xff, 0xfb, 0x90, 0x00]);
+        f
+    }
+
+    /// An Info frame whose LAME tag announces `delay` (stored CRC `crc`),
+    /// then `frames` silent frames.
+    fn mp3_with_tag(delay: u32, crc: u16, frames: usize) -> Vec<u8> {
+        let mut info = mp3_frame();
+        info[36..40].copy_from_slice(b"Info");
+        let lame = 44;
+        info[lame..lame + 4].copy_from_slice(b"LAME");
+        let trim = (delay - 529) << 12;
+        info[lame + 21..lame + 24].copy_from_slice(&trim.to_be_bytes()[1..]);
+        info[lame + 34..lame + 36].copy_from_slice(&crc.to_be_bytes());
+        let mut bytes = info;
+        for _ in 0..frames {
+            bytes.extend(mp3_frame());
+        }
+        bytes
+    }
+
+    /// The lead the NML import corrects for must be exactly what our decoder
+    /// drops: the header frame is not decoded and the delay is trimmed.
+    #[test]
+    fn mp3_stream_start_matches_what_the_decoder_drops() {
+        const FRAMES: usize = 8;
+        let plain: Vec<u8> = (0..FRAMES).flat_map(|_| mp3_frame()).collect();
+        for bytes in [
+            plain,
+            mp3_with_tag(1105, 0, FRAMES),
+            mp3_with_tag(1105, 1, FRAMES),
+            mp3_with_tag(2257, 0, FRAMES),
+        ] {
+            let start = backspn_formats::mpeg::stream_start(&bytes).unwrap();
+            let decoded = decode_source(Box::new(Cursor::new(bytes.clone())), Some("mp3")).unwrap();
+            let in_file = (bytes.len() / 417) * 1152;
+            assert_eq!(
+                decoded.frames(),
+                in_file - start.untrimmed_lead() as usize,
+                "{start:?}"
+            );
+        }
+    }
 }

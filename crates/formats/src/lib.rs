@@ -1,6 +1,7 @@
 pub mod bstem;
 pub mod dj_playlists;
 pub mod interop;
+pub mod mpeg;
 pub mod music_library;
 pub mod nml;
 pub mod stem;
