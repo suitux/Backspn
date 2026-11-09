@@ -52,7 +52,7 @@ export default {
       library: {
         title: 'A library that knows your music',
         text: 'Every track is analysed when it loads: BPM, beatgrid, key and loudness. Find it fast with search, playlists, smartlists and ratings.',
-        points: ['MP3, AAC, ALAC, FLAC, WAV, AIFF and Ogg', 'Search filters such as techno $BPM ~ 128', 'Imports NML collections and Serato, VirtualDJ and Engine DJ libraries'],
+        points: ['MP3, AAC, ALAC, FLAC, WAV, AIFF and Ogg', 'Search filters such as techno $BPM ~ 128', 'Imports NML collections and Serato, VirtualDJ, Engine DJ and OneLibrary libraries'],
       },
       controllers: {
         title: 'Bring your controller',
@@ -122,7 +122,7 @@ export default {
       { q: 'Which systems does it run on?', a: 'macOS, Windows and Linux. Audio goes out through CoreAudio, WASAPI or ALSA with a 256-frame buffer.' },
       { q: 'Which controllers work?', a: 'Fourteen controllers have native drivers, 36 more have MIDI profiles, and any MIDI device can be mapped with MIDI learn. Only one native driver is tested on hardware so far.' },
       { q: 'Do stems need a GPU or a connection?', a: 'No GPU. Separation runs on the CPU of your own machine. The model downloads on first use; after that it works offline, and each result is saved for the next time.' },
-      { q: 'Can I bring my library from other DJ software?', a: 'Yes. Backspn imports NML collections and keyboard and controller mappings, and reads Serato, VirtualDJ and Engine DJ libraries. It never writes into their data folders.' },
+      { q: 'Can I bring my library from other DJ software?', a: 'Yes. Backspn imports NML collections and keyboard and controller mappings, and reads Serato, VirtualDJ and Engine DJ libraries and OneLibrary USB drives. It never writes into their data folders.' },
     ],
   },
   cta: {

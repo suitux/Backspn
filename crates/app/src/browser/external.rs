@@ -27,6 +27,7 @@ pub enum Program {
     Serato,
     VirtualDj,
     EngineDj,
+    OneLibrary,
 }
 
 fn outside_key(kind: Outside) -> &'static str {
@@ -38,31 +39,39 @@ fn outside_key(kind: Outside) -> &'static str {
 }
 
 impl Program {
-    const ALL: [Self; 3] = [Self::Serato, Self::VirtualDj, Self::EngineDj];
+    const ALL: [Self; 4] = [
+        Self::Serato,
+        Self::VirtualDj,
+        Self::EngineDj,
+        Self::OneLibrary,
+    ];
 
     fn name(self) -> &'static str {
         match self {
             Self::Serato => "Serato",
             Self::VirtualDj => "VirtualDJ",
             Self::EngineDj => "Engine DJ",
+            Self::OneLibrary => "OneLibrary",
         }
     }
 
     fn find(self) -> Vec<PathBuf> {
-        use backspn_library::outside::{engine, serato, virtualdj};
+        use backspn_library::outside::{engine, onelibrary, serato, virtualdj};
         match self {
             Self::Serato => serato::find(),
             Self::VirtualDj => virtualdj::find(),
             Self::EngineDj => engine::find(),
+            Self::OneLibrary => onelibrary::find(),
         }
     }
 
     fn read(self, root: &std::path::Path) -> Result<ExternalLibrary, String> {
-        use backspn_library::outside::{engine, serato, virtualdj};
+        use backspn_library::outside::{engine, onelibrary, serato, virtualdj};
         match self {
             Self::Serato => serato::read(root),
             Self::VirtualDj => virtualdj::read(root),
             Self::EngineDj => engine::read(root),
+            Self::OneLibrary => onelibrary::read(root),
         }
         .map_err(|e| e.to_string())
     }
@@ -593,9 +602,11 @@ impl Browser {
         });
         if self.programs.is_empty() {
             ui.label(
-                RichText::new(tr("No Serato, VirtualDJ or Engine DJ library found."))
-                    .weak()
-                    .size(11.0),
+                RichText::new(tr(
+                    "No Serato, VirtualDJ, Engine DJ or OneLibrary library found.",
+                ))
+                .weak()
+                .size(11.0),
             );
         }
         for i in 0..self.programs.len() {

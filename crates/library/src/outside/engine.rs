@@ -47,13 +47,13 @@ fn read_db(conn: &Connection, root: &Path) -> crate::Result<ExternalLibrary> {
     Ok(ExternalLibrary { tracks, playlists })
 }
 
-fn has_table(conn: &Connection, name: &str) -> crate::Result<bool> {
+pub(super) fn has_table(conn: &Connection, name: &str) -> crate::Result<bool> {
     Ok(conn
         .prepare("SELECT 1 FROM sqlite_master WHERE name = ?1 AND type IN ('table', 'view')")?
         .exists([name])?)
 }
 
-fn int(v: &Value) -> Option<i64> {
+pub(super) fn int(v: &Value) -> Option<i64> {
     match v {
         Value::Integer(i) => Some(*i),
         #[allow(clippy::cast_possible_truncation)]
@@ -63,7 +63,7 @@ fn int(v: &Value) -> Option<i64> {
     }
 }
 
-fn real(v: &Value) -> Option<f64> {
+pub(super) fn real(v: &Value) -> Option<f64> {
     match v {
         #[allow(clippy::cast_precision_loss)]
         Value::Integer(i) => Some(*i as f64),
@@ -73,7 +73,7 @@ fn real(v: &Value) -> Option<f64> {
     }
 }
 
-fn text(v: &Value) -> String {
+pub(super) fn text(v: &Value) -> String {
     match v {
         Value::Text(t) => t.clone(),
         _ => String::new(),
@@ -172,7 +172,7 @@ fn rating(engine: i64) -> i64 {
     (engine.clamp(0, 100) * 255 + 50) / 100
 }
 
-fn date(secs: Option<i64>) -> String {
+pub(super) fn date(secs: Option<i64>) -> String {
     secs.and_then(|s| u64::try_from(s).ok())
         .filter(|s| *s > 0)
         .map(|s| crate::clock::LocalTime::from_unix(s).date_text())

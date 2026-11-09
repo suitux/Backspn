@@ -200,7 +200,7 @@ playlists, smartlists, ratings, history, configurable columns and keyboard
 navigation, and plays MP3, AAC/M4A, ALAC, FLAC, WAV, AIFF and Ogg Vorbis.
 Backspn imports the collections of other DJ applications (NML collections,
 keyboard and controller mappings) and reads Serato, VirtualDJ and Engine DJ
-libraries. Everything it writes uses its own open formats.
+libraries and OneLibrary USB drives. Everything it writes uses its own open formats.
 
 ### Layouts
 
@@ -462,6 +462,6 @@ Preferences).
 
 Audio: MP3, AAC/M4A, ALAC, FLAC, WAV, AIFF, Ogg Vorbis and `.stem.mp4`.
 Imports from other DJ applications: NML collections, the transient cache,
-`.tsi` keyboard and controller mappings, and Serato, VirtualDJ and Engine DJ
-libraries. Backspn never writes these formats, and it refuses to save into
+`.tsi` keyboard and controller mappings, Serato, VirtualDJ and Engine DJ
+libraries, and OneLibrary USB drives. Backspn never writes these formats, and it refuses to save into
 another DJ application's data folder.

@@ -54,7 +54,7 @@ const es: typeof en = {
       library: {
         title: 'Una biblioteca que conoce tu música',
         text: 'Cada pista se analiza al cargarla: BPM, beatgrid, tonalidad y loudness. Encuéntrala rápido con búsqueda, playlists, smartlists y puntuaciones.',
-        points: ['MP3, AAC, ALAC, FLAC, WAV, AIFF y Ogg', 'Filtros de búsqueda como techno $BPM ~ 128', 'Importa colecciones NML y bibliotecas de Serato, VirtualDJ y Engine DJ'],
+        points: ['MP3, AAC, ALAC, FLAC, WAV, AIFF y Ogg', 'Filtros de búsqueda como techno $BPM ~ 128', 'Importa colecciones NML y bibliotecas de Serato, VirtualDJ, Engine DJ y OneLibrary'],
       },
       controllers: {
         title: 'Trae tu controladora',
@@ -124,7 +124,7 @@ const es: typeof en = {
       { q: '¿En qué sistemas funciona?', a: 'En macOS, Windows y Linux. El audio sale por CoreAudio, WASAPI o ALSA con un búfer de 256 frames.' },
       { q: '¿Qué controladoras funcionan?', a: 'Catorce controladoras tienen driver nativo, otras 36 tienen perfil MIDI y cualquier aparato MIDI se puede mapear con MIDI learn. Por ahora solo un driver nativo está probado con el aparato.' },
       { q: '¿Los stems necesitan GPU o conexión?', a: 'GPU no. La separación corre en la CPU de tu ordenador. El modelo se descarga la primera vez; después funciona sin conexión, y cada resultado se guarda para la próxima vez.' },
-      { q: '¿Puedo traer mi biblioteca de otro software de DJ?', a: 'Sí. Backspn importa colecciones NML y mapeos de teclado y controladora, y lee bibliotecas de Serato, VirtualDJ y Engine DJ. Nunca escribe en sus carpetas de datos.' },
+      { q: '¿Puedo traer mi biblioteca de otro software de DJ?', a: 'Sí. Backspn importa colecciones NML y mapeos de teclado y controladora, y lee bibliotecas de Serato, VirtualDJ y Engine DJ y memorias USB con OneLibrary. Nunca escribe en sus carpetas de datos.' },
     ],
   },
   cta: {

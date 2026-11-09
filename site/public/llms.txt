@@ -39,7 +39,7 @@ with you. Everything it writes uses its own open formats.
 - Library: BPM, beatgrid, key and EBU R128 loudness analysis; search with filters such as
   `techno $BPM ~ 128`; playlists, smartlists, favorites, ratings, history, configurable columns
   and keyboard navigation. Imports NML collections and .tsi mappings, and reads Serato, VirtualDJ
-  and Engine DJ libraries.
+  and Engine DJ libraries and OneLibrary USB drives.
 - Layouts: Micro, Essential, Full or Advanced decks, or parallel waveform lanes. Saved layouts.
 - Themes: Dark, Light, Darcula, Solar, Purple and Ocean.
 

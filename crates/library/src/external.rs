@@ -270,7 +270,7 @@ fn track_from_xml(t: &dj_playlists::Track) -> ExternalTrack {
     }
 }
 
-fn color(c: Colour) -> u8 {
+pub(crate) fn color(c: Colour) -> u8 {
     match c {
         Colour::Red => 1,
         Colour::Orange => 2,
@@ -282,7 +282,7 @@ fn color(c: Colour) -> u8 {
     }
 }
 
-fn date(text: &str) -> String {
+pub(crate) fn date(text: &str) -> String {
     let mut parts = text.trim().split('-').map(|p| p.parse::<u32>().ok());
     match (parts.next(), parts.next(), parts.next(), parts.next()) {
         (Some(Some(y)), Some(Some(m)), Some(Some(d)), None)
