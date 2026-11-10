@@ -63,6 +63,13 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Packager
         run: cargo install cargo-packager --locked --version 0.11.8
+      - name: Windows runtime
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          export BACKSPN_VERSION="${GITHUB_REF_NAME#v}"
+          cargo build --release -p backspn-app
+          packaging/windows/runtime.sh target/windows-runtime
       - name: Package
         working-directory: crates/app
         shell: bash
