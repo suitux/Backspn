@@ -66,10 +66,10 @@ jobs:
       - name: Windows runtime
         if: runner.os == 'Windows'
         shell: bash
-        run: |
-          export BACKSPN_VERSION="${GITHUB_REF_NAME#v}"
-          cargo build --release -p backspn-app
-          packaging/windows/runtime.sh target/windows-runtime
+        run: packaging/windows/runtime.sh target/runtime
+      - name: Linux runtime
+        if: runner.os == 'Linux'
+        run: packaging/linux/onnxruntime.sh target/runtime
       - name: Package
         working-directory: crates/app
         shell: bash

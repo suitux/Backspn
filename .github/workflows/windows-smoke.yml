@@ -1,6 +1,7 @@
 # Installs a published Windows build on a clean runner and checks that it
-# starts: natively, and under Intel SDE pretending to be older processors.
-# A run that reaches `main` writes %APPDATA%\Backspn\Logs\Backspn.log.
+# starts and that its stem separation runtime loads: natively, and under
+# Intel SDE pretending to be older processors. A run that reaches `main`
+# writes %APPDATA%\Backspn\Logs\Backspn.log.
 name: Windows smoke test
 
 on:
@@ -78,13 +79,46 @@ jobs:
           }
           Get-Content err.txt -ErrorAction SilentlyContinue | Select-Object -Last 40
 
+      # Loads the shipped separation runtime and creates its environment, as
+      # generating stems does, on the same processor.
+      - name: Separation runtime
+        if: always()
+        shell: pwsh
+        run: |
+          $dll = Join-Path (Split-Path $env:BACKSPN_EXE) 'onnxruntime.dll'
+          if (-not (Test-Path $dll)) { "No onnxruntime.dll in this build"; exit 0 }
+          @'
+          import ctypes, sys
+          lib = ctypes.WinDLL(sys.argv[1])
+          class Base(ctypes.Structure):
+              _fields_ = [("GetApi", ctypes.c_void_p), ("GetVersionString", ctypes.c_void_p)]
+          lib.OrtGetApiBase.restype = ctypes.POINTER(Base)
+          base = lib.OrtGetApiBase().contents
+          print("version", ctypes.CFUNCTYPE(ctypes.c_char_p)(base.GetVersionString)().decode())
+          api = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_uint32)(base.GetApi)(23)
+          table = ctypes.cast(api, ctypes.POINTER(ctypes.c_void_p))
+          create_env = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_int, ctypes.c_char_p, ctypes.POINTER(ctypes.c_void_p))(table[3])
+          env = ctypes.c_void_p()
+          if create_env(2, b"smoke", ctypes.byref(env)) or not env:
+              sys.exit("CreateEnv failed")
+          print("environment ok")
+          '@ | Set-Content ort.py
+          if ('${{ matrix.cpu }}' -eq 'native') {
+            python ort.py $dll
+          } else {
+            & $env:SDE "-${{ matrix.cpu }}" -- python ort.py $dll
+          }
+          if ($LASTEXITCODE -ne 0) { throw "the separation runtime failed: $LASTEXITCODE" }
+
       - name: Log
         if: always()
         shell: pwsh
         run: |
           $log = "$env:APPDATA\Backspn\Logs\Backspn.log"
-          if (Test-Path $log) { "Reached main:"; Get-Content $log -Tail 40 } else { "No log: it died before main" }
           Get-Content "$env:APPDATA\Backspn\Crashlogs\last-crash.txt" -ErrorAction SilentlyContinue
+          if (-not (Test-Path $log)) { throw "No log: it died before main" }
+          "Reached main:"
+          Get-Content $log -Tail 40
 
       - name: Crash events
         if: always()

@@ -347,8 +347,8 @@ cd Backspn
 cargo run --release -p backspn-app             # optionally pass up to 4 audio files to load
 ```
 
-On macOS, generating stems loads ONNX Runtime from a library next to the
-binary: fetch it once with `packaging/macos/onnxruntime.sh target/release`
+Generating stems loads ONNX Runtime from a library next to the binary: fetch
+it once with `packaging/<macos|windows|linux>/onnxruntime.sh target/release`
 (or point `ORT_DYLIB_PATH` at a copy).
 
 Settings live in `settings.json` in your system's data folder (override with

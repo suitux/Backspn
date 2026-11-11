@@ -14,13 +14,12 @@ backspn-analysis = { path = "../analysis" }
 backspn-decode = { path = "../decode" }
 ureq = "3"
 
-[target.'cfg(not(target_os = "macos"))'.dependencies]
-ort = "=2.0.0-rc.15"
-
-# On macOS the runtime is a universal dylib shipped inside the app bundle
-# (packaging/macos/onnxruntime.sh), loaded only when the system can run it.
-[target.'cfg(target_os = "macos")'.dependencies]
+# The runtime is a library shipped with the app (packaging/*/onnxruntime.sh)
+# and loaded only when stems are generated, so the app starts on any processor
+# and system even where the runtime can't run.
 ort = { version = "=2.0.0-rc.15", default-features = false, features = ["std", "ndarray", "tracing", "load-dynamic", "api-23"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
 objc2-foundation = "0.3.2"
 
 [lints]

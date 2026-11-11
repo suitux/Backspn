@@ -59,8 +59,9 @@ out-dir = "../../target/packages"
 binaries-dir = "../../target/release"
 icons = ["icon/backspn-app.png", "icon/backspn.icns", "icon/backspn.ico"]
 formats = ["app", "dmg", "nsis", "deb", "appimage"]
-# Only filled on Windows, by packaging/windows/runtime.sh; elsewhere it matches nothing.
-resources = ["../../target/windows-runtime/*.dll"]
+# Filled on Windows by packaging/windows/runtime.sh and on Linux by
+# packaging/linux/onnxruntime.sh; on macOS it matches nothing.
+resources = ["../../target/runtime/*"]
 
 [package.metadata.packager.macos]
 info-plist-path = "../../packaging/macos/Info.plist"
