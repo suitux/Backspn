@@ -1023,19 +1023,38 @@ fn open_device(config: &Config, rate: Option<u32>) -> Result<Opened, Error> {
     let device_name = device
         .description()
         .map_or_else(|_| "unknown".to_owned(), |d| d.name().to_owned());
-    let current = device.default_output_config()?;
-    if current.sample_format() != SampleFormat::F32 {
-        return Err(Error::UnsupportedFormat(current.sample_format()));
+    let default = device.default_output_config()?;
+    if default.sample_format() != SampleFormat::F32 {
+        return Err(Error::UnsupportedFormat(default.sample_format()));
     }
-    let ranges: Vec<_> = device
+    let offered: Vec<_> = device
         .supported_output_configs()
         .map(|c| {
-            c.filter(|c| {
-                c.sample_format() == SampleFormat::F32 && c.channels() == current.channels()
-            })
-            .collect()
+            c.filter(|c| c.sample_format() == SampleFormat::F32)
+                .collect()
         })
         .unwrap_or_default();
+    // An aggregate device's default format can describe only its first
+    // subdevice, while the offered configurations count every channel.
+    let channels = output_channels(
+        default.channels(),
+        &offered
+            .iter()
+            .map(cpal::SupportedStreamConfigRange::channels)
+            .collect::<Vec<_>>(),
+    );
+    let ranges: Vec<_> = offered
+        .into_iter()
+        .filter(|c| c.channels() == channels)
+        .collect();
+    let current = if channels == default.channels() {
+        default
+    } else {
+        ranges
+            .iter()
+            .find_map(|c| c.try_with_sample_rate(default.sample_rate()))
+            .unwrap_or(default)
+    };
     let sample_rates = offered_rates(
         &ranges
             .iter()
@@ -1221,6 +1240,12 @@ fn monitor_channels(requested: Option<(u16, u16)>, channels: u16) -> Option<(u16
         Some((l, r)) => (l < channels && r < channels).then_some((l, r)),
         None => (channels >= 4).then_some((2, 3)),
     }
+}
+
+/// The device's channel count: the widest configuration it offers, never
+/// fewer than its default format.
+fn output_channels(default: u16, offered: &[u16]) -> u16 {
+    offered.iter().copied().fold(default, u16::max)
 }
 
 fn send_clock(tap: &mut Option<MidiClockTap>, start: Instant, rate: u32, offset: f64, byte: u8) {
@@ -1608,6 +1633,13 @@ mod tests {
             [44_100, 48_000, 88_200, 96_000, 192_000]
         );
         assert_eq!(offered_rates(&[]), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn output_channels_count_every_subdevice() {
+        assert_eq!(output_channels(2, &[6, 6]), 6);
+        assert_eq!(output_channels(4, &[]), 4);
+        assert_eq!(output_channels(4, &[2]), 4);
     }
 
     #[test]
