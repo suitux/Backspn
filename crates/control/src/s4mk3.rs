@@ -1252,6 +1252,30 @@ const INITIAL_REPORTS: [(u8, usize); 2] = [(0x01, 26), (0x02, 79)];
 
 pub(crate) const RETRY: Duration = Duration::from_secs(2);
 
+/// The one HID context every controller shares, or `None` when HID can't
+/// start. On macOS the system HID manager is tied to the thread that first
+/// opens it and breaks once that thread ends, so the context is created on
+/// a thread that never ends; the lock keeps controllers from scanning at the
+/// same time.
+fn hid() -> Option<&'static std::sync::Mutex<hidapi::HidApi>> {
+    static HID: std::sync::OnceLock<Option<std::sync::Mutex<hidapi::HidApi>>> =
+        std::sync::OnceLock::new();
+    HID.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::Builder::new()
+            .name("hid".into())
+            .spawn(move || {
+                drop(tx.send(hidapi::HidApi::new().ok()));
+                loop {
+                    std::thread::park();
+                }
+            })
+            .ok()?;
+        rx.recv().ok().flatten().map(std::sync::Mutex::new)
+    })
+    .as_ref()
+}
+
 fn supervise(
     layout: &'static Layout,
     events: &Sender<(String, InputEvent)>,
@@ -1261,17 +1285,23 @@ fn supervise(
     wake: &dyn Fn(),
 ) {
     let connected = &status.connected;
-    let Ok(mut api) = hidapi::HidApi::new() else {
+    let Some(hid) = hid() else {
         return;
     };
     let (vid, pid) = (layout.vendor_id, layout.product_id);
     let mut last = Sent::default();
     while running.load(Ordering::Relaxed) {
-        drop(api.refresh_devices());
-        let present = api
-            .device_list()
-            .any(|d| d.vendor_id() == vid && d.product_id() == pid);
-        if let Some(device) = present.then(|| api.open(vid, pid).ok()).flatten() {
+        let opened = {
+            let mut api = hid
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            drop(api.refresh_devices());
+            let present = api
+                .device_list()
+                .any(|d| d.vendor_id() == vid && d.product_id() == pid);
+            present.then(|| api.open(vid, pid).ok()).flatten()
+        };
+        if let Some(device) = opened {
             connected.store(true, Ordering::Relaxed);
             wake();
             run(layout, &device, events, outputs, &mut last, running, wake);
@@ -1712,6 +1742,36 @@ pub fn shifted(name: &str) -> Option<Option<(Action, Interaction)>> {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+
+    #[test]
+    fn hid_outlives_the_thread_that_first_used_it() {
+        let scan = || {
+            if let Some(hid) = hid() {
+                let mut api = hid
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                drop(api.refresh_devices());
+            }
+        };
+        let first = std::thread::spawn(move || (0..20).for_each(|_| scan()));
+        let done = Arc::new(AtomicBool::new(false));
+        let scanners: Vec<_> = (0..4)
+            .map(|_| {
+                let done = Arc::clone(&done);
+                std::thread::spawn(move || {
+                    while !done.load(Ordering::Relaxed) {
+                        scan();
+                    }
+                })
+            })
+            .collect();
+        first.join().unwrap();
+        std::thread::sleep(Duration::from_secs(1));
+        done.store(true, Ordering::Relaxed);
+        for scanner in scanners {
+            scanner.join().unwrap();
+        }
+    }
 
     #[test]
     fn main_is_shown_but_left_to_the_hardware() {
