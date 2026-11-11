@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 use classic_eq::ClassicEq;
 use classic_limiter::ClassicLimiter;
-use club_filter::{ClubFilter, club_setting};
+use club_filter::ClubFilter;
 use four_band::FourBandEq;
 use sweeping_shelves_eq::SweepingShelvesEq;
 use three_centre_eq::ThreeCentreEq;
@@ -208,7 +208,7 @@ impl ChannelFilter {
     pub fn new(rate: f64) -> Self {
         Self {
             filter: Svf::default(),
-            club: ClubFilter::default(),
+            club: ClubFilter::new(rate),
             ladder: ZFilter::new(rate),
             wet: Smoothed::new(0.0, 0.01, rate),
             knob: Smoothed::new(0.0, 0.02, rate / CONTROL_BLOCK as f64),
@@ -220,11 +220,15 @@ impl ChannelFilter {
         let knob = knob.clamp(-1.0, 1.0);
         self.knob.set(knob);
         self.ladder.set(knob);
+        self.club.set_knob(knob);
     }
 
     fn start_block(&mut self, model: FilterModel, resonance: f32, rate: f64) {
         let knob = self.knob.tick();
         self.high_pass = false;
+        if model != FilterModel::Club {
+            self.club.settle();
+        }
         match model {
             FilterModel::Standard => match filter_setting(knob) {
                 FilterSetting::Off => self.wet.set(0.0),
@@ -236,13 +240,8 @@ impl ChannelFilter {
             },
             FilterModel::Ladder => self.wet.set(0.0),
             FilterModel::Club => {
-                let setting = club_setting(knob, resonance);
-                if setting.bypass {
-                    self.wet.set(0.0);
-                } else {
-                    self.club.set(&setting, rate);
-                    self.wet.set(1.0);
-                }
+                self.club.set_resonance(resonance);
+                self.wet.set(0.0);
             }
         }
     }
@@ -250,20 +249,15 @@ impl ChannelFilter {
     #[inline]
     fn tick(&mut self, frame: &mut [f32; 2], model: FilterModel) {
         let wet = self.wet.tick();
-        if model == FilterModel::Ladder {
-            self.ladder.tick(frame);
-            return;
+        match model {
+            FilterModel::Ladder => return self.ladder.tick(frame),
+            FilterModel::Club => return self.club.tick(frame),
+            FilterModel::Standard => {}
         }
         for (ch, x) in frame.iter_mut().enumerate() {
             let dry = *x;
-            let filtered = match model {
-                FilterModel::Standard => {
-                    let (lp, hp) = self.filter.tick(ch, dry);
-                    if self.high_pass { hp } else { lp }
-                }
-                FilterModel::Club => self.club.tick(ch, dry),
-                FilterModel::Ladder => dry,
-            };
+            let (lp, hp) = self.filter.tick(ch, dry);
+            let filtered = if self.high_pass { hp } else { lp };
             *x = dry + (filtered - dry) * wet;
         }
     }
@@ -271,7 +265,6 @@ impl ChannelFilter {
     fn end_block(&mut self) {
         if self.wet.value() == 0.0 {
             self.filter.reset();
-            self.club.reset();
         }
     }
 
