@@ -1,0 +1,94 @@
+# Installs a published Windows build on a clean runner and checks that it
+# starts: natively, and under Intel SDE pretending to be older processors.
+# A run that reaches `main` writes %APPDATA%\Backspn\Logs\Backspn.log.
+name: Windows smoke test
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to test
+        required: true
+        default: v0.0.35-rc1
+
+permissions:
+  contents: read
+
+jobs:
+  start:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-2022, cpu: native }
+          - { os: windows-2025, cpu: native }
+          # Nehalem: SSE4.2, no AVX.
+          - { os: windows-2022, cpu: nhm }
+          # Sandy Bridge: AVX, no AVX2.
+          - { os: windows-2022, cpu: snb }
+          # Haswell: AVX2.
+          - { os: windows-2022, cpu: hsw }
+    name: ${{ matrix.os }} / ${{ matrix.cpu }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: System
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_OperatingSystem | Format-List Caption, Version, BuildNumber
+          Get-CimInstance Win32_Processor | Format-List Name
+
+      - name: Download
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "${{ inputs.tag }}" -R "${{ github.repository }}" -p '*windows*.exe' -O setup.exe
+
+      - name: Install
+        shell: pwsh
+        run: |
+          Start-Process .\setup.exe -ArgumentList '/S' -Wait
+          $exe = Get-ChildItem "$env:LOCALAPPDATA\Backspn", "$env:ProgramFiles\Backspn" -Filter Backspn.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw 'Backspn.exe not found after installing' }
+          Get-ChildItem $exe.DirectoryName | Format-Table Name, Length
+          "BACKSPN_EXE=$($exe.FullName)" >> $env:GITHUB_ENV
+
+      - name: Intel SDE
+        if: matrix.cpu != 'native'
+        shell: bash
+        run: |
+          curl -sSfL -A 'Mozilla/5.0' -o sde.tar.xz https://downloadmirror.intel.com/843185/sde-external-9.48.0-2024-11-25-win.tar.xz
+          mkdir sde && tar -xf sde.tar.xz -C sde --strip-components=1
+          echo "SDE=$(cygpath -w "$PWD/sde/sde.exe")" >> "$GITHUB_ENV"
+
+      - name: Start
+        shell: pwsh
+        run: |
+          if ('${{ matrix.cpu }}' -eq 'native') {
+            $p = Start-Process $env:BACKSPN_EXE -PassThru -RedirectStandardError err.txt
+            $wait = 60
+          } else {
+            $p = Start-Process $env:SDE -ArgumentList "-${{ matrix.cpu }}", '--', "`"$env:BACKSPN_EXE`"" -PassThru -RedirectStandardError err.txt
+            $wait = 600
+          }
+          if ($p.WaitForExit($wait * 1000)) {
+            'Exited with 0x{0:X8}' -f $p.ExitCode
+          } else {
+            "Still running after $wait s"
+            Stop-Process -Id $p.Id -Force
+          }
+          Get-Content err.txt -ErrorAction SilentlyContinue | Select-Object -Last 40
+
+      - name: Log
+        if: always()
+        shell: pwsh
+        run: |
+          $log = "$env:APPDATA\Backspn\Logs\Backspn.log"
+          if (Test-Path $log) { "Reached main:"; Get-Content $log -Tail 40 } else { "No log: it died before main" }
+          Get-Content "$env:APPDATA\Backspn\Crashlogs\last-crash.txt" -ErrorAction SilentlyContinue
+
+      - name: Crash events
+        if: always()
+        shell: pwsh
+        run: |
+          Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName='Application Error','Windows Error Reporting'} -MaxEvents 20 -ErrorAction SilentlyContinue |
+            Where-Object Message -like '*Backspn*' | Format-List TimeCreated, Message
