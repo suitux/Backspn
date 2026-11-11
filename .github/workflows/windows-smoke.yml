@@ -68,7 +68,9 @@ jobs:
             $p = Start-Process $env:BACKSPN_EXE -PassThru -RedirectStandardError err.txt
             $wait = 60
           } else {
-            $p = Start-Process $env:SDE -ArgumentList "-${{ matrix.cpu }}", '--', "`"$env:BACKSPN_EXE`"" -PassThru -RedirectStandardError err.txt
+            # Only Backspn.exe's own instructions: Windows' DLLs pick theirs
+            # from the real processor, which the emulator can't hide.
+            $p = Start-Process $env:SDE -ArgumentList "-${{ matrix.cpu }}", '-chip_check_exe_only', '--', "`"$env:BACKSPN_EXE`"" -PassThru -RedirectStandardError err.txt
             $wait = 600
           }
           if ($p.WaitForExit($wait * 1000)) {
