@@ -38,69 +38,37 @@ impl DeckView {
     }
 
     fn grid_panel(&mut self, ui: &mut Ui, state: &DeckState) {
-        let t = theme::get(ui.ctx());
         let deck = self.index;
         let locked = self.locked();
         let editable = state.loaded && !locked && state.grid.is_some();
         let mut events = Vec::new();
-        let grid = |edit| DeckEvent::Grid { deck, edit };
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = 4.0;
-            let h = 24.0;
-            let lock = ui
-                .add_enabled_ui(state.loaded && self.track_id().is_some(), |ui| {
-                    widgets::toggle(ui, "LOCK", locked, t.danger)
-                })
-                .inner;
-            if lock
-                .on_hover_text(tr("Lock the track's beatgrid and tempo"))
-                .clicked()
-            {
-                events.push(DeckEvent::Lock {
-                    deck,
-                    locked: !locked,
-                });
-            }
-            let mut bpm = state.grid.map_or(0.0, |g| g.bpm);
-            let field = ui.add_enabled(
-                editable,
-                DragValue::new(&mut bpm)
-                    .speed(0.01)
-                    .fixed_decimals(3)
-                    .range(1.0..=999.0)
-                    .clamp_existing_to_range(false),
-            );
-            if editable && field.changed() {
-                events.push(grid(GridEdit::SetBpm(bpm)));
-            }
-            for (label, edit, hint) in [
-                ("−", GridEdit::Nudge(-1), "Tempo −0.01 BPM"),
-                ("+", GridEdit::Nudge(1), "Tempo +0.01 BPM"),
-                ("÷2", GridEdit::Half, "Halve the tempo"),
-                ("×2", GridEdit::Double, "Double the tempo"),
-            ] {
-                if ui
-                    .add_enabled(editable, Button::new(label).min_size(vec2(28.0, h)))
-                    .on_hover_text(hint)
-                    .clicked()
-                {
-                    events.push(grid(edit));
+        // Tempo controls and grid tools share a row while they fit; on a
+        // narrow deck the tools move to a second row.
+        let gap = 4.0;
+        let split = self.grid_row_width > ui.available_width();
+        let mut row = |ui: &mut Ui, tools: bool| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = gap;
+                if tools {
+                    self.grid_tools(ui, state, editable, &mut events);
+                } else {
+                    self.grid_tempo(ui, state, editable, &mut events);
                 }
-            }
-            if ui
-                .add_enabled(
-                    state.loaded && !locked,
-                    Button::new("TAP").min_size(vec2(40.0, h)),
-                )
-                .on_hover_text(tr(
-                    "Tap the beats: every fourth tap sets the tempo and grid",
-                ))
-                .clicked()
-            {
-                events.push(DeckEvent::Action(Action::BeatTap { deck }));
-            }
-            self.grid_tools(ui, state, editable, &mut events);
-        });
+            })
+            .response
+            .rect
+            .width()
+        };
+        let (tempo, tools) = if split {
+            (row(ui, false), row(ui, true))
+        } else {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = gap;
+                (row(ui, false), row(ui, true))
+            })
+            .inner
+        };
+        self.grid_row_width = tempo + gap + tools;
         if self.confirm_autogrid {
             ui.horizontal(|ui| {
                 ui.label(tr("Reset the beatgrid of this track?"));
@@ -114,6 +82,72 @@ impl DeckView {
             });
         }
         self.events.extend(events);
+    }
+
+    fn grid_tempo(
+        &mut self,
+        ui: &mut Ui,
+        state: &DeckState,
+        editable: bool,
+        events: &mut Vec<DeckEvent>,
+    ) {
+        let t = theme::get(ui.ctx());
+        let deck = self.index;
+        let locked = self.locked();
+        let grid = |edit| DeckEvent::Grid { deck, edit };
+        let h = 24.0;
+        let lock = ui
+            .add_enabled_ui(state.loaded && self.track_id().is_some(), |ui| {
+                widgets::toggle(ui, "LOCK", locked, t.danger)
+            })
+            .inner;
+        if lock
+            .on_hover_text(tr("Lock the track's beatgrid and tempo"))
+            .clicked()
+        {
+            events.push(DeckEvent::Lock {
+                deck,
+                locked: !locked,
+            });
+        }
+        let mut bpm = state.grid.map_or(0.0, |g| g.bpm);
+        let field = ui.add_enabled(
+            editable,
+            DragValue::new(&mut bpm)
+                .speed(0.01)
+                .fixed_decimals(3)
+                .range(1.0..=999.0)
+                .clamp_existing_to_range(false),
+        );
+        if editable && field.changed() {
+            events.push(grid(GridEdit::SetBpm(bpm)));
+        }
+        for (label, edit, hint) in [
+            ("−", GridEdit::Nudge(-1), "Tempo −0.01 BPM"),
+            ("+", GridEdit::Nudge(1), "Tempo +0.01 BPM"),
+            ("÷2", GridEdit::Half, "Halve the tempo"),
+            ("×2", GridEdit::Double, "Double the tempo"),
+        ] {
+            if ui
+                .add_enabled(editable, Button::new(label).min_size(vec2(28.0, h)))
+                .on_hover_text(hint)
+                .clicked()
+            {
+                events.push(grid(edit));
+            }
+        }
+        if ui
+            .add_enabled(
+                state.loaded && !locked,
+                Button::new("TAP").min_size(vec2(40.0, h)),
+            )
+            .on_hover_text(tr(
+                "Tap the beats: every fourth tap sets the tempo and grid",
+            ))
+            .clicked()
+        {
+            events.push(DeckEvent::Action(Action::BeatTap { deck }));
+        }
     }
 
     fn grid_tools(

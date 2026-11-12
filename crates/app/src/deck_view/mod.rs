@@ -301,6 +301,8 @@ pub struct DeckView {
     cue_map: bool,
     cue_name: Option<String>,
     confirm_autogrid: bool,
+    /// Width the grid panel needs on one row, measured last frame.
+    grid_row_width: f32,
     pub tick: bool,
     pub focused: bool,
     move_mode: MoveMode,
@@ -357,6 +359,7 @@ impl DeckView {
             cue_map: false,
             cue_name: None,
             confirm_autogrid: false,
+            grid_row_width: 0.0,
             tick: false,
             focused: false,
             move_mode: crate::status::DeckStatus::default().move_mode,
