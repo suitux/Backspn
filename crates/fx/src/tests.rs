@@ -168,6 +168,21 @@ fn first_bank_effects_show_their_controls_mirrored() {
     assert!((info.defaults[2] - 0.499_75).abs() < 1e-6);
     assert_eq!(EffectKind::Echo.info().params, ["BEAT", "FEEDB", "FILTER"]);
     assert!(!EffectKind::Echo.mirrored());
+    assert_eq!(EffectKind::Echo.time_knob(), Some(0), "BEAT");
+    assert_eq!(EffectKind::Reverb.time_knob(), Some(2), "SIZE");
+    assert_eq!(EffectKind::Flanger.time_knob(), Some(2), "RATE");
+    assert_eq!(EffectKind::BeatChopper.time_knob(), Some(2), "LENGTH");
+    assert_eq!(EffectKind::None.time_knob(), None);
+    assert_eq!(EffectKind::Filter.time_knob(), None, "no time to set");
+    assert_eq!(EffectKind::GlassReverb.time_knob(), Some(2), "SIZE");
+    assert_eq!(EffectKind::ReleaseEcho.time_knob(), Some(0), "TIME");
+    for kind in EffectKind::ALL {
+        if let Some(knob) = kind.time_knob() {
+            let name = kind.info().params[knob];
+            let time = ["BEAT", "TIME", "RATE", "SIZE", "LENGTH", "SPEED", "B.SPD"];
+            assert!(time.contains(&name), "{kind:?} shows {name}");
+        }
+    }
     assert_eq!(EffectKind::Turntable.info().buttons, ["RST", "RCK", "REW"]);
 }
 

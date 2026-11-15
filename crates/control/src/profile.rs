@@ -19,6 +19,8 @@ pub struct Profile {
     pub messages: Option<PortMessages>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub audio: Option<Audio>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pad_modes: Option<crate::pad_modes::PadModes>,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub notes: String,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -351,52 +353,76 @@ mod tests {
                 Trigger::Press
             )]
         );
+        assert_eq!(
+            send(&set, &mut src, &[0x96, 0x00, 0x7F]),
+            [(Action::MixerFxNext, Trigger::Press)],
+            "SMART CFX"
+        );
+        assert_eq!(send(&set, &mut src, &[0xB0, 0x05, 0x40]), Vec::new());
+        assert!(
+            matches!(
+                send(&set, &mut src, &[0xB0, 0x25, 0x00])[..],
+                [(Action::TempoFaderMove { deck: 0 }, Trigger::Set(_))]
+            ),
+            "SHIFT + TEMPO moves the fader alone"
+        );
+        assert_eq!(send(&set, &mut src, &[0xB6, 0x05, 0x40]), Vec::new());
+        match send(&set, &mut src, &[0xB6, 0x25, 0x00])[..] {
+            [(Action::HardwareMasterVolume, Trigger::Set(v))] => {
+                assert!((v - 0.5).abs() < 1e-3, "MASTER LEVEL {v}");
+            }
+            ref other => panic!("{other:?}"),
+        }
+        assert_eq!(
+            send(&set, &mut src, &[0x90, 0x12, 0x7F]),
+            [(Action::LoopSizeStep { deck: 0 }, Trigger::Delta(-1.0))],
+            "1/2X while a loop plays"
+        );
+        assert_eq!(
+            send(&set, &mut src, &[0x91, 0x13, 0x7F]),
+            [(Action::LoopSizeStep { deck: 1 }, Trigger::Delta(1.0))],
+            "2X"
+        );
         let mut other = crate::relative::Source::for_port("Other");
         assert_eq!(send(&set, &mut other, &[0x91, 0x0B, 0x7F]), Vec::new());
     }
 
     #[test]
-    fn flx4_beat_fx_reaches_both_units_and_their_knobs() {
+    fn flx4_beat_fx_reaches_both_units_and_their_time() {
         let (set, mut src) = flx4();
-        let knob = |unit, knob| Action::FxKnob { unit, knob };
+        let time = |unit| Action::FxTime { unit };
         let assign = |channel, unit| Action::FxAssign { channel, unit };
         assert_eq!(
             send(&set, &mut src, &[0x94, 0x4B, 0x7F]),
-            [(knob(0, 0), Trigger::Delta(8.0))],
-            "BEAT ▶ moves the first knob by 1/8"
-        );
-        assert_eq!(
-            send(&set, &mut src, &[0x94, 0x6B, 0x7F]),
-            Vec::new(),
-            "SHIFT + BEAT ▶ picks the next knob"
+            [(time(0), Trigger::Delta(8.0))],
+            "BEAT ▶ lengthens the effect by 1/8"
         );
         assert_eq!(
             send(&set, &mut src, &[0x94, 0x4A, 0x7F]),
-            [(knob(0, 1), Trigger::Delta(-8.0))]
-        );
-        send(&set, &mut src, &[0x94, 0x6B, 0x7F]);
-        send(&set, &mut src, &[0x94, 0x6B, 0x7F]);
-        assert_eq!(
-            send(&set, &mut src, &[0x94, 0x4A, 0x7F]),
-            [(knob(0, 2), Trigger::Delta(-8.0))],
-            "the last knob is as far as it goes"
+            [(time(0), Trigger::Delta(-8.0))]
         );
         assert_eq!(
-            send(&set, &mut src, &[0x94, 0x11, 0x7F]),
-            [
-                (assign(0, 0), Trigger::Set(0.0)),
-                (assign(1, 0), Trigger::Set(1.0))
-            ],
-            "channel switch on 2"
+            send(&set, &mut src, &[0x94, 0x66, 0x7F]),
+            [(time(0), Trigger::Reset)],
+            "SHIFT + BEAT ◀ resets it"
         );
         assert_eq!(
-            send(&set, &mut src, &[0x94, 0x14, 0x7F]),
+            send(&set, &mut src, &[0x94, 0x10, 0x7F]),
             [
                 (assign(0, 0), Trigger::Set(1.0)),
-                (assign(1, 0), Trigger::Set(1.0))
+                (assign(0, 1), Trigger::Set(1.0))
             ],
-            "channel switch on 1&2"
+            "channel switch on 1 or 1&2: channel 1 on, for both units"
         );
+        assert_eq!(
+            send(&set, &mut src, &[0x95, 0x11, 0x00]),
+            [
+                (assign(1, 0), Trigger::Set(0.0)),
+                (assign(1, 1), Trigger::Set(0.0))
+            ],
+            "channel switch off 2 and 1&2: channel 2 off"
+        );
+        assert_eq!(send(&set, &mut src, &[0x94, 0x11, 0x00]), Vec::new());
         assert_eq!(
             send(&set, &mut src, &[0x94, 0x47, 0x7F]),
             [(Action::FxOn { unit: 0 }, Trigger::Press)]
@@ -408,15 +434,7 @@ mod tests {
         );
         assert_eq!(
             send(&set, &mut src, &[0x94, 0x4B, 0x7F]),
-            [(knob(1, 2), Trigger::Delta(8.0))]
-        );
-        assert_eq!(
-            send(&set, &mut src, &[0x94, 0x10, 0x7F]),
-            [
-                (assign(0, 1), Trigger::Set(1.0)),
-                (assign(1, 1), Trigger::Set(0.0))
-            ],
-            "the switch assigns the unit in control"
+            [(time(1), Trigger::Delta(8.0))]
         );
         assert_eq!(
             send(&set, &mut src, &[0x94, 0x47, 0x7F]),
@@ -929,10 +947,33 @@ mod tests {
     }
 
     #[test]
+    fn flx4_pad_mode_buttons_light_the_chosen_mode() {
+        let (set, mut src) = flx4();
+        send(&set, &mut src, &[0x90, 0x20, 0x7F]);
+        send(&set, &mut src, &[0x91, 0x6F, 0x7F]);
+        assert_eq!(src.modifiers.0[2..4], [2, 7], "BEAT JUMP / KEY SHIFT");
+        let out = crate::output::Sender::default().update(
+            &set.outputs,
+            &crate::feedback::Feedback::default(),
+            &src.modifiers,
+            &[],
+            false,
+        );
+        assert!(out.contains(&[0x90, 0x20, 0x7F]) && out.contains(&[0x90, 0x1B, 0x00]));
+        assert!(out.contains(&[0x91, 0x6F, 0x7F]) && out.contains(&[0x91, 0x1B, 0x00]));
+        assert!(
+            out.contains(&[0x90, 0x10, 0x7F]) && out.contains(&[0x90, 0x4C, 0x7F]),
+            "loop IN / IN ADJ lit while no loop plays"
+        );
+    }
+
+    #[test]
     fn flx4_leds_follow_the_decks() {
         let (set, _) = flx4();
         let mut f = crate::feedback::Feedback::default();
         f.decks[1].synced = true;
+        f.decks[0].loaded = true;
+        f.decks[1].loop_active = true;
         f.decks[0].hotcues[3] = crate::feedback::HotcueKind::Cue;
         let mut sent = crate::output::Sender::default();
         let out = sent.update(
@@ -944,6 +985,14 @@ mod tests {
         );
         assert!(out.contains(&[0x91, 0x58, 0x7F]), "deck B SYNC lit");
         assert!(out.contains(&[0x90, 0x58, 0x00]), "deck A SYNC off");
+        assert!(
+            out.contains(&[0x9F, 0x00, 0x7F]) && out.contains(&[0x9F, 0x01, 0x00]),
+            "the controller learns which decks hold a track (its pad modes need it)"
+        );
+        assert!(
+            out.contains(&[0x9F, 0x05, 0x7F]) && out.contains(&[0x9F, 0x04, 0x00]),
+            "and which decks loop (CUE/LOOP CALL then size the loop)"
+        );
         assert!(out.contains(&[0x97, 0x03, 0x7F]) && out.contains(&[0x98, 0x03, 0x7F]));
         assert!(out.contains(&[0x97, 0x04, 0x00]));
     }

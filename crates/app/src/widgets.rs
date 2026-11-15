@@ -700,6 +700,16 @@ pub fn pad(ui: &mut Ui, text: &str, fill: Option<Color32>, size: Vec2) -> Respon
 }
 
 pub fn chip(ui: &mut Ui, text: &str, color: Color32) -> Response {
+    chip_with(ui, text, color, Sense::hover())
+}
+
+/// A chip that takes clicks.
+pub fn chip_button(ui: &mut Ui, text: &str, color: Color32) -> Response {
+    chip_with(ui, text, color, Sense::click())
+        .on_hover_cursor(eframe::egui::CursorIcon::PointingHand)
+}
+
+fn chip_with(ui: &mut Ui, text: &str, color: Color32, sense: Sense) -> Response {
     let t = theme::get(ui.ctx());
     let mut job = LayoutJob::simple_singleline(text.to_owned(), FontId::monospace(10.5), color);
     for section in &mut job.sections {
@@ -707,7 +717,7 @@ pub fn chip(ui: &mut Ui, text: &str, color: Color32) -> Response {
     }
     let galley = ui.painter().layout_job(job);
     let size = galley.size() + vec2(10.0, 4.0);
-    let (rect, response) = ui.allocate_exact_size(size, Sense::hover());
+    let (rect, response) = ui.allocate_exact_size(size, sense);
     let painter = ui.painter();
     painter.rect_filled(rect, 0.0, color.lerp_to_gamma(t.base, 0.84));
     painter.galley(rect.center() - galley.size() / 2.0, galley, color);

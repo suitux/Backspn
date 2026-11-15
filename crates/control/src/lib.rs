@@ -10,6 +10,7 @@ pub mod midi;
 pub mod modifier;
 mod move_size;
 pub mod output;
+pub mod pad_modes;
 pub mod pads;
 pub mod poti;
 pub mod profile;
@@ -272,6 +273,11 @@ pub enum Action {
     TempoRelative {
         deck: usize,
     },
+    /// The tempo fader moved without changing the tempo (with SHIFT), so it
+    /// can carry on from a new place.
+    TempoFaderMove {
+        deck: usize,
+    },
     TempoBend {
         deck: usize,
         direction: f64,
@@ -299,6 +305,8 @@ pub enum Action {
     MixerFxSelect {
         slot: usize,
     },
+    /// Every channel to the next mixer effect, round to the filter.
+    MixerFxNext,
     MonitorCue {
         channel: usize,
     },
@@ -317,6 +325,10 @@ pub enum Action {
     FxKnob {
         unit: usize,
         knob: usize,
+    },
+    /// The time, size or rate knob of the unit's effect (Single mode).
+    FxTime {
+        unit: usize,
     },
     FxButton {
         unit: usize,
@@ -394,6 +406,14 @@ pub enum Action {
     #[serde(alias = "DeckFlavor")]
     DeckType {
         deck: usize,
+    },
+    /// Output only: lit while the deck holds a track.
+    DeckLoaded {
+        deck: usize,
+    },
+    /// Output only: the channel's level, for a level meter.
+    ChannelLevel {
+        channel: usize,
     },
     Snap,
     Quantize,
@@ -550,6 +570,7 @@ impl Action {
         matches!(
             self,
             Self::Tempo { .. }
+                | Self::TempoFaderMove { .. }
                 | Self::Stem {
                     part: StemPart::Volume
                         | StemPart::Filter
@@ -573,6 +594,7 @@ impl Action {
                 | Self::CueMix
                 | Self::FxDryWet { .. }
                 | Self::FxKnob { .. }
+                | Self::FxTime { .. }
                 | Self::FxSelect { .. }
                 | Self::RecordGain
                 | Self::BrowserUpDown
@@ -658,6 +680,7 @@ impl Action {
             | Self::LoopMove { deck }
             | Self::Tempo { deck }
             | Self::TempoRelative { deck }
+            | Self::TempoFaderMove { deck }
             | Self::TempoBend { deck, .. }
             | Self::LoadSelected { deck }
             | Self::LoadSelectedAs { deck, .. }
@@ -667,6 +690,7 @@ impl Action {
             | Self::SampleCell { deck, .. }
             | Self::SampleCellStopLoad { deck, .. }
             | Self::DeckType { deck }
+            | Self::DeckLoaded { deck }
             | Self::JogTouch { deck }
             | Self::JogTurn { deck }
             | Self::JogMode { deck, .. }
@@ -713,6 +737,7 @@ impl Action {
             | Self::Filter { channel }
             | Self::MixerFxOn { channel }
             | Self::MonitorCue { channel }
+            | Self::ChannelLevel { channel }
             | Self::FxAssign { channel, .. }
             | Self::FxAssignHeld { channel, .. }
             | Self::XfaderAssign { channel }
@@ -726,6 +751,7 @@ impl Action {
             Self::FxOn { unit }
             | Self::FxDryWet { unit }
             | Self::FxKnob { unit, .. }
+            | Self::FxTime { unit }
             | Self::FxButton { unit, .. }
             | Self::FxSelect { unit, .. }
             | Self::FxSnapshotStore { unit }
@@ -916,6 +942,9 @@ impl Action {
             Self::LoopMove { deck } => format!("Deck {} Move by Loop Size", d(deck)),
             Self::Tempo { deck } => format!("Deck {} Tempo", d(deck)),
             Self::TempoRelative { deck } => format!("Deck {} Tempo (relative)", d(deck)),
+            Self::TempoFaderMove { deck } => {
+                format!("Deck {} Tempo Fader (keeps the tempo)", d(deck))
+            }
             Self::TempoBend { deck, direction } => {
                 format!(
                     "Deck {} Bend {}",
@@ -939,6 +968,7 @@ impl Action {
             Self::MixerFxOn { channel } => format!("Ch {} Mixer FX On", d(channel)),
             Self::MixerFxSelect { slot: 0 } => "Mixer FX Select Filter".to_owned(),
             Self::MixerFxSelect { slot } => format!("Mixer FX Select {slot}"),
+            Self::MixerFxNext => "Mixer FX Select Next".to_owned(),
             Self::MonitorCue { channel } => format!("Ch {} Cue", d(channel)),
             Self::Crossfader => "Crossfader".into(),
             Self::MasterVolume => "Master Volume".into(),
@@ -948,6 +978,7 @@ impl Action {
             Self::FxOn { unit } => format!("FX{} On", unit + 1),
             Self::FxDryWet { unit } => format!("FX{} Dry/Wet", unit + 1),
             Self::FxKnob { unit, knob } => format!("FX{} Knob {}", unit + 1, knob + 1),
+            Self::FxTime { unit } => format!("FX{} Time / Size", unit + 1),
             Self::FxButton { unit, button } => format!("FX{} Button {}", unit + 1, button + 1),
             Self::FxLfoReset => "Effect LFO Reset".into(),
             Self::FxSnapshotStore { unit } => format!("FX{} Store Snapshot", unit + 1),
@@ -982,6 +1013,8 @@ impl Action {
                 cell + 1
             ),
             Self::DeckType { deck } => format!("Deck {} Type (track / sample)", d(deck)),
+            Self::DeckLoaded { deck } => format!("Deck {} Loaded", d(deck)),
+            Self::ChannelLevel { channel } => format!("Ch {} Level", d(channel)),
             Self::Snap => "Snap".into(),
             Self::Quantize => "Quantize".into(),
             Self::JogTouch { deck } => format!("Deck {} Jog Touch", d(deck)),
@@ -1565,6 +1598,7 @@ fn has_centre_zone(action: Action) -> bool {
     matches!(
         action,
         Action::Tempo { .. }
+            | Action::TempoFaderMove { .. }
             | Action::Filter { .. }
             | Action::Eq { .. }
             | Action::Gain { .. }

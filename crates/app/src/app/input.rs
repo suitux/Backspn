@@ -81,6 +81,7 @@ impl App {
         {
             controls.fired(action);
         }
+        let reset = trigger == Trigger::Reset;
         let trigger = match trigger {
             Trigger::Reset => reset_position(action).map_or(Trigger::Reset, Trigger::Set),
             t => t,
@@ -354,7 +355,13 @@ impl App {
             Action::Tempo { deck: d } | Action::TempoRelative { deck: d } if platter_deck(d) => {
                 self.decks[d].apply_platter_tempo(trigger, out);
             }
-            Action::Tempo { deck: d } if d < DECKS => self.decks[d].apply_tempo(trigger, out),
+            Action::Tempo { deck: d } if d < DECKS => {
+                let relative = self.settings.tempo_fader_relative && !reset;
+                self.decks[d].apply_tempo(trigger, relative, out);
+            }
+            Action::TempoFaderMove { deck: d } if d < DECKS => {
+                self.decks[d].move_tempo_fader_only(trigger);
+            }
             Action::TempoRelative { deck: d } if d < DECKS => {
                 if let Trigger::Delta(steps) = trigger {
                     self.decks[d].apply_relative_tempo(steps, out);

@@ -267,6 +267,14 @@ impl EffectKind {
         }
     }
 
+    /// The knob, as shown, that sets the effect's time, size or rate (its
+    /// first engine parameter), if it has one.
+    pub fn time_knob(self) -> Option<usize> {
+        const TIME: [&str; 7] = ["BEAT", "TIME", "RATE", "SIZE", "LENGTH", "SPEED", "B.SPD"];
+        let knob = if self.mirrored() { 2 } else { 0 };
+        TIME.contains(&self.engine_info().params[0]).then_some(knob)
+    }
+
     pub fn mirrored(self) -> bool {
         use EffectKind as K;
         matches!(

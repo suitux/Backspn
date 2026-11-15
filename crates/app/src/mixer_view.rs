@@ -225,9 +225,10 @@ impl MixerLock {
             Action::Volume { .. } | Action::Balance { .. } | Action::Crossfader => self.channel,
             Action::Gain { .. } | Action::Eq { .. } | Action::EqKill { .. } => self.eq_gain,
             Action::MasterVolume => self.master,
-            Action::Filter { .. } | Action::MixerFxOn { .. } | Action::MixerFxSelect { .. } => {
-                self.fx
-            }
+            Action::Filter { .. }
+            | Action::MixerFxOn { .. }
+            | Action::MixerFxSelect { .. }
+            | Action::MixerFxNext => self.fx,
             _ => false,
         }
     }
@@ -905,6 +906,13 @@ impl MixerView {
                 }
                 _ => {}
             },
+            Action::MixerFxNext if trigger == Trigger::Press => {
+                let next = (self.channels[0].fx + 1) % 5;
+                for i in 0..4 {
+                    self.channels[i].fx = next;
+                    self.fx_commands(i, out);
+                }
+            }
             Action::MixerFxSelect { slot } if slot <= 4 => {
                 let slot = slot as u8;
                 match trigger {
@@ -1290,6 +1298,20 @@ mod tests {
             out.iter()
                 .any(|c| matches!(c, Command::Mixer(MixerCommand::Filter(1, f)) if *f == 0.0))
         );
+    }
+
+    #[test]
+    fn the_next_mixer_fx_goes_round_to_the_filter() {
+        let mut m = MixerView::new();
+        let mut out = Vec::new();
+        let mut shown = Vec::new();
+        for _ in 0..6 {
+            m.apply(Action::MixerFxNext, Trigger::Press, &mut out);
+            m.apply(Action::MixerFxNext, Trigger::Release, &mut out);
+            shown.push(m.mixer_fx()[3].0);
+        }
+        assert_eq!(shown, [1, 2, 3, 4, 0, 1]);
+        assert!(m.mixer_fx().iter().all(|&(fx, _)| fx == 1), "every channel");
     }
 
     #[test]

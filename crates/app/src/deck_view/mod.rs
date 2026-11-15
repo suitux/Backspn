@@ -22,8 +22,11 @@ mod cue_panel;
 mod grid_panel;
 mod header;
 mod move_panel;
+mod pad_panel;
 mod stem_row;
 mod waveforms;
+
+pub use pad_panel::{PadLabel, PadModeView};
 
 pub(crate) use header::clock;
 use waveforms::OverviewKey;
@@ -286,6 +289,8 @@ pub struct DeckView {
     cue_button: Hold,
     cup_button: Hold,
     tempo_fader: f32,
+    /// Where the controller's tempo fader last was (0..1).
+    hardware_fader: Option<f32>,
     tempo_lock: Option<TempoLock>,
     tempo_range: f32,
     key_notation: KeyNotation,
@@ -297,6 +302,12 @@ pub struct DeckView {
     size_offset: usize,
     shown_size: Option<(f64, usize)>,
     pub show_pads: bool,
+    /// The pads of the controller playing this deck, while it has pad modes.
+    pub pad_modes: Option<PadModeView>,
+    /// The pad mode picked on screen, shown instead of the controller's.
+    pub pad_mode_pick: Option<usize>,
+    /// The controller's pad mode when last seen.
+    pub pad_mode_seen: Option<usize>,
     pub panel: Option<PanelTab>,
     cue_map: bool,
     cue_name: Option<String>,
@@ -341,6 +352,7 @@ impl DeckView {
             cue_button: Hold::default(),
             cup_button: Hold::default(),
             tempo_fader: 0.0,
+            hardware_fader: None,
             tempo_lock: None,
             tempo_range: 0.08,
             key_notation: KeyNotation::default(),
@@ -355,6 +367,9 @@ impl DeckView {
             size_offset: 0,
             shown_size: None,
             show_pads: false,
+            pad_modes: None,
+            pad_mode_pick: None,
+            pad_mode_seen: None,
             panel: None,
             cue_map: false,
             cue_name: None,
@@ -506,9 +521,26 @@ impl DeckView {
         });
     }
 
-    pub fn apply_tempo(&mut self, trigger: backspn_control::Trigger, out: &mut Vec<Command>) {
+    /// A tempo fader on a controller moved. `relative`: the tempo changes by
+    /// as much as the fader moved, wherever the fader is.
+    pub fn apply_tempo(
+        &mut self,
+        trigger: backspn_control::Trigger,
+        relative: bool,
+        out: &mut Vec<Command>,
+    ) {
+        let Some(trigger) = fader_trigger(&mut self.hardware_fader, trigger, relative) else {
+            return;
+        };
         let range = self.tempo_range;
         self.move_tempo_fader(trigger, out, |f| 1.0 + f64::from(f * range));
+    }
+
+    /// The controller's tempo fader moved without changing the tempo.
+    pub fn move_tempo_fader_only(&mut self, trigger: backspn_control::Trigger) {
+        if let backspn_control::Trigger::Set(v) = trigger {
+            self.hardware_fader = Some(v);
+        }
     }
 
     pub fn apply_platter_tempo(
@@ -552,7 +584,7 @@ impl DeckView {
     pub fn toggle_tempo_lock(&mut self, absolute: bool, out: &mut Vec<Command>) {
         if let Some(lock) = self.tempo_lock.take() {
             if let (true, Some(v)) = (absolute, lock.fader) {
-                self.apply_tempo(backspn_control::Trigger::Set(v), out);
+                self.apply_tempo(backspn_control::Trigger::Set(v), false, out);
             }
         } else {
             self.tempo_lock = Some(TempoLock::default());
@@ -895,6 +927,9 @@ impl DeckView {
                 if self.show_pads && !self.compact {
                     self.hotcue_row(ui, state, out);
                 }
+                if !self.compact {
+                    self.pad_mode_panel(ui, state);
+                }
                 if let Some(tab) = self.panel {
                     self.advanced_panel(ui, state, tab, out);
                 }
@@ -1014,6 +1049,27 @@ fn tempo_range_after(at: u8, trigger: backspn_control::Trigger) -> Option<usize>
     }
 }
 
+/// Turns a fader position into the move it makes: in relative mode, the step
+/// from where the fader last was (nothing the first time it is seen).
+fn fader_trigger(
+    last: &mut Option<f32>,
+    trigger: backspn_control::Trigger,
+    relative: bool,
+) -> Option<backspn_control::Trigger> {
+    use backspn_control::Trigger;
+    match trigger {
+        Trigger::Set(v) => {
+            let before = last.replace(v);
+            if !relative {
+                return Some(trigger);
+            }
+            // The fader runs 0..1; the tempo fader -1..1 in steps of 1/100.
+            before.map(|b| Trigger::Delta((v - b) * 200.0))
+        }
+        t => Some(t),
+    }
+}
+
 fn relative_tempo_fader(fader: f32, steps: f32, range: f32) -> f32 {
     let lowest = ((backspn_engine::MIN_TEMPO - 1.0) as f32) / range;
     let highest = ((backspn_engine::MAX_TEMPO - 1.0) as f32) / range;
@@ -1054,12 +1110,12 @@ mod tests {
         use backspn_control::Trigger;
         let mut v = DeckView::new(0);
         let mut out = Vec::new();
-        v.apply_tempo(Trigger::Set(0.75), &mut out);
+        v.apply_tempo(Trigger::Set(0.75), false, &mut out);
         v.toggle_tempo_lock(true, &mut out);
         assert!(v.tempo_locked());
         assert_eq!(v.tempo_fader_position(), 0.0);
         out.clear();
-        v.apply_tempo(Trigger::Set(0.9), &mut out);
+        v.apply_tempo(Trigger::Set(0.9), false, &mut out);
         assert!(out.is_empty());
         v.watch_tempo_lock(1.06);
         assert!(v.tempo_locked());
@@ -1076,6 +1132,36 @@ mod tests {
     }
 
     #[test]
+    fn a_controller_fader_moves_the_tempo_from_where_it_is() {
+        use backspn_control::Trigger;
+        let mut deck = DeckView::new(0);
+        let mut out = Vec::new();
+        deck.apply_tempo(Trigger::Set(0.5), true, &mut out);
+        assert!(out.is_empty(), "first seen: nothing moves");
+        deck.apply_tempo(Trigger::Set(0.6), true, &mut out);
+        assert!(
+            (deck.tempo_fader - 0.2).abs() < 1e-4,
+            "{}",
+            deck.tempo_fader
+        );
+        deck.move_tempo_fader_only(Trigger::Set(0.1));
+        assert!(
+            (deck.tempo_fader - 0.2).abs() < 1e-4,
+            "SHIFT: the tempo stays"
+        );
+        deck.apply_tempo(Trigger::Set(0.15), true, &mut out);
+        assert!(
+            (deck.tempo_fader - 0.3).abs() < 1e-4,
+            "and carries on from there"
+        );
+        deck.apply_tempo(Trigger::Set(0.75), false, &mut out);
+        assert!(
+            (deck.tempo_fader - 0.5).abs() < 1e-4,
+            "absolute: the position"
+        );
+    }
+
+    #[test]
     fn a_relative_tempo_fader_goes_past_its_range() {
         let mut v = DeckView::new(0);
         let mut out = Vec::new();
@@ -1089,7 +1175,7 @@ mod tests {
         }
         assert!((relative_tempo_fader(0.0, -1e6, 0.08) - (-0.95 / 0.08)).abs() < 1e-3);
         assert!((relative_tempo_fader(0.0, 1e6, 0.08) - (3.0 / 0.08)).abs() < 1e-3);
-        v.apply_tempo(backspn_control::Trigger::Delta(1.0), &mut out);
+        v.apply_tempo(backspn_control::Trigger::Delta(1.0), false, &mut out);
         assert!((v.tempo_fader_position() - 1.0).abs() < 1e-6);
         v.toggle_tempo_lock(false, &mut out);
         out.clear();

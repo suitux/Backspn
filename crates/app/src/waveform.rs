@@ -508,9 +508,34 @@ pub fn loop_region(
         painter.rect_filled(
             span,
             0.0,
-            Color32::from_rgba_unmultiplied(90, 220, 120, alpha),
+            Color32::from_rgba_unmultiplied(LOOP_IN.r(), LOOP_IN.g(), LOOP_IN.b(), alpha),
         );
     }
+}
+
+const LOOP_IN: Color32 = Color32::from_rgb(90, 220, 120);
+
+/// Where IN marked a loop that still waits for its OUT.
+pub fn pending_loop_in(start_s: Option<f64>, end_s: Option<f64>) -> Option<f64> {
+    start_s.filter(|_| end_s.is_none())
+}
+
+/// The start IN marked, flagged until OUT closes the loop.
+pub fn loop_in(painter: &egui::Painter, rect: Rect, window: (f64, f64), t_s: f64) {
+    let x = x_of(rect, window, t_s);
+    if x < rect.left() || x > rect.right() {
+        return;
+    }
+    marker(painter, rect, x, LOOP_IN, 2.0);
+    let tag = Rect::from_min_size(pos2(x, rect.bottom() - 11.0), egui::vec2(17.0, 11.0));
+    painter.rect_filled(tag, 0.0, LOOP_IN);
+    painter.text(
+        tag.center(),
+        egui::Align2::CENTER_CENTER,
+        "IN",
+        egui::FontId::monospace(9.0),
+        Color32::BLACK,
+    );
 }
 
 pub fn loop_span(rect: Rect, window: (f64, f64), (start_s, end_s): (f64, f64)) -> Option<Rect> {
@@ -546,6 +571,17 @@ pub fn hotcue(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn in_shows_until_out_closes_the_loop() {
+        assert_eq!(pending_loop_in(Some(2.0), None), Some(2.0));
+        assert_eq!(
+            pending_loop_in(Some(2.0), Some(4.0)),
+            None,
+            "the loop shows"
+        );
+        assert_eq!(pending_loop_in(None, None), None);
+    }
 
     #[test]
     fn the_loop_span_is_cut_to_what_shows() {

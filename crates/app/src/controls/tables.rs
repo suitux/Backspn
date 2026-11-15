@@ -45,6 +45,24 @@ impl Controls {
         }
     }
 
+    /// Brings every untouched stock table up to date with its stock rows.
+    pub(super) fn refresh_stock_tables(&mut self) {
+        let owners: Vec<Owner> = self
+            .set
+            .tables
+            .iter()
+            .filter(|t| t.untouched)
+            .map(|t| t.owner.clone())
+            .collect();
+        for owner in owners {
+            let Some((name, rows)) = self.stock_of(&owner) else {
+                continue;
+            };
+            let owns = owns_fn(&self.devices, &owner);
+            self.set.refresh_stock(&owner, &name, rows, &owns);
+        }
+    }
+
     pub(super) fn selected_owner(&self) -> Option<Owner> {
         match self.manager.selected {
             Some(Selected::Native(name)) => Some(Owner::Native(name.to_owned())),

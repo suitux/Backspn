@@ -243,13 +243,32 @@ impl MappingSet {
         index
     }
 
-    pub fn use_stock(&mut self, owner: Owner, name: &str, rows: Rows, owns: Owns) -> usize {
-        let found = self
-            .tables
+    fn stock_table(&self, owner: &Owner, name: &str) -> Option<usize> {
+        self.tables
             .iter()
-            .position(|t| t.owner == owner && t.untouched && t.stock.as_deref() == Some(name));
-        match found {
+            .position(|t| t.owner == *owner && t.untouched && t.stock.as_deref() == Some(name))
+    }
+
+    /// Gives the owner's untouched stock table the stock rows as they are
+    /// now: they change between versions, and the table only keeps a copy.
+    pub fn refresh_stock(&mut self, owner: &Owner, name: &str, rows: Rows, owns: Owns) -> bool {
+        let Some(i) = self.stock_table(owner, name) else {
+            return false;
+        };
+        if self.tables[i].active {
+            drop(self.take_live(owner, owns));
+            self.put_live(owner, rows.mappings, rows.outputs);
+        } else {
+            self.tables[i].mappings = rows.mappings;
+            self.tables[i].outputs = rows.outputs;
+        }
+        true
+    }
+
+    pub fn use_stock(&mut self, owner: Owner, name: &str, rows: Rows, owns: Owns) -> usize {
+        match self.stock_table(&owner, name) {
             Some(i) => {
+                self.refresh_stock(&owner, name, rows, owns);
                 self.activate_table(i, owns);
                 i
             }
@@ -837,6 +856,37 @@ mod tests {
             stock
         );
         assert_eq!(set.tables_of(&model).len(), 2);
+    }
+
+    #[test]
+    fn untouched_stock_tables_take_the_stock_rows_as_they_are_now() {
+        let mut set = set();
+        let model = owner(&set, 1);
+        let rows = |n| Rows {
+            mappings: vec![row(note(n), Action::PlayPause { deck: 0 })],
+            ..Rows::default()
+        };
+        let stock = set.use_stock(model.clone(), MODEL, rows(1), &no_native);
+        assert!(set.refresh_stock(&model, MODEL, rows(2), &no_native));
+        let d = &set.devices[1];
+        let live: Vec<_> = set.mappings.iter().filter(|m| d.owns(m)).collect();
+        assert_eq!(live.len(), 1);
+        assert_eq!(live[0].input, note(2), "the new stock row, on the device");
+        assert_eq!(
+            set.use_stock(model.clone(), MODEL, rows(3), &no_native),
+            stock
+        );
+        assert!(
+            set.mappings.iter().any(|m| m.input == note(3)),
+            "restoring an active stock table resets it"
+        );
+
+        set.fork_table(&model);
+        assert!(!set.refresh_stock(&model, MODEL, rows(4), &no_native));
+        assert!(
+            set.mappings.iter().any(|m| m.input == note(3)),
+            "the user's rows stay"
+        );
     }
 
     #[test]

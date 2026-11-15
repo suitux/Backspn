@@ -282,7 +282,7 @@ fn text_right(
     text(canvas, font, size, (right - w, y), w + 1.0, color, s);
 }
 
-fn beats_label(beats: f64) -> String {
+pub(crate) fn beats_label(beats: f64) -> String {
     SIZES
         .iter()
         .find(|(b, _)| (b - beats).abs() < 1e-9)

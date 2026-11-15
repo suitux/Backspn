@@ -5,6 +5,10 @@ use crate::modifier::{Condition, Modifiers};
 use crate::{Action, Input, InputEvent, MidiKind};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent per-LED switches, saved as they are"
+)]
 pub struct OutMapping {
     pub output: Input,
     pub action: Action,
@@ -22,6 +26,9 @@ pub struct OutMapping {
     pub invert: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub focus: bool,
+    /// While the value is off, the LED blinks instead of staying dark.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub blink: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -46,6 +53,7 @@ impl OutMapping {
             blend: false,
             invert: false,
             focus: false,
+            blink: false,
             port: None,
             device: None,
             comment: String::new(),
@@ -61,6 +69,20 @@ pub enum OutValue {
 }
 
 pub const PULSE: std::time::Duration = std::time::Duration::from_millis(100);
+/// Half a blink: the LED is on this long, then off this long.
+pub const BLINK: std::time::Duration = std::time::Duration::from_millis(500);
+
+/// Whether a blinking LED is in its lit half, `since` a fixed start.
+pub fn blink_lit(since: std::time::Duration) -> bool {
+    (since.as_millis() / BLINK.as_millis()).is_multiple_of(2)
+}
+
+/// Time until a blinking LED next changes.
+pub fn next_blink(since: std::time::Duration) -> std::time::Duration {
+    let half = BLINK.as_millis();
+    let left = half - since.as_millis() % half;
+    std::time::Duration::from_millis(u64::try_from(left).unwrap_or(0))
+}
 
 pub fn pulses(action: Action) -> bool {
     matches!(
@@ -157,6 +179,8 @@ pub fn value(action: Action, f: &Feedback, modifiers: &Modifiers) -> Option<OutV
     let k = &f.knobs;
     Some(match action {
         Action::PlayPause { deck: d } => on(deck(d)?.playing),
+        Action::DeckLoaded { deck: d } => on(deck(d)?.loaded),
+        Action::ChannelLevel { channel: c } => unit(channel(c)?.level.min(1.0)),
         Action::Sync { deck: d } => on(deck(d)?.synced),
         Action::Master { deck: d } => on(deck(d)?.master),
         Action::Keylock { deck: d } => on(deck(d)?.keylock),
@@ -327,6 +351,8 @@ pub fn message(output: &Input, level: u8) -> Option<[u8; 3]> {
 pub struct Sender {
     last: Vec<Option<u8>>,
     flagged: Vec<bool>,
+    /// The phase of blinking LEDs (see [`blink_lit`]).
+    pub blink: bool,
 }
 
 impl Sender {
@@ -361,11 +387,14 @@ impl Sender {
                 };
                 v
             };
-            let level = level(m, v);
-            if force || self.flagged[i] || self.last[i] != Some(level) {
-                out.extend(message(&m.output, level));
+            let mut lv = level(m, v);
+            if m.blink && self.blink && lv == m.midi_range.0 {
+                lv = level(m, OutValue::OnOff(true));
             }
-            self.last[i] = Some(level);
+            if force || self.flagged[i] || self.last[i] != Some(lv) {
+                out.extend(message(&m.output, lv));
+            }
+            self.last[i] = Some(lv);
             self.flagged[i] = false;
         }
         out
@@ -583,5 +612,42 @@ mod tests {
         assert!(learn(play, &press(note(5), Some(false))).is_none());
         assert!(learn(play, &press(Input::Key("A".into()), Some(true))).is_none());
         assert!(learn(Action::Cue { deck: 0 }, &press(note(5), Some(true))).is_none());
+    }
+
+    #[test]
+    fn a_blinking_led_flashes_while_off_and_stays_lit_while_on() {
+        use std::time::Duration;
+        assert!(blink_lit(Duration::ZERO));
+        assert!(!blink_lit(BLINK));
+        assert!(blink_lit(BLINK * 2 + Duration::from_millis(1)));
+        assert_eq!(
+            next_blink(Duration::from_millis(100)),
+            Duration::from_millis(400)
+        );
+        let mut m = OutMapping::new(note(11), Action::PlayPause { deck: 0 });
+        m.blink = true;
+        let mut f = Feedback::default();
+        let free = Modifiers::default();
+        let mut s = Sender::default();
+        let sent = |s: &mut Sender, f: &Feedback, phase| {
+            s.blink = phase;
+            s.update(std::slice::from_ref(&m), f, &free, &[], true)
+        };
+        assert_eq!(
+            sent(&mut s, &f, true),
+            [[0x91, 11, 0x7F]],
+            "paused: lit half"
+        );
+        assert_eq!(
+            sent(&mut s, &f, false),
+            [[0x91, 11, 0x00]],
+            "paused: dark half"
+        );
+        f.decks[0].playing = true;
+        assert_eq!(
+            sent(&mut s, &f, false),
+            [[0x91, 11, 0x7F]],
+            "playing: always lit"
+        );
     }
 }

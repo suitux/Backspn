@@ -21,6 +21,7 @@ fn deck_common(d: usize) -> Vec<Action> {
         Action::Slip { deck: d },
         Action::Reverse { deck: d },
         Action::Tempo { deck: d },
+        Action::TempoFaderMove { deck: d },
         Action::TempoRange { deck: d },
         Action::TempoRangeCycle { deck: d },
         Action::TempoBend {
@@ -37,6 +38,7 @@ fn deck_common(d: usize) -> Vec<Action> {
         Action::DeckSize { deck: d },
         Action::DeckFocus { deck: d },
         Action::DeckType { deck: d },
+        Action::DeckLoaded { deck: d },
         Action::JogTouch { deck: d },
         Action::JogTurn { deck: d },
         Action::Seek { deck: d },
@@ -257,6 +259,7 @@ fn mixer(c: usize) -> Vec<Action> {
         },
         Action::Filter { channel: c },
         Action::MonitorCue { channel: c },
+        Action::ChannelLevel { channel: c },
         Action::FxAssign {
             channel: c,
             unit: 0,
@@ -277,6 +280,7 @@ fn mixer(c: usize) -> Vec<Action> {
         Action::MasterBalance,
         Action::CueVolume,
         Action::CueMix,
+        Action::MixerFxNext,
     ]);
     v
 }
@@ -284,6 +288,7 @@ fn mixer(c: usize) -> Vec<Action> {
 fn fx_unit(u: usize) -> Vec<Action> {
     let mut v = vec![Action::FxOn { unit: u }, Action::FxDryWet { unit: u }];
     v.extend((0..3).map(|knob| Action::FxKnob { unit: u, knob }));
+    v.push(Action::FxTime { unit: u });
     v.extend((0..3).map(|button| Action::FxButton { unit: u, button }));
     v.extend((0..3).map(|slot| Action::FxSelect { unit: u, slot }));
     v.extend([

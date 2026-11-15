@@ -1,8 +1,11 @@
 use backspn_control::pads::{self, KeySlot};
 use backspn_control::{Action, MoveSize, Trigger};
+use backspn_engine::pad_fx;
 use backspn_engine::{Command, DECKS, DeckCommand, EngineState};
 
 use crate::App;
+use crate::controls::PadPanel;
+use crate::deck_view::{PadLabel, PadModeView};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct PadPages {
@@ -88,6 +91,24 @@ impl App {
                 None
             }
             KeySlot::Sync | KeySlot::Empty => None,
+        }
+    }
+
+    /// Shows on each deck what its controller's pads do, while the
+    /// controller has pad modes.
+    pub(crate) fn show_pad_modes(&mut self) {
+        let Some(controls) = &self.controls else {
+            return;
+        };
+        let picked = std::array::from_fn(|d| self.decks[d].pad_mode_pick);
+        for (d, panel) in controls.pad_panels(picked).into_iter().enumerate() {
+            let view = &mut self.decks[d];
+            if let Some(p) = &panel {
+                view.pad_mode_pick =
+                    picked_after(view.pad_mode_pick, view.pad_mode_seen, p.controller_mode);
+                view.pad_mode_seen = Some(p.controller_mode);
+            }
+            view.pad_modes = panel.map(|p| pad_mode_view(p, self.pad_pages[d]));
         }
     }
 
@@ -188,5 +209,154 @@ impl App {
             | Action::KeyboardDelete { .. } => None,
             a => Some((a, trigger)),
         }
+    }
+}
+
+/// The mode picked on screen stays until the controller changes mode.
+fn picked_after(picked: Option<usize>, seen: Option<usize>, controller: usize) -> Option<usize> {
+    picked.filter(|_| seen.is_none_or(|s| s == controller))
+}
+
+/// A controller's pad panel as the deck shows it.
+pub(crate) fn pad_mode_view(panel: PadPanel, pages: PadPages) -> PadModeView {
+    PadModeView {
+        names: panel.names,
+        mode: panel.mode,
+        controller_mode: panel.controller_mode,
+        pads: std::array::from_fn(|i| {
+            panel.pads[i].map_or_else(PadLabel::default, |action| PadLabel {
+                text: pad_label(action, pages),
+                lit: panel.lit[i],
+                hotcue: hotcue_of(action, pages),
+            })
+        }),
+    }
+}
+
+/// The hot cue a pad plays, to show its colour.
+fn hotcue_of(action: Action, pages: PadPages) -> Option<usize> {
+    match action {
+        Action::Hotcue { slot, .. } => Some(slot),
+        Action::KeyboardPad { pad, .. } if pages.key_cue.is_none() => Some(pad),
+        _ => None,
+    }
+}
+
+/// What a pad does, in a word or two.
+fn pad_label(action: Action, pages: PadPages) -> String {
+    let key = |page, pad| match pads::key_slot(page, pad) {
+        KeySlot::Semitone(0) => "0".to_owned(),
+        KeySlot::Semitone(k) => format!("{k:+}"),
+        KeySlot::Up => "▲".to_owned(),
+        KeySlot::Down => "▼".to_owned(),
+        KeySlot::Reset => "RESET".to_owned(),
+        KeySlot::Sync => "SYNC".to_owned(),
+        KeySlot::Empty => String::new(),
+    };
+    match action {
+        Action::Hotcue { slot, .. } => (slot + 1).to_string(),
+        Action::PadFx { bank, pad, .. } => pad_fx::factory(bank, pad)
+            .map_or_else(|| format!("FX {}", pad + 1), |p| p.kind.name().to_owned()),
+        Action::BeatJumpPad { pad, .. } => pads::beat_jump(pages.beat_jump, pad)
+            .map(|(size, forward)| {
+                let arrow = if forward { "▶" } else { "◀" };
+                let beats = size.map_or(MoveSize::FINE.beats().unwrap_or(0.0), f64::abs);
+                format!("{arrow} {}", crate::screen::beats_label(beats))
+            })
+            .unwrap_or_default(),
+        Action::SampleCell { slot, cell, .. } => format!("{}·{}", slot + 1, cell + 1),
+        Action::KeyboardPad { pad, .. } if pages.key_cue.is_none() => (pad + 1).to_string(),
+        Action::KeyboardPad { pad, .. } => key(pages.keyboard, pad),
+        Action::KeyShiftPad { pad, .. } => key(pages.key_shift, pad),
+        Action::LoopSize { beats, .. } => crate::screen::beats_label(beats),
+        a => a.label(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_mode_picked_on_screen_lasts_until_the_controller_switches() {
+        assert_eq!(picked_after(Some(2), Some(0), 0), Some(2));
+        assert_eq!(picked_after(Some(2), None, 0), Some(2));
+        assert_eq!(
+            picked_after(Some(2), Some(0), 5),
+            None,
+            "a mode button pressed"
+        );
+        assert_eq!(picked_after(None, Some(0), 5), None);
+    }
+
+    #[test]
+    fn pads_say_what_they_do() {
+        let pages = PadPages::default();
+        let label = |action| pad_label(action, pages);
+        assert_eq!(label(Action::Hotcue { deck: 0, slot: 2 }), "3");
+        assert_eq!(
+            label(Action::LoopSize {
+                deck: 0,
+                beats: 0.25
+            }),
+            "1/4"
+        );
+        assert_eq!(label(Action::BeatJumpPad { deck: 0, pad: 0 }), "◀ 1");
+        assert_eq!(label(Action::BeatJumpPad { deck: 0, pad: 1 }), "▶ 1");
+        assert_eq!(
+            label(Action::SampleCell {
+                deck: 2,
+                slot: 1,
+                cell: 0
+            }),
+            "2·1"
+        );
+        assert_eq!(label(Action::KeyShiftPad { deck: 0, pad: 3 }), "+7");
+        assert_eq!(
+            label(Action::KeyboardPad { deck: 0, pad: 3 }),
+            "4",
+            "pick a cue first"
+        );
+        let chosen = PadPages {
+            key_cue: Some(0),
+            ..pages
+        };
+        assert_eq!(
+            pad_label(Action::KeyboardPad { deck: 0, pad: 4 }, chosen),
+            "0"
+        );
+        assert_eq!(
+            label(Action::PadFx {
+                deck: 0,
+                bank: 0,
+                pad: 0
+            }),
+            pad_fx::factory(0, 0).unwrap().kind.name(),
+            "the effect on the pad"
+        );
+
+        let panel = PadPanel {
+            names: vec!["HOT CUE".into()],
+            mode: 0,
+            controller_mode: 0,
+            pads: std::array::from_fn(|slot| {
+                (slot < 2).then_some(Action::Hotcue { deck: 0, slot })
+            }),
+            lit: [true, false, false, false, false, false, false, false],
+        };
+        let view = pad_mode_view(panel, pages);
+        assert_eq!(
+            view.pads[0],
+            PadLabel {
+                text: "1".into(),
+                lit: true,
+                hotcue: Some(0)
+            }
+        );
+        assert_eq!(
+            view.pads[5],
+            PadLabel::default(),
+            "a pad with no job stays blank"
+        );
     }
 }

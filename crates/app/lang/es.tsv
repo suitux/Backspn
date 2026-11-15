@@ -939,3 +939,6 @@ Fade out when switched off	Desvanecer al apagar
 Off: the FX button cuts the effect at once. On: it dies away over the fade time.	Desactivado: el botón FX corta el efecto al momento. Activado: se desvanece durante el tiempo de fundido.
 Fade time	Tiempo de fundido
 Set by the MAIN knob on the controller	Lo fija el knob MAIN del controlador
+What this pad does on the controller in this mode	Lo que hace este pad en el controlador en este modo
+The mode the controller is in	El modo en el que está el controlador
+Show the pads of this mode; the controller's mode buttons switch back	Muestra los pads de este modo; los botones de modo del controlador vuelven atrás

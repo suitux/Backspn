@@ -116,6 +116,7 @@ impl Controls {
         if !errors.is_empty() {
             controls.message = Some(format!("Cannot read profiles: {}", errors.join("; ")));
         }
+        controls.refresh_stock_tables();
         for name in controls.set.midi_inputs.clone() {
             controls.connect(&name, ctx);
         }
@@ -249,9 +250,71 @@ impl Controls {
     /// Whether a connected controller sets the main level of `output`, the
     /// audio device playing, with its own MAIN knob.
     pub fn hardware_main(&self, output: &str) -> bool {
-        self.devices
+        let native = self
+            .devices
             .iter()
-            .any(|d| d.connected() && d.hardware_main() && plays_through(output, d.name()))
+            .any(|d| d.connected() && d.hardware_main() && plays_through(output, d.name()));
+        native
+            || self.set.mappings.iter().any(|m| {
+                m.action == Action::HardwareMasterVolume
+                    && m.port.as_deref().is_some_and(|port| {
+                        self.ports.iter().any(|p| p.name == port) && plays_through(output, port)
+                    })
+            })
+    }
+
+    /// What the pads of each deck do on the connected controllers that
+    /// change their pads with mode buttons.
+    /// `picked` shows another mode than the controller's on a deck.
+    pub fn pad_panels(&self, picked: [Option<usize>; DECKS]) -> [Option<PadPanel>; DECKS] {
+        let mut panels: [Option<PadPanel>; DECKS] = std::array::from_fn(|_| None);
+        for device in &self.set.devices {
+            let Some(port) = device.in_port.as_deref() else {
+                continue;
+            };
+            let modes = self
+                .profiles
+                .iter()
+                .find(|p| p.name() == device.name)
+                .and_then(|p| p.pad_modes.as_ref());
+            let Some(modes) = modes.filter(|_| self.ports.iter().any(|p| p.name == port)) else {
+                continue;
+            };
+            let modifiers = self
+                .sources
+                .get(port)
+                .map(|s| s.modifiers)
+                .unwrap_or_default();
+            for side in 0..modes.channels.len() {
+                let Some(panel) = modes.panel(side, &modifiers, &self.set.mappings, port) else {
+                    continue;
+                };
+                let Some(slot) = panel.deck().and_then(|d| panels.get_mut(d)) else {
+                    continue;
+                };
+                if slot.is_some() {
+                    continue;
+                }
+                let deck_mode = panel.mode;
+                let panel = panel
+                    .deck()
+                    .and_then(|d| picked.get(d).copied().flatten())
+                    .and_then(|m| modes.pads(side, m, &self.set.mappings, port))
+                    .unwrap_or(panel);
+                let lit = panel.pads.map(|a| {
+                    a.and_then(|a| backspn_control::output::value(a, &self.shown, &modifiers))
+                        .is_some_and(lit)
+                });
+                *slot = Some(PadPanel {
+                    names: modes.names.clone(),
+                    mode: panel.mode,
+                    controller_mode: deck_mode,
+                    pads: panel.pads,
+                    lit,
+                });
+            }
+        }
+        panels
     }
 
     pub fn send_screens(&self, frames: Vec<Frame>) {
@@ -427,6 +490,9 @@ impl Controls {
             .or_insert_with(|| backspn_control::relative::Source::for_port(source));
         let (shown, set_since) = (&self.shown, &self.set_since);
         let current = |action: Action| {
+            if matches!(action, Action::Tempo { .. }) && shown.tempo_fader_relative {
+                return None;
+            }
             set_since
                 .iter()
                 .rev()
@@ -548,6 +614,7 @@ impl Controls {
         let mut leds = 0;
         let mut skipped = 0;
         let mut tables = Vec::new();
+        let mut imported_ports = Vec::new();
         let mut results: Vec<_> = tsi
             .devices
             .iter()
@@ -569,6 +636,7 @@ impl Controls {
             }
             leds += result.outputs.len();
             self.import_outputs(result.outputs, &device.out_port);
+            imported_ports.push(d.in_port.clone());
             self.set.add_device(d);
             self.manager.selected = Some(manager::Selected::Device(self.set.devices.len() - 1));
             self.manager.row = None;
@@ -581,6 +649,17 @@ impl Controls {
             }
         }
         self.sync_tables();
+        // Imported rows are the user's own, even under a stock model's name.
+        let owners: Vec<_> = self
+            .set
+            .devices
+            .iter()
+            .filter(|d| imported_ports.contains(&d.in_port))
+            .map(|d| backspn_control::table::Owner::Device(d.id))
+            .collect();
+        for owner in &owners {
+            self.set.fork_table(owner);
+        }
         for file in tables {
             let owner = match &file.target {
                 backspn_control::table::For::Native(name) => {
@@ -654,6 +733,26 @@ fn port_changes(
         .cloned()
         .collect();
     (add, gone)
+}
+
+/// The pads of a deck in the mode its controller is in.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PadPanel {
+    pub names: Vec<String>,
+    /// The mode shown.
+    pub mode: usize,
+    /// The mode the controller is in.
+    pub controller_mode: usize,
+    pub pads: [Option<Action>; backspn_control::pad_modes::PADS],
+    pub lit: [bool; backspn_control::pad_modes::PADS],
+}
+
+fn lit(value: backspn_control::output::OutValue) -> bool {
+    use backspn_control::output::OutValue;
+    match value {
+        OutValue::OnOff(on) | OutValue::Pulse(on) => on,
+        OutValue::Number { value, min, .. } => value > min,
+    }
 }
 
 pub(crate) const KEYBOARD: &str = "keyboard";

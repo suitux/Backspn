@@ -2,6 +2,7 @@ use backspn_control::feedback::Feedback;
 use backspn_control::output::{self, OutMapping};
 use std::time::{Duration, Instant};
 
+use backspn_control::modifier::Modifiers;
 use backspn_control::{Action, midi, session};
 
 use super::Controls;
@@ -10,6 +11,7 @@ pub(super) struct Led {
     pub(super) port: midi::Output,
     sent: output::Sender,
     keep_alive: session::KeepAlive,
+    opened: Instant,
 }
 
 impl Controls {
@@ -37,6 +39,7 @@ impl Controls {
                     port,
                     sent: output::Sender::default(),
                     keep_alive: session::KeepAlive::new(Instant::now()),
+                    opened: Instant::now(),
                 });
             }
             Err(e) => self.message = Some(e),
@@ -107,7 +110,7 @@ impl Controls {
                 .find(|m| m.port == led.port.name)
                 .map(|m| m.keep_alive.as_slice())
                 .filter(|m| !m.is_empty());
-            let modifiers = self
+            let mut modifiers = self
                 .sources
                 .get(&led.port.name)
                 .map(|s| s.modifiers)
@@ -128,17 +131,26 @@ impl Controls {
                     o
                 })
                 .collect();
+            if let Some(message) = keep_alive {
+                if led.keep_alive.lapsed(now) {
+                    led.sent.reset();
+                    if let Some(s) = self.sources.get_mut(&led.port.name) {
+                        s.modifiers = Modifiers::default();
+                    }
+                    modifiers = Modifiers::default();
+                }
+                if led.keep_alive.due(now)
+                    && let Err(e) = led.port.send(message)
+                {
+                    log::warn!("MIDI output {}: {e}", led.port.name);
+                }
+            }
+            led.sent.blink = output::blink_lit(now.saturating_duration_since(led.opened));
             for message in led.sent.update(&outputs, feedback, &modifiers, &lit, false) {
                 if let Err(e) = led.port.send(&message) {
                     log::warn!("LED output {}: {e}", led.port.name);
                     break;
                 }
-                led.keep_alive.sent(now);
-            }
-            if let Some(message) = keep_alive.filter(|_| led.keep_alive.due(now))
-                && let Err(e) = led.port.send(message)
-            {
-                log::warn!("MIDI output {}: {e}", led.port.name);
             }
         }
     }
@@ -150,8 +162,24 @@ impl Controls {
     }
 
     pub fn output_due(&self) -> Option<Duration> {
-        let pulse = self.pulses.next_change(Instant::now());
-        [pulse, self.keep_alive_due()].into_iter().flatten().min()
+        let now = Instant::now();
+        let pulse = self.pulses.next_change(now);
+        let blink = self
+            .set
+            .outputs
+            .iter()
+            .any(|o| o.blink)
+            .then(|| {
+                self.leds
+                    .iter()
+                    .map(|l| output::next_blink(now.saturating_duration_since(l.opened)))
+                    .min()
+            })
+            .flatten();
+        [pulse, blink, self.keep_alive_due()]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
     pub(super) fn resend_leds(&mut self) {

@@ -3,6 +3,9 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 
 pub const KEEP_ALIVE: Duration = Duration::from_millis(200);
+/// A gap this long without the keep-alive may have ended the controller's
+/// session: it then shows its own state until the host lights it again.
+pub const LAPSE: Duration = Duration::from_secs(1);
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct PortMessages {
@@ -58,8 +61,10 @@ impl KeepAlive {
         Self { last: now }
     }
 
-    pub fn sent(&mut self, now: Instant) {
-        self.last = now;
+    /// Whether the last keep-alive went out so long ago that the controller
+    /// may have ended the session.
+    pub fn lapsed(&self, now: Instant) -> bool {
+        now.saturating_duration_since(self.last) > LAPSE
     }
 
     pub fn due(&mut self, now: Instant) -> bool {
@@ -98,7 +103,7 @@ mod tests {
     }
 
     #[test]
-    fn connect_then_dump_and_keep_alive_when_idle() {
+    fn connect_then_dump_and_keep_alive_on_time() {
         let m = PortMessages {
             port: "DDJ".into(),
             connect: vec![vec![0x9F, 0x70, 0x00]],
@@ -120,10 +125,10 @@ mod tests {
         let at = |ms| t + Duration::from_millis(ms);
         let mut k = KeepAlive::new(t);
         assert!(!k.due(at(200)));
-        k.sent(at(150));
+        assert!(k.due(at(201)));
         assert!(!k.due(at(300)));
-        assert!(k.due(at(351)));
-        assert!(!k.due(at(400)));
-        assert_eq!(k.next(at(400)), Duration::from_millis(152));
+        assert_eq!(k.next(at(300)), Duration::from_millis(102));
+        assert!(!k.lapsed(at(1201)));
+        assert!(k.lapsed(at(1202)), "the controller may have given up");
     }
 }

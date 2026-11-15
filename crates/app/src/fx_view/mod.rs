@@ -825,8 +825,24 @@ impl FxView {
 }
 
 impl FxView {
+    /// Moves the time, size or rate knob of a Single unit's effect.
+    fn apply_time(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
+        let Action::FxTime { unit } = action else {
+            return false;
+        };
+        let Some(c) = self.units.get(unit) else {
+            return false;
+        };
+        if c.mode == FxMode::Single
+            && let Some(knob) = c.kinds[0].time_knob()
+        {
+            return self.apply(Action::FxKnob { unit, knob }, trigger, out);
+        }
+        true
+    }
+
     pub fn apply(&mut self, action: Action, trigger: Trigger, out: &mut Vec<Command>) -> bool {
-        if self.apply_pattern(action, trigger, out) {
+        if self.apply_pattern(action, trigger, out) || self.apply_time(action, trigger, out) {
             return true;
         }
         let trigger = match (trigger, action) {
@@ -1302,5 +1318,40 @@ mod tests {
             })
             .collect();
         assert_eq!(marked, [EffectKind::Delay]);
+    }
+
+    #[test]
+    fn beat_buttons_move_the_effects_time_knob() {
+        let mut v = FxView::new(48_000, KitLibrary::none());
+        v.selection = vec![EffectKind::Reverb, EffectKind::Echo];
+        let mut out = Vec::new();
+        let time = Action::FxTime { unit: 0 };
+        v.set_mode(0, FxMode::Group, &mut out);
+        assert!(v.apply(time, Trigger::Delta(8.0), &mut out));
+        v.set_mode(0, FxMode::Single, &mut out);
+        v.apply(
+            Action::FxSelect { unit: 0, slot: 0 },
+            Trigger::Delta(1.0),
+            &mut out,
+        );
+        assert_eq!(v.units[0].kinds[0], EffectKind::Reverb);
+        let size = v.units[0].params[2];
+        v.apply(time, Trigger::Delta(8.0), &mut out);
+        assert!(
+            (v.units[0].params[2] - (size + 0.125).min(1.0)).abs() < 1e-6,
+            "SIZE"
+        );
+        v.apply(
+            Action::FxSelect { unit: 0, slot: 0 },
+            Trigger::Delta(1.0),
+            &mut out,
+        );
+        assert_eq!(v.units[0].kinds[0], EffectKind::Echo);
+        let beat = v.units[0].params[0];
+        v.apply(time, Trigger::Delta(-8.0), &mut out);
+        assert!(
+            (v.units[0].params[0] - (beat - 0.125).max(0.0)).abs() < 1e-6,
+            "BEAT"
+        );
     }
 }

@@ -466,6 +466,7 @@ impl App {
         }
         self.follow_hardware_main();
         self.handle_controls(&ctx, &state);
+        self.show_pad_modes();
         self.guard_quit(&ctx, &state);
         self.offer_audio(&ctx);
         self.sample_save_dialogs(&ctx);

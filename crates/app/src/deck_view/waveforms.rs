@@ -104,6 +104,9 @@ impl DeckView {
             if let (Some(start), Some(end)) = (state.loop_start_s, state.loop_end_s) {
                 waveform::loop_region(&painter, rect, window, (start, end), state.loop_active);
             }
+            if let Some(start) = waveform::pending_loop_in(state.loop_start_s, state.loop_end_s) {
+                waveform::loop_in(&painter, rect, window, start);
+            }
             if let Some(freeze) = state.freeze {
                 for at in freeze.bounds_s {
                     let x = waveform::x_of(rect, window, at);
@@ -243,6 +246,10 @@ impl DeckView {
                 let whole = (0.0, state.duration_s);
                 if let (Some(start), Some(end)) = (state.loop_start_s, state.loop_end_s) {
                     waveform::loop_region(&painter, rect, whole, (start, end), state.loop_active);
+                }
+                if let Some(start) = waveform::pending_loop_in(state.loop_start_s, state.loop_end_s)
+                {
+                    waveform::loop_in(&painter, rect, whole, start);
                 }
                 if style.mode == waveform::WaveMode::Spectrum {
                     let key = OverviewKey {
